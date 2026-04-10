@@ -13,6 +13,8 @@ export { loadConfig, findScenario } from './config/loader.js';
 export { ConfigSchema } from './config/schema.js';
 export type { Config, Scenario } from './config/schema.js';
 export type { Logger } from './pipeline/annotator.js';
+export { detectRegressions, compareReports, loadReport } from './pipeline/regression.js';
+export type { RegressionResult, RegressionChange, Report } from './pipeline/regression.js';
 
 export interface RecordResult {
   success: boolean;

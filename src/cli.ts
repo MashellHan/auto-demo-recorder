@@ -6,6 +6,7 @@ import { writeFile } from 'node:fs/promises';
 import { loadConfig, findScenario } from './config/loader.js';
 import { record } from './index.js';
 import { startMcpServer } from './mcp/server.js';
+import { detectRegressions } from './pipeline/regression.js';
 import type { Config, Scenario, Step } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -189,6 +190,44 @@ scenarios:
       await writeFile(targetPath, template, 'utf-8');
       console.log('\u2713 Created demo-recorder.yaml');
       console.log('  Edit the file to configure your project and scenarios.');
+    });
+
+  program
+    .command('diff')
+    .description('Compare two recording reports for regressions')
+    .argument('<baseline>', 'Path to baseline report.json')
+    .argument('<current>', 'Path to current report.json')
+    .action(async (baselinePath: string, currentPath: string) => {
+      try {
+        const result = await detectRegressions(
+          resolve(process.cwd(), baselinePath),
+          resolve(process.cwd(), currentPath),
+        );
+
+        console.log(`Regression report: ${result.scenario}`);
+        console.log(`  Baseline: ${result.baseline_timestamp}`);
+        console.log(`  Current:  ${result.current_timestamp}`);
+        console.log('');
+
+        if (result.changes.length === 0) {
+          console.log('  No changes detected.');
+        } else {
+          for (const change of result.changes) {
+            const icon = change.severity === 'critical' ? '\u2717' : change.severity === 'warning' ? '!' : '\u2713';
+            console.log(`  ${icon} [${change.severity.toUpperCase()}] ${change.description}`);
+          }
+        }
+
+        console.log('');
+        console.log(`Summary: ${result.summary}`);
+
+        if (result.has_regressions) {
+          process.exit(1);
+        }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
     });
 
   program

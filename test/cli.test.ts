@@ -255,3 +255,61 @@ describe('serve command', () => {
     expect(startMcpServer).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('diff command', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = join(tmpdir(), `cli-test-diff-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  it('reports no changes for identical reports', async () => {
+    const report = {
+      project: 'test',
+      scenario: 'basic',
+      timestamp: '2026-04-11T00:00:00.000Z',
+      duration_seconds: 10,
+      total_frames_analyzed: 1,
+      overall_status: 'ok',
+      frames: [{
+        index: 0, timestamp: '0:00', status: 'ok', description: 'test',
+        feature_being_demonstrated: 'nav', bugs_detected: [],
+        visual_quality: 'good', annotation_text: 'test',
+      }],
+      summary: 'test',
+      bugs_found: 0,
+    };
+
+    const baselinePath = join(tempDir, 'baseline.json');
+    const currentPath = join(tempDir, 'current.json');
+    await writeFile(baselinePath, JSON.stringify(report));
+    await writeFile(currentPath, JSON.stringify(report));
+
+    const origCwd = process.cwd();
+    process.chdir(tempDir);
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'diff', 'baseline.json', 'current.json']);
+    } catch {
+      // may throw
+    }
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('No changes detected');
+
+    consoleSpy.mockRestore();
+    process.chdir(origCwd);
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('has diff command registered', () => {
+    const cli = createCli();
+    const commandNames = cli.commands.map((c) => c.name());
+    expect(commandNames).toContain('diff');
+  });
+});
