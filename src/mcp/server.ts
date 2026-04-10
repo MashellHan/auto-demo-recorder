@@ -56,6 +56,12 @@ export async function startMcpServer(): Promise<void> {
               },
               required: ['command'],
             },
+            format: {
+              type: 'string',
+              enum: ['mp4', 'gif'],
+              default: 'mp4',
+              description: 'Output format: mp4 or gif',
+            },
             annotate: {
               type: 'boolean',
               default: true,
@@ -82,6 +88,7 @@ export async function startMcpServer(): Promise<void> {
         width?: number;
         height?: number;
       };
+      format?: 'mp4' | 'gif';
       annotate?: boolean;
     };
 
@@ -90,6 +97,7 @@ export async function startMcpServer(): Promise<void> {
         const result = await handleAdhocMcp({
           project_dir: args.project_dir,
           adhoc: args.adhoc,
+          format: args.format,
           annotate: args.annotate,
         });
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
@@ -98,6 +106,9 @@ export async function startMcpServer(): Promise<void> {
       const config = await loadConfig(resolve(args.project_dir, 'demo-recorder.yaml'));
       if (args.annotate === false) {
         config.annotation.enabled = false;
+      }
+      if (args.format === 'gif') {
+        config.recording.format = 'gif';
       }
 
       const scenarios = args.scenario
@@ -157,6 +168,7 @@ async function handleAdhocMcp(args: {
     width?: number;
     height?: number;
   };
+  format?: 'mp4' | 'gif';
   annotate?: boolean;
 }) {
   const steps: Step[] = [
@@ -178,6 +190,7 @@ async function handleAdhocMcp(args: {
       theme: 'Catppuccin Mocha',
       fps: 25,
       max_duration: 60,
+      format: args.format === 'gif' ? 'gif' : 'mp4',
     },
     output: { dir: '.demo-recordings', keep_raw: true, keep_frames: false },
     annotation: {

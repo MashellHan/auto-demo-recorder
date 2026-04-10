@@ -22,6 +22,7 @@ export function createCli(): Command {
     .option('-c, --config <path>', 'Path to demo-recorder.yaml')
     .option('-s, --scenario <name>', 'Scenario name to record')
     .option('--no-annotate', 'Skip AI annotation')
+    .option('--format <format>', 'Output format: mp4 or gif', 'mp4')
     .option('--adhoc', 'Ad-hoc recording mode (no config file needed)')
     .option('--command <cmd>', 'Command to run (used with --adhoc)')
     .option('--steps <steps>', 'Comma-separated steps: j,k,Enter,sleep:2s,q (used with --adhoc)')
@@ -38,6 +39,9 @@ export function createCli(): Command {
 
         if (opts.annotate === false) {
           config.annotation.enabled = false;
+        }
+        if (opts.format === 'gif') {
+          config.recording.format = 'gif';
         }
 
         const projectDir = process.cwd();
@@ -216,6 +220,7 @@ async function handleAdhocRecord(opts: {
   steps?: string;
   width: string;
   height: string;
+  format: string;
   annotate: boolean;
 }): Promise<void> {
   if (!opts.command) {
@@ -241,6 +246,7 @@ async function handleAdhocRecord(opts: {
       theme: 'Catppuccin Mocha',
       fps: 25,
       max_duration: 60,
+      format: opts.format === 'gif' ? 'gif' : 'mp4',
     },
     output: {
       dir: '.demo-recordings',

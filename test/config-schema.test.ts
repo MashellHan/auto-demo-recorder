@@ -102,4 +102,32 @@ describe('ConfigSchema', () => {
     const config = ConfigSchema.parse(raw);
     expect(config.scenarios[0].setup).toEqual(['cmd1', 'cmd2']);
   });
+
+  it('defaults format to mp4', () => {
+    const raw = {
+      project: { name: 'test' },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.recording.format).toBe('mp4');
+  });
+
+  it('accepts gif format', () => {
+    const raw = {
+      project: { name: 'test' },
+      recording: { format: 'gif' },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.recording.format).toBe('gif');
+  });
+
+  it('rejects invalid format', () => {
+    const raw = {
+      project: { name: 'test' },
+      recording: { format: 'avi' },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+    };
+    expect(() => ConfigSchema.parse(raw)).toThrow();
+  });
 });

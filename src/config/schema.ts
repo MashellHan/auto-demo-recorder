@@ -28,6 +28,7 @@ const RecordingSchema = z.object({
   theme: z.string().default('Catppuccin Mocha'),
   fps: z.number().default(25),
   max_duration: z.number().default(60),
+  format: z.enum(['mp4', 'gif']).default('mp4'),
 });
 
 const OutputSchema = z.object({

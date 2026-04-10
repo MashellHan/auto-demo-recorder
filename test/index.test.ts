@@ -184,4 +184,43 @@ describe('record', () => {
     expect(reportData.scenario).toBe('basic');
     expect(reportData.overall_status).toBe('ok');
   });
+
+  it('uses .gif extension when format is gif', async () => {
+    const gifConfig = {
+      ...baseConfig,
+      recording: { ...baseConfig.recording, format: 'gif' as const },
+    };
+
+    const result = await record({
+      config: gifConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+    });
+
+    expect(result.videoPath).toContain('raw.gif');
+    expect(result.rawVideoPath).toContain('raw.gif');
+  });
+
+  it('skips post-processing overlay for gif format', async () => {
+    const { postProcess } = await import('../src/pipeline/post-processor.js');
+    const { extractFrames } = await import('../src/pipeline/frame-extractor.js');
+    const { annotateFrames } = await import('../src/pipeline/annotator.js');
+
+    const gifConfig = {
+      ...baseConfig,
+      recording: { ...baseConfig.recording, format: 'gif' as const },
+    };
+
+    await record({
+      config: gifConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+    });
+
+    // Frames should still be extracted and annotated
+    expect(extractFrames).toHaveBeenCalled();
+    expect(annotateFrames).toHaveBeenCalled();
+    // But post-processing overlay should be skipped for GIF
+    expect(postProcess).not.toHaveBeenCalled();
+  });
 });

@@ -42,9 +42,10 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
   const outputBase = resolve(projectDir, config.output.dir, timestamp, scenario.name);
   await mkdir(outputBase, { recursive: true });
 
+  const ext = config.recording.format === 'gif' ? 'gif' : 'mp4';
   const paths = {
-    rawVideo: join(outputBase, 'raw.mp4'),
-    annotatedVideo: join(outputBase, 'annotated.mp4'),
+    rawVideo: join(outputBase, `raw.${ext}`),
+    annotatedVideo: join(outputBase, `annotated.${ext}`),
     thumbnail: join(outputBase, 'thumbnail.png'),
     report: join(outputBase, 'report.json'),
     frames: join(outputBase, 'frames'),
@@ -55,13 +56,14 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
   const durationSeconds = await buildAndRecord(config, scenario, paths, projectDir);
 
   const annotationResult = config.annotation.enabled
-    ? await runAnnotationPipeline(config, scenario, paths)
+    ? await runAnnotationPipeline(config, scenario, paths, config.recording.format === 'gif')
     : null;
 
   await writeReport(paths.report, config.project.name, scenario.name, durationSeconds, annotationResult);
   await updateLatestSymlink(projectDir, config.output.dir, timestamp);
 
-  const result = buildResult(paths, config.annotation.enabled, durationSeconds, annotationResult);
+  const hasAnnotatedVideo = config.annotation.enabled && config.recording.format !== 'gif';
+  const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult);
   printSummary(result);
   return result;
 }
@@ -93,7 +95,7 @@ async function buildAndRecord(config: Config, scenario: Scenario, paths: RecordP
   return durationSeconds;
 }
 
-async function runAnnotationPipeline(config: Config, scenario: Scenario, paths: RecordPaths) {
+async function runAnnotationPipeline(config: Config, scenario: Scenario, paths: RecordPaths, skipOverlay: boolean = false) {
   const extraction = await extractFrames(paths.rawVideo, paths.frames, config.annotation.extract_fps);
   console.log(`  \u2713 Frames extracted (${extraction.frameCount} frames)`);
 
@@ -107,16 +109,20 @@ async function runAnnotationPipeline(config: Config, scenario: Scenario, paths: 
   );
   console.log('  \u2713 AI annotation complete');
 
-  await postProcess({
-    inputVideo: paths.rawVideo,
-    outputVideo: paths.annotatedVideo,
-    thumbnailPath: paths.thumbnail,
-    frames: annotationResult.frames,
-    overlayFontSize: config.annotation.overlay_font_size,
-    overlayPosition: config.annotation.overlay_position,
-    extractFps: config.annotation.extract_fps,
-  });
-  console.log('  \u2713 Video annotated');
+  if (skipOverlay) {
+    console.log('  (GIF format: skipping overlay, annotations in report only)');
+  } else {
+    await postProcess({
+      inputVideo: paths.rawVideo,
+      outputVideo: paths.annotatedVideo,
+      thumbnailPath: paths.thumbnail,
+      frames: annotationResult.frames,
+      overlayFontSize: config.annotation.overlay_font_size,
+      overlayPosition: config.annotation.overlay_position,
+      extractFps: config.annotation.extract_fps,
+    });
+    console.log('  \u2713 Video annotated');
+  }
 
   if (!config.output.keep_frames) {
     await rm(paths.frames, { recursive: true, force: true });
