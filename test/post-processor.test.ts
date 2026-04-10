@@ -110,4 +110,132 @@ describe('postProcess', () => {
     );
     expect(vfArg).toContain('y=0');
   });
+
+  it('includes status dot indicators', async () => {
+    const { execFile } = await import('node:child_process');
+
+    await postProcess({
+      inputVideo: '/tmp/raw.mp4',
+      outputVideo: '/tmp/annotated.mp4',
+      thumbnailPath: '/tmp/thumb.png',
+      frames,
+      overlayFontSize: 14,
+      overlayPosition: 'bottom',
+      extractFps: 1,
+    });
+
+    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+      a.includes('\u25cf'),
+    );
+    expect(vfArg).toBeDefined();
+    // All frames are 'ok' status, so dot should be green
+    expect(vfArg).toContain('fontcolor=green');
+  });
+
+  it('uses red dot for error status frames', async () => {
+    const { execFile } = await import('node:child_process');
+    const errorFrames: FrameAnalysis[] = [
+      { ...frames[0], status: 'error', bugs_detected: ['UI glitch'] },
+    ];
+
+    await postProcess({
+      inputVideo: '/tmp/raw.mp4',
+      outputVideo: '/tmp/annotated.mp4',
+      thumbnailPath: '/tmp/thumb.png',
+      frames: errorFrames,
+      overlayFontSize: 14,
+      overlayPosition: 'bottom',
+      extractFps: 1,
+    });
+
+    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+      a.includes('\u25cf'),
+    );
+    expect(vfArg).toContain('fontcolor=red');
+  });
+
+  it('uses yellow dot for warning status frames', async () => {
+    const { execFile } = await import('node:child_process');
+    const warningFrames: FrameAnalysis[] = [
+      { ...frames[0], status: 'warning' },
+    ];
+
+    await postProcess({
+      inputVideo: '/tmp/raw.mp4',
+      outputVideo: '/tmp/annotated.mp4',
+      thumbnailPath: '/tmp/thumb.png',
+      frames: warningFrames,
+      overlayFontSize: 14,
+      overlayPosition: 'bottom',
+      extractFps: 1,
+    });
+
+    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+      a.includes('\u25cf'),
+    );
+    expect(vfArg).toContain('fontcolor=yellow');
+  });
+
+  it('adds red border for bug frames', async () => {
+    const { execFile } = await import('node:child_process');
+    const bugFrames: FrameAnalysis[] = [
+      { ...frames[0], status: 'error', bugs_detected: ['layout overflow'] },
+      frames[1],
+    ];
+
+    await postProcess({
+      inputVideo: '/tmp/raw.mp4',
+      outputVideo: '/tmp/annotated.mp4',
+      thumbnailPath: '/tmp/thumb.png',
+      frames: bugFrames,
+      overlayFontSize: 14,
+      overlayPosition: 'bottom',
+      extractFps: 1,
+    });
+
+    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+      a.includes('color=red@0.5'),
+    );
+    expect(vfArg).toBeDefined();
+    expect(vfArg).toContain('t=4');
+  });
+
+  it('does not add border for ok frames with no bugs', async () => {
+    const { execFile } = await import('node:child_process');
+
+    await postProcess({
+      inputVideo: '/tmp/raw.mp4',
+      outputVideo: '/tmp/annotated.mp4',
+      thumbnailPath: '/tmp/thumb.png',
+      frames,
+      overlayFontSize: 14,
+      overlayPosition: 'bottom',
+      extractFps: 1,
+    });
+
+    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+      a.includes('color=red@0.5'),
+    );
+    expect(vfArg).toBeUndefined();
+  });
+
+  it('includes fade transitions in drawtext', async () => {
+    const { execFile } = await import('node:child_process');
+
+    await postProcess({
+      inputVideo: '/tmp/raw.mp4',
+      outputVideo: '/tmp/annotated.mp4',
+      thumbnailPath: '/tmp/thumb.png',
+      frames: [frames[0]],
+      overlayFontSize: 14,
+      overlayPosition: 'bottom',
+      extractFps: 1,
+    });
+
+    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+      a.includes('alpha='),
+    );
+    expect(vfArg).toBeDefined();
+    expect(vfArg).toContain('0.3');
+  });
 });

@@ -15,10 +15,12 @@ export async function postProcess(options: PostProcessOptions): Promise<void> {
   const { inputVideo, outputVideo, thumbnailPath, frames, overlayFontSize, overlayPosition, extractFps } =
     options;
 
-  // Build drawtext filter chain from frame annotations
-  const drawFilters = buildDrawTextFilters(frames, overlayFontSize, overlayPosition, extractFps);
+  // Build filter chain
   const barFilter = buildBarFilter(overlayPosition);
-  const vf = [barFilter, ...drawFilters].join(',');
+  const drawFilters = buildDrawTextFilters(frames, overlayFontSize, overlayPosition, extractFps);
+  const statusDotFilters = buildStatusDotFilters(frames, extractFps);
+  const bugBorderFilters = buildBugBorderFilters(frames, extractFps);
+  const vf = [barFilter, ...drawFilters, ...statusDotFilters, ...bugBorderFilters].join(',');
 
   // Overlay annotations
   await runFfmpeg(['-i', inputVideo, '-vf', vf, '-codec:a', 'copy', '-y', outputVideo]);
@@ -51,8 +53,11 @@ function buildDrawTextFilters(
     const startTime = group.startIndex / extractFps;
     const endTime = (group.endIndex + 1) / extractFps;
 
+    const fadeDuration = 0.3;
+    const fadeAlpha = `alpha='if(lt(t-${startTime}\\,${fadeDuration})\\,(t-${startTime})/${fadeDuration}\\,if(lt(${endTime}-t\\,${fadeDuration})\\,(${endTime}-t)/${fadeDuration}\\,1))'`;
+
     filters.push(
-      `drawtext=text='${text}':fontcolor=white:fontsize=${fontSize}:x=(w-text_w)/2:y=${y}:enable='between(t\\,${startTime}\\,${endTime})'`,
+      `drawtext=text='${text}':fontcolor=white:fontsize=${fontSize}:x=(w-text_w)/2:y=${y}:${fadeAlpha}:enable='between(t\\,${startTime}\\,${endTime})'`,
     );
   }
 
@@ -63,6 +68,71 @@ interface FrameGroup {
   text: string;
   startIndex: number;
   endIndex: number;
+}
+
+function statusColor(status: string): string {
+  switch (status) {
+    case 'error': return 'red';
+    case 'warning': return 'yellow';
+    default: return 'green';
+  }
+}
+
+function buildStatusDotFilters(frames: FrameAnalysis[], extractFps: number): string[] {
+  const filters: string[] = [];
+  const groups = groupFramesByStatus(frames);
+
+  for (const group of groups) {
+    const startTime = group.startIndex / extractFps;
+    const endTime = (group.endIndex + 1) / extractFps;
+    const color = statusColor(group.status);
+
+    filters.push(
+      `drawtext=text='\u25cf':fontcolor=${color}:fontsize=24:x=w-30:y=10:enable='between(t\\,${startTime}\\,${endTime})'`,
+    );
+  }
+
+  return filters;
+}
+
+function buildBugBorderFilters(frames: FrameAnalysis[], extractFps: number): string[] {
+  const filters: string[] = [];
+
+  for (const frame of frames) {
+    if (frame.status !== 'error' && frame.bugs_detected.length === 0) continue;
+
+    const startTime = frame.index / extractFps;
+    const endTime = (frame.index + 1) / extractFps;
+
+    filters.push(
+      `drawbox=x=0:y=0:w=iw:h=ih:color=red@0.5:t=4:enable='between(t\\,${startTime}\\,${endTime})'`,
+    );
+  }
+
+  return filters;
+}
+
+interface StatusGroup {
+  status: string;
+  startIndex: number;
+  endIndex: number;
+}
+
+function groupFramesByStatus(frames: FrameAnalysis[]): StatusGroup[] {
+  const groups: StatusGroup[] = [];
+  let current: StatusGroup | null = null;
+
+  for (const frame of frames) {
+    if (current && current.status === frame.status) {
+      current.endIndex = frame.index;
+    } else {
+      if (current) groups.push(current);
+      current = { status: frame.status, startIndex: frame.index, endIndex: frame.index };
+    }
+  }
+  if (current) groups.push(current);
+
+  return groups;
 }
 
 function groupFramesByAnnotation(frames: FrameAnalysis[]): FrameGroup[] {
