@@ -1,4 +1,6 @@
 import { mkdir, writeFile, symlink, unlink, rm } from 'node:fs/promises';
+import { execFile as execFileCb } from 'node:child_process';
+import { promisify } from 'node:util';
 import { resolve, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import type { Config, Scenario } from './config/schema.js';
@@ -60,8 +62,9 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
   // 2. Build project if needed
   if (config.project.build_command) {
     console.log(`  Building: ${config.project.build_command}`);
-    const { execSync } = await import('node:child_process');
-    execSync(config.project.build_command, { cwd: projectDir, stdio: 'inherit' });
+    const execFileAsync = promisify(execFileCb);
+    const [cmd, ...args] = config.project.build_command.split(/\s+/);
+    await execFileAsync(cmd, args, { cwd: projectDir });
     console.log('  \u2713 Build complete');
   }
 
@@ -95,6 +98,7 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
       frames: annotationResult.frames,
       overlayFontSize: config.annotation.overlay_font_size,
       overlayPosition: config.annotation.overlay_position,
+      extractFps: config.annotation.extract_fps,
     });
     console.log('  \u2713 Video annotated');
 

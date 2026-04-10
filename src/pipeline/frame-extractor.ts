@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readdir } from 'node:fs/promises';
 
 export interface ExtractFramesResult {
   framesDir: string;
@@ -31,7 +31,6 @@ export async function extractFrames(
   });
 
   // Count extracted frames
-  const { readdir } = await import('node:fs/promises');
   const files = await readdir(outputDir);
   const frameCount = files.filter((f) => f.startsWith('frame-') && f.endsWith('.png')).length;
 

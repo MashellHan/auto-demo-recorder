@@ -1,6 +1,12 @@
 import { Command } from 'commander';
+import { readdir, readFile, stat } from 'node:fs/promises';
+import { resolve, join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import { loadConfig, findScenario } from './config/loader.js';
 import { record } from './index.js';
+import { startMcpServer } from './mcp/server.js';
+import type { Config, Scenario, Step } from './config/schema.js';
 
 export function createCli(): Command {
   const program = new Command();
@@ -16,8 +22,18 @@ export function createCli(): Command {
     .option('-c, --config <path>', 'Path to demo-recorder.yaml')
     .option('-s, --scenario <name>', 'Scenario name to record')
     .option('--no-annotate', 'Skip AI annotation')
+    .option('--adhoc', 'Ad-hoc recording mode (no config file needed)')
+    .option('--command <cmd>', 'Command to run (used with --adhoc)')
+    .option('--steps <steps>', 'Comma-separated steps: j,k,Enter,sleep:2s,q (used with --adhoc)')
+    .option('--width <n>', 'Terminal width (used with --adhoc)', '1200')
+    .option('--height <n>', 'Terminal height (used with --adhoc)', '800')
     .action(async (opts) => {
       try {
+        if (opts.adhoc) {
+          await handleAdhocRecord(opts);
+          return;
+        }
+
         const config = await loadConfig(opts.config);
 
         if (opts.annotate === false) {
@@ -65,7 +81,7 @@ export function createCli(): Command {
     .action(async (opts) => {
       try {
         const config = await loadConfig(opts.config);
-        console.log(`\u2713 Config valid`);
+        console.log('\u2713 Config valid');
         console.log(`  Project: ${config.project.name}`);
         console.log(`  Scenarios: ${config.scenarios.length}`);
         console.log(`  Recording: ${config.recording.width}x${config.recording.height}`);
@@ -76,5 +92,185 @@ export function createCli(): Command {
       }
     });
 
+  program
+    .command('last')
+    .description('Show last recording info')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const latestLink = join(outputDir, 'latest');
+
+        if (!existsSync(latestLink)) {
+          console.log('No recordings found.');
+          return;
+        }
+
+        const latestDir = await readFile(latestLink, 'utf-8').catch(() => null);
+        const targetDir = existsSync(latestLink) ? latestLink : null;
+
+        if (!targetDir) {
+          console.log('No recordings found.');
+          return;
+        }
+
+        const entries = await readdir(latestLink);
+        console.log('Last recording:');
+        console.log(`  Directory: ${latestLink}`);
+
+        for (const entry of entries) {
+          const reportPath = join(latestLink, entry, 'report.json');
+          if (existsSync(reportPath)) {
+            const report = JSON.parse(await readFile(reportPath, 'utf-8'));
+            console.log(`  Scenario: ${report.scenario}`);
+            console.log(`    Status: ${report.overall_status}`);
+            console.log(`    Frames: ${report.total_frames_analyzed}`);
+            console.log(`    Bugs: ${report.bugs_found}`);
+            console.log(`    Duration: ${report.duration_seconds?.toFixed(1)}s`);
+          }
+        }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('init')
+    .description('Generate a demo-recorder.yaml template in the current directory')
+    .action(async () => {
+      const targetPath = resolve(process.cwd(), 'demo-recorder.yaml');
+      if (existsSync(targetPath)) {
+        console.error('demo-recorder.yaml already exists in this directory.');
+        process.exit(1);
+      }
+
+      const template = `project:
+  name: my-project
+  description: "My CLI/TUI project"
+  # build_command: "make build"
+  # binary: "./my-project"
+
+recording:
+  width: 1200
+  height: 800
+  font_size: 16
+  theme: "Catppuccin Mocha"
+  fps: 25
+  max_duration: 60
+
+output:
+  dir: ".demo-recordings"
+  keep_raw: true
+  keep_frames: false
+
+annotation:
+  enabled: true
+  model: "claude-sonnet-4-6"
+  extract_fps: 1
+  language: "en"
+  overlay_position: "bottom"
+  overlay_font_size: 14
+
+scenarios:
+  - name: "basic"
+    description: "Basic interaction demo"
+    setup: []
+    steps:
+      - { action: "type", value: "./my-project", pause: "2s" }
+      - { action: "key", value: "q", pause: "500ms" }
+`;
+
+      await writeFile(targetPath, template, 'utf-8');
+      console.log('\u2713 Created demo-recorder.yaml');
+      console.log('  Edit the file to configure your project and scenarios.');
+    });
+
+  program
+    .command('serve')
+    .description('Start MCP server for agent integration')
+    .action(async () => {
+      try {
+        await startMcpServer();
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
   return program;
+}
+
+function parseAdhocSteps(stepsStr: string): Step[] {
+  return stepsStr.split(',').map((token) => {
+    const trimmed = token.trim();
+    if (trimmed.startsWith('sleep:')) {
+      return { action: 'sleep' as const, value: trimmed.slice(6), pause: '0ms' };
+    }
+    if (['enter', 'tab', 'escape', 'esc', 'backspace', 'up', 'down', 'left', 'right', 'space'].includes(trimmed.toLowerCase())) {
+      return { action: 'key' as const, value: trimmed, pause: '500ms' };
+    }
+    if (trimmed.length === 1) {
+      return { action: 'key' as const, value: trimmed, pause: '500ms' };
+    }
+    return { action: 'type' as const, value: trimmed, pause: '500ms' };
+  });
+}
+
+async function handleAdhocRecord(opts: {
+  command?: string;
+  steps?: string;
+  width: string;
+  height: string;
+  annotate: boolean;
+}): Promise<void> {
+  if (!opts.command) {
+    throw new Error('--command is required with --adhoc mode');
+  }
+
+  const steps: Step[] = [];
+  steps.push({ action: 'type', value: opts.command, pause: '2s' });
+
+  if (opts.steps) {
+    steps.push(...parseAdhocSteps(opts.steps));
+  }
+
+  const config: Config = {
+    project: {
+      name: 'adhoc-recording',
+      description: 'Ad-hoc recording session',
+    },
+    recording: {
+      width: parseInt(opts.width, 10),
+      height: parseInt(opts.height, 10),
+      font_size: 16,
+      theme: 'Catppuccin Mocha',
+      fps: 25,
+      max_duration: 60,
+    },
+    output: {
+      dir: '.demo-recordings',
+      keep_raw: true,
+      keep_frames: false,
+    },
+    annotation: {
+      enabled: opts.annotate !== false,
+      model: 'claude-sonnet-4-6',
+      extract_fps: 1,
+      language: 'en',
+      overlay_position: 'bottom',
+      overlay_font_size: 14,
+    },
+    scenarios: [],
+  };
+
+  const scenario: Scenario = {
+    name: 'adhoc',
+    description: `Ad-hoc recording: ${opts.command}`,
+    setup: [],
+    steps,
+  };
+
+  await record({ config, scenario, projectDir: process.cwd() });
 }

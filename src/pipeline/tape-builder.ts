@@ -46,7 +46,7 @@ export function buildTape(options: TapeBuildOptions): string {
           break;
         case 'sleep':
           lines.push(`Sleep ${step.value}`);
-          break;
+          continue; // sleep action uses value as duration, skip the default pause
       }
       lines.push(`Sleep ${step.pause}`);
     }

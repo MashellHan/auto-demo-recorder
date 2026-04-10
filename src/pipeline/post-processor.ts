@@ -8,14 +8,15 @@ export interface PostProcessOptions {
   frames: FrameAnalysis[];
   overlayFontSize: number;
   overlayPosition: 'top' | 'bottom';
+  extractFps: number;
 }
 
 export async function postProcess(options: PostProcessOptions): Promise<void> {
-  const { inputVideo, outputVideo, thumbnailPath, frames, overlayFontSize, overlayPosition } =
+  const { inputVideo, outputVideo, thumbnailPath, frames, overlayFontSize, overlayPosition, extractFps } =
     options;
 
   // Build drawtext filter chain from frame annotations
-  const drawFilters = buildDrawTextFilters(frames, overlayFontSize, overlayPosition);
+  const drawFilters = buildDrawTextFilters(frames, overlayFontSize, overlayPosition, extractFps);
   const barFilter = buildBarFilter(overlayPosition);
   const vf = [barFilter, ...drawFilters].join(',');
 
@@ -35,6 +36,7 @@ function buildDrawTextFilters(
   frames: FrameAnalysis[],
   fontSize: number,
   position: 'top' | 'bottom',
+  extractFps: number,
 ): string[] {
   const filters: string[] = [];
   const y = position === 'bottom' ? 'h-35' : '15';
@@ -46,8 +48,8 @@ function buildDrawTextFilters(
     const text = escapeFfmpegText(group.text);
     if (!text) continue;
 
-    const startTime = group.startIndex;
-    const endTime = group.endIndex + 1;
+    const startTime = group.startIndex / extractFps;
+    const endTime = (group.endIndex + 1) / extractFps;
 
     filters.push(
       `drawtext=text='${text}':fontcolor=white:fontsize=${fontSize}:x=(w-text_w)/2:y=${y}:enable='between(t\\,${startTime}\\,${endTime})'`,

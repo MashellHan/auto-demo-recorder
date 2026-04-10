@@ -29,6 +29,12 @@ export async function annotateFrames(
   scenarioDescription: string,
   config: AnnotationConfig,
 ): Promise<AnnotationResult> {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error(
+      'ANTHROPIC_API_KEY environment variable is required for AI annotation. ' +
+      'Set it with: export ANTHROPIC_API_KEY=sk-...',
+    );
+  }
   const client = new Anthropic();
   const frames: FrameAnalysis[] = [];
 
@@ -36,7 +42,8 @@ export async function annotateFrames(
     const framePath = resolve(framesDir, `frame-${String(i).padStart(3, '0')}.png`);
     const imageData = await readFile(framePath);
     const base64 = imageData.toString('base64');
-    const timestamp = `${Math.floor((i - 1) / 60)}:${String((i - 1) % 60).padStart(2, '0')}`;
+    const seconds = (i - 1) / config.extract_fps;
+    const timestamp = `${Math.floor(seconds / 60)}:${String(Math.floor(seconds) % 60).padStart(2, '0')}`;
 
     const prompt = `You are analyzing a screenshot from a terminal TUI application called "${projectName}".
 This is frame ${i} of ${frameCount} (timestamp: ${timestamp}).
@@ -55,22 +62,24 @@ Analyze the screenshot and provide a JSON response (no markdown fences, just raw
   "annotation_text": "Short text (< 50 chars) to overlay on this frame"
 }`;
 
-    const response = await client.messages.create({
-      model: config.model,
-      max_tokens: 500,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: 'image/png', data: base64 },
-            },
-            { type: 'text', text: prompt },
-          ],
-        },
-      ],
-    });
+    const response = await retryWithBackoff(() =>
+      client.messages.create({
+        model: config.model,
+        max_tokens: 500,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: 'image/png', data: base64 },
+              },
+              { type: 'text', text: prompt },
+            ],
+          },
+        ],
+      }),
+    );
 
     const text = response.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
@@ -131,4 +140,22 @@ function buildSummary(frames: FrameAnalysis[]): string {
     summary += ' No bugs detected.';
   }
   return summary;
+}
+
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 1000,
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt === maxRetries) throw error;
+      const delay = baseDelayMs * Math.pow(2, attempt);
+      console.warn(`  Retry ${attempt + 1}/${maxRetries} in ${delay}ms...`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw new Error('Unreachable');
 }
