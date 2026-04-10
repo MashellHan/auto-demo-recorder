@@ -202,29 +202,32 @@ scenarios:
     .description('Compare two recording reports for regressions')
     .argument('<baseline>', 'Path to baseline report.json')
     .argument('<current>', 'Path to current report.json')
-    .action(async (baselinePath: string, currentPath: string) => {
+    .option('-q, --quiet', 'Only output exit code (1 if regressions)')
+    .action(async (baselinePath: string, currentPath: string, opts: { quiet?: boolean }) => {
       try {
         const result = await detectRegressions(
           resolve(process.cwd(), baselinePath),
           resolve(process.cwd(), currentPath),
         );
 
-        console.log(`Regression report: ${result.scenario}`);
-        console.log(`  Baseline: ${result.baseline_timestamp}`);
-        console.log(`  Current:  ${result.current_timestamp}`);
-        console.log('');
+        if (!opts.quiet) {
+          console.log(`Regression report: ${result.scenario}`);
+          console.log(`  Baseline: ${result.baseline_timestamp}`);
+          console.log(`  Current:  ${result.current_timestamp}`);
+          console.log('');
 
-        if (result.changes.length === 0) {
-          console.log('  No changes detected.');
-        } else {
-          for (const change of result.changes) {
-            const icon = change.severity === 'critical' ? '\u2717' : change.severity === 'warning' ? '!' : '\u2713';
-            console.log(`  ${icon} [${change.severity.toUpperCase()}] ${change.description}`);
+          if (result.changes.length === 0) {
+            console.log('  No changes detected.');
+          } else {
+            for (const change of result.changes) {
+              const icon = change.severity === 'critical' ? '\u2717' : change.severity === 'warning' ? '!' : '\u2713';
+              console.log(`  ${icon} [${change.severity.toUpperCase()}] ${change.description}`);
+            }
           }
-        }
 
-        console.log('');
-        console.log(`Summary: ${result.summary}`);
+          console.log('');
+          console.log(`Summary: ${result.summary}`);
+        }
 
         if (result.has_regressions) {
           process.exit(1);

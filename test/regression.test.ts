@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { compareReports, detectRegressions } from '../src/pipeline/regression.js';
+import { compareReports, detectRegressions, loadReport } from '../src/pipeline/regression.js';
 import type { Report, ReportFrame } from '../src/pipeline/regression.js';
 
 function makeFrame(overrides: Partial<ReportFrame> = {}): ReportFrame {
@@ -247,6 +247,44 @@ describe('detectRegressions', () => {
     expect(result.has_regressions).toBe(true);
     expect(result.changes.some((c) => c.type === 'status_change' && c.severity === 'critical')).toBe(true);
     expect(result.summary).toContain('critical');
+
+    await rm(testDir, { recursive: true, force: true });
+  });
+});
+
+describe('loadReport', () => {
+  const testDir = join(tmpdir(), 'demo-recorder-loadreport-test');
+
+  it('loads a valid report', async () => {
+    await mkdir(testDir, { recursive: true });
+    const report = makeReport();
+    const path = join(testDir, 'valid.json');
+    await writeFile(path, JSON.stringify(report));
+
+    const loaded = await loadReport(path);
+    expect(loaded.project).toBe('test-project');
+    expect(loaded.scenario).toBe('basic');
+    expect(loaded.frames).toHaveLength(2);
+
+    await rm(testDir, { recursive: true, force: true });
+  });
+
+  it('rejects report missing project field', async () => {
+    await mkdir(testDir, { recursive: true });
+    const path = join(testDir, 'invalid.json');
+    await writeFile(path, JSON.stringify({ scenario: 'basic', frames: [] }));
+
+    await expect(loadReport(path)).rejects.toThrow('Invalid report');
+
+    await rm(testDir, { recursive: true, force: true });
+  });
+
+  it('rejects report missing frames array', async () => {
+    await mkdir(testDir, { recursive: true });
+    const path = join(testDir, 'noframes.json');
+    await writeFile(path, JSON.stringify({ project: 'test', scenario: 'basic' }));
+
+    await expect(loadReport(path)).rejects.toThrow('Invalid report');
 
     await rm(testDir, { recursive: true, force: true });
   });

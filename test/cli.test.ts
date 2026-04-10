@@ -312,4 +312,47 @@ describe('diff command', () => {
     const commandNames = cli.commands.map((c) => c.name());
     expect(commandNames).toContain('diff');
   });
+
+  it('suppresses output with --quiet flag', async () => {
+    const report = {
+      project: 'test',
+      scenario: 'basic',
+      timestamp: '2026-04-11T00:00:00.000Z',
+      duration_seconds: 10,
+      total_frames_analyzed: 1,
+      overall_status: 'ok',
+      frames: [{
+        index: 0, timestamp: '0:00', status: 'ok', description: 'test',
+        feature_being_demonstrated: 'nav', bugs_detected: [],
+        visual_quality: 'good', annotation_text: 'test',
+      }],
+      summary: 'test',
+      bugs_found: 0,
+    };
+
+    const baselinePath = join(tempDir, 'baseline-q.json');
+    const currentPath = join(tempDir, 'current-q.json');
+    await writeFile(baselinePath, JSON.stringify(report));
+    await writeFile(currentPath, JSON.stringify(report));
+
+    const origCwd = process.cwd();
+    process.chdir(tempDir);
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'diff', '--quiet', 'baseline-q.json', 'current-q.json']);
+    } catch {
+      // may throw
+    }
+
+    // --quiet should produce no console.log output
+    expect(consoleSpy).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+    process.chdir(origCwd);
+    await rm(tempDir, { recursive: true, force: true });
+  });
 });

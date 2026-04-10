@@ -42,7 +42,11 @@ export interface RegressionResult {
 
 export async function loadReport(reportPath: string): Promise<Report> {
   const content = await readFile(reportPath, 'utf-8');
-  return JSON.parse(content) as Report;
+  const parsed = JSON.parse(content);
+  if (!parsed || typeof parsed.project !== 'string' || typeof parsed.scenario !== 'string' || !Array.isArray(parsed.frames)) {
+    throw new Error(`Invalid report: missing required fields (project, scenario, frames) in ${reportPath}`);
+  }
+  return parsed as Report;
 }
 
 export function compareReports(baseline: Report, current: Report): RegressionChange[] {
