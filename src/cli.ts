@@ -7,6 +7,9 @@ import { loadConfig, findScenario } from './config/loader.js';
 import { record } from './index.js';
 import { startMcpServer } from './mcp/server.js';
 import type { Config, Scenario, Step } from './config/schema.js';
+import type { Logger } from './pipeline/annotator.js';
+
+const noopLogger: Logger = { log: () => {}, warn: () => {} };
 
 export function createCli(): Command {
   const program = new Command();
@@ -23,6 +26,7 @@ export function createCli(): Command {
     .option('-s, --scenario <name>', 'Scenario name to record')
     .option('--no-annotate', 'Skip AI annotation')
     .option('--format <format>', 'Output format: mp4 or gif', 'mp4')
+    .option('-q, --quiet', 'Suppress progress output')
     .option('--adhoc', 'Ad-hoc recording mode (no config file needed)')
     .option('--command <cmd>', 'Command to run (used with --adhoc)')
     .option('--steps <steps>', 'Comma-separated steps: j,k,Enter,sleep:2s,q (used with --adhoc)')
@@ -30,8 +34,10 @@ export function createCli(): Command {
     .option('--height <n>', 'Terminal height (used with --adhoc)', '800')
     .action(async (opts) => {
       try {
+        const logger = opts.quiet ? noopLogger : undefined;
+
         if (opts.adhoc) {
-          await handleAdhocRecord(opts);
+          await handleAdhocRecord(opts, logger);
           return;
         }
 
@@ -50,7 +56,7 @@ export function createCli(): Command {
           : config.scenarios;
 
         for (const scenario of scenarios) {
-          await record({ config, scenario, projectDir });
+          await record({ config, scenario, projectDir, logger });
           console.log('');
         }
       } catch (error) {
@@ -156,6 +162,7 @@ recording:
   theme: "Catppuccin Mocha"
   fps: 25
   max_duration: 60
+  # format: "mp4"  # or "gif"
 
 output:
   dir: ".demo-recordings"
@@ -222,7 +229,7 @@ async function handleAdhocRecord(opts: {
   height: string;
   format: string;
   annotate: boolean;
-}): Promise<void> {
+}, logger?: Logger): Promise<void> {
   if (!opts.command) {
     throw new Error('--command is required with --adhoc mode');
   }
@@ -271,5 +278,5 @@ async function handleAdhocRecord(opts: {
     steps,
   };
 
-  await record({ config, scenario, projectDir: process.cwd() });
+  await record({ config, scenario, projectDir: process.cwd(), logger });
 }

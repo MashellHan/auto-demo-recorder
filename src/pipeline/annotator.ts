@@ -21,6 +21,16 @@ export interface AnnotationResult {
   summary: string;
 }
 
+export interface Logger {
+  log: (message: string) => void;
+  warn: (message: string) => void;
+}
+
+const defaultLogger: Logger = {
+  log: (msg) => console.log(msg),
+  warn: (msg) => console.warn(msg),
+};
+
 export async function annotateFrames(
   framesDir: string,
   frameCount: number,
@@ -28,6 +38,7 @@ export async function annotateFrames(
   projectDescription: string,
   scenarioDescription: string,
   config: AnnotationConfig,
+  logger: Logger = defaultLogger,
 ): Promise<AnnotationResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error(
@@ -115,7 +126,7 @@ Analyze the screenshot and provide a JSON response (no markdown fences, just raw
       });
     }
 
-    console.log(`  Frame ${i}/${frameCount}: ${frames[frames.length - 1].annotation_text}`);
+    logger.log(`  Frame ${i}/${frameCount}: ${frames[frames.length - 1].annotation_text}`);
   }
 
   const bugsFound = frames.reduce((sum, f) => sum + f.bugs_detected.length, 0);

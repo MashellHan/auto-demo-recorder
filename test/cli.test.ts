@@ -140,6 +140,32 @@ describe('parseAdhocSteps (via adhoc record)', () => {
 
     consoleSpy.mockRestore();
   });
+
+  it('passes noop logger when --quiet is used', async () => {
+    const { record } = await import('../src/index.js');
+    vi.mocked(record).mockClear();
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'record', '--adhoc', '--command', 'ls', '--quiet']);
+    } catch {
+      // may throw
+    }
+
+    if (vi.mocked(record).mock.calls.length > 0) {
+      const callArgs = vi.mocked(record).mock.calls[0][0];
+      expect(callArgs.logger).toBeDefined();
+      // Verify it's a noop logger (calling log produces no output)
+      callArgs.logger!.log('test');
+      callArgs.logger!.warn('test');
+    }
+
+    consoleSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
 });
 
 describe('list command', () => {

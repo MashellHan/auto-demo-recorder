@@ -223,4 +223,42 @@ describe('record', () => {
     // But post-processing overlay should be skipped for GIF
     expect(postProcess).not.toHaveBeenCalled();
   });
+
+  it('uses custom logger when provided', async () => {
+    const logs: string[] = [];
+    const customLogger = {
+      log: (msg: string) => logs.push(msg),
+      warn: (msg: string) => logs.push(`WARN: ${msg}`),
+    };
+
+    await record({
+      config: baseConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+      logger: customLogger,
+    });
+
+    expect(logs.some((l) => l.includes('Recording scenario: basic'))).toBe(true);
+    expect(logs.some((l) => l.includes('Tape generated'))).toBe(true);
+    expect(logs.some((l) => l.includes('VHS recording complete'))).toBe(true);
+  });
+
+  it('suppresses output with noop logger', async () => {
+    const consoleSpy = vi.spyOn(console, 'log');
+    const noopLogger = { log: () => {}, warn: () => {} };
+
+    await record({
+      config: baseConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+      logger: noopLogger,
+    });
+
+    // console.log should NOT have been called by record() since we used noop logger
+    // (Note: beforeEach already mocks console.log, so we check it wasn't called for pipeline messages)
+    const pipelineCalls = consoleSpy.mock.calls.filter(
+      (args) => typeof args[0] === 'string' && args[0].includes('Recording scenario'),
+    );
+    expect(pipelineCalls).toHaveLength(0);
+  });
 });

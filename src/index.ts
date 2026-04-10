@@ -6,12 +6,13 @@ import type { Config, Scenario } from './config/schema.js';
 import { buildTape } from './pipeline/tape-builder.js';
 import { runVhs } from './pipeline/vhs-runner.js';
 import { extractFrames } from './pipeline/frame-extractor.js';
-import { annotateFrames } from './pipeline/annotator.js';
+import { annotateFrames, type Logger } from './pipeline/annotator.js';
 import { postProcess } from './pipeline/post-processor.js';
 
 export { loadConfig, findScenario } from './config/loader.js';
 export { ConfigSchema } from './config/schema.js';
 export type { Config, Scenario } from './config/schema.js';
+export type { Logger } from './pipeline/annotator.js';
 
 export interface RecordResult {
   success: boolean;
@@ -33,10 +34,16 @@ export interface RecordOptions {
   config: Config;
   scenario: Scenario;
   projectDir: string;
+  logger?: Logger;
 }
 
+const defaultLogger: Logger = {
+  log: (msg) => console.log(msg),
+  warn: (msg) => console.warn(msg),
+};
+
 export async function record(options: RecordOptions): Promise<RecordResult> {
-  const { config, scenario, projectDir } = options;
+  const { config, scenario, projectDir, logger: log = defaultLogger } = options;
 
   const timestamp = formatTimestamp(new Date());
   const outputBase = resolve(projectDir, config.output.dir, timestamp, scenario.name);
@@ -52,11 +59,11 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
     tape: join(outputBase, `${scenario.name}.tape`),
   };
 
-  console.log(`Recording scenario: ${scenario.name}`);
-  const durationSeconds = await buildAndRecord(config, scenario, paths, projectDir);
+  log.log(`Recording scenario: ${scenario.name}`);
+  const durationSeconds = await buildAndRecord(config, scenario, paths, projectDir, log);
 
   const annotationResult = config.annotation.enabled
-    ? await runAnnotationPipeline(config, scenario, paths, config.recording.format === 'gif')
+    ? await runAnnotationPipeline(config, scenario, paths, log, config.recording.format === 'gif')
     : null;
 
   await writeReport(paths.report, config.project.name, scenario.name, durationSeconds, annotationResult);
@@ -64,7 +71,7 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
 
   const hasAnnotatedVideo = config.annotation.enabled && config.recording.format !== 'gif';
   const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult);
-  printSummary(result);
+  printSummary(result, log);
   return result;
 }
 
@@ -77,27 +84,27 @@ interface RecordPaths {
   tape: string;
 }
 
-async function buildAndRecord(config: Config, scenario: Scenario, paths: RecordPaths, projectDir: string): Promise<number> {
+async function buildAndRecord(config: Config, scenario: Scenario, paths: RecordPaths, projectDir: string, log: Logger): Promise<number> {
   const tapeContent = buildTape({ scenario, recording: config.recording, outputPath: paths.rawVideo });
-  console.log('  \u2713 Tape generated');
+  log.log('  \u2713 Tape generated');
 
   if (config.project.build_command) {
-    console.log(`  Building: ${config.project.build_command}`);
+    log.log(`  Building: ${config.project.build_command}`);
     const execFileAsync = promisify(execFileCb);
     const [cmd, ...args] = config.project.build_command.split(/\s+/);
     await execFileAsync(cmd, args, { cwd: projectDir });
-    console.log('  \u2713 Build complete');
+    log.log('  \u2713 Build complete');
   }
 
   const vhsResult = await runVhs(paths.tape, tapeContent);
   const durationSeconds = vhsResult.durationMs / 1000;
-  console.log(`  \u2713 VHS recording complete (${durationSeconds.toFixed(1)}s)`);
+  log.log(`  \u2713 VHS recording complete (${durationSeconds.toFixed(1)}s)`);
   return durationSeconds;
 }
 
-async function runAnnotationPipeline(config: Config, scenario: Scenario, paths: RecordPaths, skipOverlay: boolean = false) {
+async function runAnnotationPipeline(config: Config, scenario: Scenario, paths: RecordPaths, log: Logger, skipOverlay: boolean = false) {
   const extraction = await extractFrames(paths.rawVideo, paths.frames, config.annotation.extract_fps);
-  console.log(`  \u2713 Frames extracted (${extraction.frameCount} frames)`);
+  log.log(`  \u2713 Frames extracted (${extraction.frameCount} frames)`);
 
   const annotationResult = await annotateFrames(
     paths.frames,
@@ -106,11 +113,12 @@ async function runAnnotationPipeline(config: Config, scenario: Scenario, paths: 
     config.project.description,
     scenario.description,
     config.annotation,
+    log,
   );
-  console.log('  \u2713 AI annotation complete');
+  log.log('  \u2713 AI annotation complete');
 
   if (skipOverlay) {
-    console.log('  (GIF format: skipping overlay, annotations in report only)');
+    log.log('  (GIF format: skipping overlay, annotations in report only)');
   } else {
     await postProcess({
       inputVideo: paths.rawVideo,
@@ -121,7 +129,7 @@ async function runAnnotationPipeline(config: Config, scenario: Scenario, paths: 
       overlayPosition: config.annotation.overlay_position,
       extractFps: config.annotation.extract_fps,
     });
-    console.log('  \u2713 Video annotated');
+    log.log('  \u2713 Video annotated');
   }
 
   if (!config.output.keep_frames) {
@@ -189,14 +197,14 @@ function buildResult(
   };
 }
 
-function printSummary(result: RecordResult) {
-  console.log('');
-  console.log('Result:');
-  console.log(`  Video:     ${result.videoPath}`);
-  console.log(`  Report:    ${result.reportPath}`);
-  console.log(`  Thumbnail: ${result.thumbnailPath}`);
-  console.log('');
-  console.log(`Summary: ${result.summary.description}`);
+function printSummary(result: RecordResult, log: Logger) {
+  log.log('');
+  log.log('Result:');
+  log.log(`  Video:     ${result.videoPath}`);
+  log.log(`  Report:    ${result.reportPath}`);
+  log.log(`  Thumbnail: ${result.thumbnailPath}`);
+  log.log('');
+  log.log(`Summary: ${result.summary.description}`);
 }
 
 function formatTimestamp(date: Date): string {
