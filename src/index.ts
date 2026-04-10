@@ -1,13 +1,15 @@
-import { mkdir, writeFile, symlink, unlink, rm } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, symlink, unlink, rm } from 'node:fs/promises';
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { resolve, join } from 'node:path';
+import { existsSync } from 'node:fs';
 import type { Config, Scenario } from './config/schema.js';
 import { buildTape } from './pipeline/tape-builder.js';
 import { runVhs } from './pipeline/vhs-runner.js';
 import { extractFrames } from './pipeline/frame-extractor.js';
 import { annotateFrames, type Logger } from './pipeline/annotator.js';
 import { postProcess } from './pipeline/post-processor.js';
+import { compareReports, type Report } from './pipeline/regression.js';
 
 export { loadConfig, findScenario } from './config/loader.js';
 export { ConfigSchema } from './config/schema.js';
@@ -29,6 +31,11 @@ export interface RecordResult {
     bugsFound: number;
     featuresDemo: string[];
     description: string;
+  };
+  regression?: {
+    has_regressions: boolean;
+    changes: Array<{ type: string; description: string; severity: string }>;
+    summary: string;
   };
 }
 
@@ -69,10 +76,14 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
     : null;
 
   await writeReport(paths.report, config.project.name, scenario.name, durationSeconds, annotationResult);
+
+  // Auto-regression: compare with previous report for same scenario
+  const regressionInfo = await checkPreviousReport(projectDir, config.output.dir, scenario.name, paths.report, log);
+
   await updateLatestSymlink(projectDir, config.output.dir, timestamp);
 
   const hasAnnotatedVideo = config.annotation.enabled && config.recording.format !== 'gif';
-  const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult);
+  const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult, regressionInfo);
   printSummary(result, log);
   return result;
 }
@@ -148,7 +159,7 @@ async function writeReport(
   durationSeconds: number,
   annotationResult: Awaited<ReturnType<typeof annotateFrames>> | null,
 ) {
-  const report = {
+  const report: Report = {
     project: projectName,
     scenario: scenarioName,
     timestamp: new Date().toISOString(),
@@ -177,6 +188,7 @@ function buildResult(
   annotationEnabled: boolean,
   durationSeconds: number,
   annotationResult: Awaited<ReturnType<typeof annotateFrames>> | null,
+  regressionInfo?: RecordResult['regression'],
 ): RecordResult {
   const featuresDemo = annotationResult
     ? [...new Set(annotationResult.frames.map((f) => f.feature_being_demonstrated).filter(Boolean))]
@@ -196,7 +208,53 @@ function buildResult(
       featuresDemo,
       description: annotationResult?.summary ?? 'Recording complete.',
     },
+    regression: regressionInfo,
   };
+}
+
+async function checkPreviousReport(
+  projectDir: string,
+  outputDir: string,
+  scenarioName: string,
+  currentReportPath: string,
+  log: Logger,
+): Promise<RecordResult['regression'] | undefined> {
+  try {
+    const latestLink = resolve(projectDir, outputDir, 'latest');
+    if (!existsSync(latestLink)) return undefined;
+
+    const { realpath } = await import('node:fs/promises');
+    const latestDir = await realpath(latestLink);
+    const previousReportPath = join(latestDir, scenarioName, 'report.json');
+
+    if (!existsSync(previousReportPath)) return undefined;
+
+    const previousContent = await readFile(previousReportPath, 'utf-8');
+    const currentContent = await readFile(currentReportPath, 'utf-8');
+    const previousReport = JSON.parse(previousContent) as Report;
+    const currentReport = JSON.parse(currentContent) as Report;
+
+    const changes = compareReports(previousReport, currentReport);
+    if (changes.length === 0) {
+      log.log('  \u2713 No regressions from previous recording');
+      return undefined;
+    }
+
+    const hasRegressions = changes.some(
+      (c) => c.severity === 'critical' || c.severity === 'warning',
+    );
+
+    for (const change of changes) {
+      const icon = change.severity === 'critical' ? '\u2717' : change.severity === 'warning' ? '!' : '\u2713';
+      log.log(`  ${icon} [${change.severity.toUpperCase()}] ${change.description}`);
+    }
+
+    const summary = `${changes.length} changes vs previous (${changes.filter((c) => c.severity === 'critical').length} critical, ${changes.filter((c) => c.severity === 'warning').length} warning)`;
+    return { has_regressions: hasRegressions, changes, summary };
+  } catch {
+    // If anything fails reading previous report, skip regression check silently
+    return undefined;
+  }
 }
 
 function printSummary(result: RecordResult, log: Logger) {

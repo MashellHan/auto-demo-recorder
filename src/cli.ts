@@ -4,10 +4,11 @@ import { resolve, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { loadConfig, findScenario } from './config/loader.js';
+import { buildAdhocConfig, buildAdhocScenario } from './config/adhoc.js';
 import { record } from './index.js';
 import { startMcpServer } from './mcp/server.js';
 import { detectRegressions } from './pipeline/regression.js';
-import type { Config, Scenario, Step } from './config/schema.js';
+import type { Step } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
 const noopLogger: Logger = { log: () => {}, warn: () => {} };
@@ -273,49 +274,16 @@ async function handleAdhocRecord(opts: {
     throw new Error('--command is required with --adhoc mode');
   }
 
-  const steps: Step[] = [];
-  steps.push({ action: 'type', value: opts.command, pause: '2s' });
-
-  if (opts.steps) {
-    steps.push(...parseAdhocSteps(opts.steps));
-  }
-
-  const config: Config = {
-    project: {
-      name: 'adhoc-recording',
-      description: 'Ad-hoc recording session',
-    },
-    recording: {
-      width: parseInt(opts.width, 10),
-      height: parseInt(opts.height, 10),
-      font_size: 16,
-      theme: 'Catppuccin Mocha',
-      fps: 25,
-      max_duration: 60,
-      format: opts.format === 'gif' ? 'gif' : 'mp4',
-    },
-    output: {
-      dir: '.demo-recordings',
-      keep_raw: true,
-      keep_frames: false,
-    },
-    annotation: {
-      enabled: opts.annotate !== false,
-      model: 'claude-sonnet-4-6',
-      extract_fps: 1,
-      language: 'en',
-      overlay_position: 'bottom',
-      overlay_font_size: 14,
-    },
-    scenarios: [],
-  };
-
-  const scenario: Scenario = {
-    name: 'adhoc',
-    description: `Ad-hoc recording: ${opts.command}`,
-    setup: [],
-    steps,
-  };
+  const parsedSteps = opts.steps ? parseAdhocSteps(opts.steps) : undefined;
+  const config = buildAdhocConfig({
+    command: opts.command,
+    steps: parsedSteps,
+    width: parseInt(opts.width, 10),
+    height: parseInt(opts.height, 10),
+    format: opts.format === 'gif' ? 'gif' : 'mp4',
+    annotate: opts.annotate,
+  });
+  const scenario = buildAdhocScenario(opts.command, parsedSteps);
 
   await record({ config, scenario, projectDir: process.cwd(), logger });
 }

@@ -5,9 +5,9 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { loadConfig, findScenario } from '../config/loader.js';
+import { buildAdhocConfig, buildAdhocScenario } from '../config/adhoc.js';
 import { record } from '../index.js';
 import { resolve } from 'node:path';
-import type { Step, Config, Scenario } from '../config/schema.js';
 import type { Logger } from '../pipeline/annotator.js';
 
 const TOOL_NAME = 'demo_recorder_record';
@@ -178,45 +178,21 @@ async function handleAdhocMcp(args: {
   format?: 'mp4' | 'gif';
   annotate?: boolean;
 }) {
-  const steps: Step[] = [
-    { action: 'type', value: args.adhoc.command, pause: '2s' },
-  ];
+  const steps = args.adhoc.steps?.map((s) => ({
+    action: s.action,
+    value: s.value,
+    pause: s.pause ?? '500ms',
+  }));
 
-  if (args.adhoc.steps) {
-    for (const s of args.adhoc.steps) {
-      steps.push({ action: s.action, value: s.value, pause: s.pause ?? '500ms' });
-    }
-  }
-
-  const config: Config = {
-    project: { name: 'adhoc-recording', description: 'Ad-hoc MCP recording' },
-    recording: {
-      width: args.adhoc.width ?? 1200,
-      height: args.adhoc.height ?? 800,
-      font_size: 16,
-      theme: 'Catppuccin Mocha',
-      fps: 25,
-      max_duration: 60,
-      format: args.format === 'gif' ? 'gif' : 'mp4',
-    },
-    output: { dir: '.demo-recordings', keep_raw: true, keep_frames: false },
-    annotation: {
-      enabled: args.annotate !== false,
-      model: 'claude-sonnet-4-6',
-      extract_fps: 1,
-      language: 'en',
-      overlay_position: 'bottom',
-      overlay_font_size: 14,
-    },
-    scenarios: [],
-  };
-
-  const scenario: Scenario = {
-    name: 'adhoc',
-    description: `Ad-hoc: ${args.adhoc.command}`,
-    setup: [],
+  const config = buildAdhocConfig({
+    command: args.adhoc.command,
     steps,
-  };
+    width: args.adhoc.width,
+    height: args.adhoc.height,
+    format: args.format,
+    annotate: args.annotate,
+  });
+  const scenario = buildAdhocScenario(args.adhoc.command, steps);
 
   return record({ config, scenario, projectDir: args.project_dir, logger: mcpLogger });
 }

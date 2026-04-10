@@ -8,6 +8,14 @@ vi.mock('node:child_process', () => ({
   }),
 }));
 
+vi.mock('node:fs', async (importOriginal) => {
+  const original = await importOriginal<typeof import('node:fs')>();
+  return {
+    ...original,
+    existsSync: vi.fn().mockReturnValue(false),
+  };
+});
+
 vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof import('node:fs/promises')>();
   return {
@@ -17,6 +25,8 @@ vi.mock('node:fs/promises', async (importOriginal) => {
     symlink: vi.fn().mockResolvedValue(undefined),
     unlink: vi.fn().mockResolvedValue(undefined),
     rm: vi.fn().mockResolvedValue(undefined),
+    realpath: vi.fn().mockResolvedValue('/tmp/project/.demo-recordings/2026-01-01_12-00'),
+    readFile: vi.fn().mockResolvedValue(''),
   };
 });
 
@@ -260,5 +270,66 @@ describe('record', () => {
       (args) => typeof args[0] === 'string' && args[0].includes('Recording scenario'),
     );
     expect(pipelineCalls).toHaveLength(0);
+  });
+
+  it('returns regression info when previous report exists', async () => {
+    const { existsSync } = await import('node:fs');
+    const { readFile } = await import('node:fs/promises');
+
+    // Make existsSync return true for latest symlink and previous report
+    vi.mocked(existsSync).mockReturnValue(true);
+
+    const previousReport = JSON.stringify({
+      project: 'test-project',
+      scenario: 'basic',
+      timestamp: '2026-01-01T00:00:00Z',
+      duration_seconds: 5,
+      total_frames_analyzed: 2,
+      overall_status: 'ok',
+      frames: [
+        { index: 0, timestamp: '0:00', status: 'ok', description: 'Frame 1', feature_being_demonstrated: 'startup', bugs_detected: [], visual_quality: 'good', annotation_text: 'Starting' },
+      ],
+      summary: 'All good.',
+      bugs_found: 0,
+    });
+
+    const currentReport = JSON.stringify({
+      project: 'test-project',
+      scenario: 'basic',
+      timestamp: '2026-01-02T00:00:00Z',
+      duration_seconds: 5,
+      total_frames_analyzed: 2,
+      overall_status: 'bug_detected',
+      frames: [
+        { index: 0, timestamp: '0:00', status: 'bug_detected', description: 'Frame 1', feature_being_demonstrated: 'startup', bugs_detected: ['UI glitch'], visual_quality: 'poor', annotation_text: 'Bug found' },
+      ],
+      summary: 'Bug detected.',
+      bugs_found: 1,
+    });
+
+    vi.mocked(readFile).mockResolvedValueOnce(previousReport as never).mockResolvedValueOnce(currentReport as never);
+
+    const result = await record({
+      config: baseConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+    });
+
+    expect(result.regression).toBeDefined();
+    expect(result.regression!.has_regressions).toBe(true);
+    expect(result.regression!.changes.length).toBeGreaterThan(0);
+  });
+
+  it('returns no regression info when no previous report exists', async () => {
+    const { existsSync } = await import('node:fs');
+    vi.mocked(existsSync).mockReturnValue(false);
+
+    const result = await record({
+      config: baseConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+    });
+
+    expect(result.regression).toBeUndefined();
   });
 });
