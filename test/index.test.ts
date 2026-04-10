@@ -59,6 +59,7 @@ vi.mock('../src/pipeline/post-processor.js', () => ({
 }));
 
 const { record } = await import('../src/index.js');
+const { updateLatestSymlink } = await import('../src/index.js');
 
 describe('record', () => {
   beforeEach(() => {
@@ -331,5 +332,22 @@ describe('record', () => {
     });
 
     expect(result.regression).toBeUndefined();
+  });
+
+  it('skips symlink update when skipSymlinkUpdate is true', async () => {
+    const { symlink } = await import('node:fs/promises');
+
+    await record({
+      config: baseConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+      skipSymlinkUpdate: true,
+    });
+
+    expect(symlink).not.toHaveBeenCalled();
+  });
+
+  it('exports updateLatestSymlink for external callers', () => {
+    expect(typeof updateLatestSymlink).toBe('function');
   });
 });

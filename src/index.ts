@@ -44,6 +44,7 @@ export interface RecordOptions {
   scenario: Scenario;
   projectDir: string;
   logger?: Logger;
+  skipSymlinkUpdate?: boolean;
 }
 
 const defaultLogger: Logger = {
@@ -52,7 +53,7 @@ const defaultLogger: Logger = {
 };
 
 export async function record(options: RecordOptions): Promise<RecordResult> {
-  const { config, scenario, projectDir, logger: log = defaultLogger } = options;
+  const { config, scenario, projectDir, logger: log = defaultLogger, skipSymlinkUpdate = false } = options;
 
   const timestamp = formatTimestamp(new Date());
   const outputBase = resolve(projectDir, config.output.dir, timestamp, scenario.name);
@@ -80,7 +81,9 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
   // Auto-regression: compare with previous report for same scenario
   const regressionInfo = await checkPreviousReport(projectDir, config.output.dir, scenario.name, paths.report, log);
 
-  await updateLatestSymlink(projectDir, config.output.dir, timestamp);
+  if (!skipSymlinkUpdate) {
+    await updateLatestSymlink(projectDir, config.output.dir, timestamp);
+  }
 
   const hasAnnotatedVideo = config.annotation.enabled && config.recording.format !== 'gif';
   const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult, regressionInfo);
@@ -173,7 +176,7 @@ async function writeReport(
   await writeFile(reportPath, JSON.stringify(report, null, 2));
 }
 
-async function updateLatestSymlink(projectDir: string, outputDir: string, timestamp: string) {
+export async function updateLatestSymlink(projectDir: string, outputDir: string, timestamp: string) {
   const latestLink = resolve(projectDir, outputDir, 'latest');
   try {
     await unlink(latestLink);

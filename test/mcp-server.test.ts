@@ -18,6 +18,7 @@ vi.mock('../src/index.js', () => ({
       description: 'Recording complete.',
     },
   }),
+  updateLatestSymlink: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../src/config/loader.js', () => ({
@@ -132,5 +133,40 @@ describe('MCP Server', () => {
         },
       }),
     ).rejects.toThrow('Unknown tool: unknown_tool');
+  });
+
+  it('passes skipSymlinkUpdate for parallel multi-scenario recording', async () => {
+    const { loadConfig } = await import('../src/config/loader.js');
+    const { record } = await import('../src/index.js');
+    const { updateLatestSymlink } = await import('../src/index.js');
+
+    // Mock config with 2 scenarios to trigger parallel mode
+    vi.mocked(loadConfig).mockResolvedValueOnce({
+      project: { name: 'test', description: 'Test' },
+      recording: { width: 1200, height: 800, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60 },
+      output: { dir: '.demo-recordings', keep_raw: true, keep_frames: false },
+      annotation: { enabled: true, model: 'claude-sonnet-4-6', extract_fps: 1, language: 'en', overlay_position: 'bottom', overlay_font_size: 14 },
+      scenarios: [
+        { name: 'basic', description: 'Basic', setup: [], steps: [{ action: 'key', value: 'q', pause: '500ms' }] },
+        { name: 'advanced', description: 'Advanced', setup: [], steps: [{ action: 'type', value: 'hello', pause: '1s' }] },
+      ],
+    } as never);
+
+    await startMcpServer();
+    const callHandler = handlers.get('tools/call')!;
+    await callHandler({
+      params: {
+        name: 'demo_recorder_record',
+        arguments: { project_dir: '/tmp/project' },
+      },
+    });
+
+    // With 2 scenarios, record should be called with skipSymlinkUpdate: true
+    expect(vi.mocked(record).mock.calls.length).toBe(2);
+    expect(vi.mocked(record).mock.calls[0][0].skipSymlinkUpdate).toBe(true);
+    expect(vi.mocked(record).mock.calls[1][0].skipSymlinkUpdate).toBe(true);
+
+    // updateLatestSymlink should be called once after Promise.all
+    expect(vi.mocked(updateLatestSymlink)).toHaveBeenCalledTimes(1);
   });
 });

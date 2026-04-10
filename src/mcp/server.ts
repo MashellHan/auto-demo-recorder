@@ -6,7 +6,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { loadConfig, findScenario } from '../config/loader.js';
 import { buildAdhocConfig, buildAdhocScenario } from '../config/adhoc.js';
-import { record } from '../index.js';
+import { record, updateLatestSymlink } from '../index.js';
 import { resolve } from 'node:path';
 import type { Logger } from '../pipeline/annotator.js';
 
@@ -127,11 +127,23 @@ export async function startMcpServer(): Promise<void> {
         ? [findScenario(config, args.scenario)]
         : config.scenarios;
 
+      const useParallel = scenarios.length > 1;
       const results = await Promise.all(
         scenarios.map((scenario) =>
-          record({ config, scenario, projectDir: args.project_dir, logger: mcpLogger }),
+          record({
+            config,
+            scenario,
+            projectDir: args.project_dir,
+            logger: mcpLogger,
+            skipSymlinkUpdate: useParallel,
+          }),
         ),
       );
+
+      if (useParallel) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
+        await updateLatestSymlink(args.project_dir, config.output.dir, timestamp);
+      }
 
       const response = results.length === 1
         ? {
