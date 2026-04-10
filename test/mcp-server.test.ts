@@ -5,10 +5,10 @@ import type { Config, Scenario, Step } from '../src/config/schema.js';
 vi.mock('../src/index.js', () => ({
   record: vi.fn().mockResolvedValue({
     success: true,
-    videoPath: '/tmp/annotated.mp4',
-    rawVideoPath: '/tmp/raw.mp4',
-    reportPath: '/tmp/report.json',
-    thumbnailPath: '/tmp/thumb.png',
+    videoPath: '/tmp/project/.demo-recordings/2026-04-11_07-30/basic/annotated.mp4',
+    rawVideoPath: '/tmp/project/.demo-recordings/2026-04-11_07-30/basic/raw.mp4',
+    reportPath: '/tmp/project/.demo-recordings/2026-04-11_07-30/basic/report.json',
+    thumbnailPath: '/tmp/project/.demo-recordings/2026-04-11_07-30/basic/thumb.png',
     summary: {
       status: 'ok',
       durationSeconds: 5,
@@ -96,7 +96,7 @@ describe('MCP Server', () => {
     expect(result.content[0].type).toBe('text');
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.success).toBe(true);
-    expect(parsed.video_path).toBe('/tmp/annotated.mp4');
+    expect(parsed.video_path).toContain('annotated.mp4');
   });
 
   it('handles adhoc record call', async () => {
@@ -166,7 +166,13 @@ describe('MCP Server', () => {
     expect(vi.mocked(record).mock.calls[0][0].skipSymlinkUpdate).toBe(true);
     expect(vi.mocked(record).mock.calls[1][0].skipSymlinkUpdate).toBe(true);
 
-    // updateLatestSymlink should be called once after Promise.all
+    // updateLatestSymlink should be called once after Promise.all with the correct timestamp
     expect(vi.mocked(updateLatestSymlink)).toHaveBeenCalledTimes(1);
+    // Timestamp should be extracted from result path, matching formatTimestamp format
+    expect(vi.mocked(updateLatestSymlink)).toHaveBeenCalledWith(
+      '/tmp/project',
+      '.demo-recordings',
+      '2026-04-11_07-30',
+    );
   });
 });

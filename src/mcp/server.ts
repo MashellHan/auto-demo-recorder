@@ -7,7 +7,7 @@ import {
 import { loadConfig, findScenario } from '../config/loader.js';
 import { buildAdhocConfig, buildAdhocScenario } from '../config/adhoc.js';
 import { record, updateLatestSymlink } from '../index.js';
-import { resolve } from 'node:path';
+import { resolve, dirname, basename } from 'node:path';
 import type { Logger } from '../pipeline/annotator.js';
 
 const TOOL_NAME = 'demo_recorder_record';
@@ -141,7 +141,8 @@ export async function startMcpServer(): Promise<void> {
       );
 
       if (useParallel) {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
+        // Extract timestamp from first result's path: .../outputDir/timestamp/scenario/report.json
+        const timestamp = basename(dirname(dirname(results[0].reportPath)));
         await updateLatestSymlink(args.project_dir, config.output.dir, timestamp);
       }
 
