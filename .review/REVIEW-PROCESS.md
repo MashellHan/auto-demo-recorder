@@ -14,25 +14,36 @@ This `.review/` directory is managed by a **Reviewer Agent** that continuously e
 
 ### Functionality
 - Does the implementation match the design doc (`.brainstorm/auto-demo-recorder.md`)?
-- Are all pipeline stages working: tape generation, recording, frame extraction, AI annotation, post-processing?
-- Are scenarios configurable via YAML?
+- **CLI commands**: `record`, `list`, `last`, `validate`, `serve`, `init`
+- **3 invocation modes**: CLI, MCP Server, Programmatic import
+- **Pipeline stages**: tape builder → VHS runner → frame extractor → AI annotator → post-processor
+- **Ad-hoc recording**: `--adhoc` flag for configless recording
+- **MCP Server**: `demo_recorder_record` tool for agent integration
+- Config validation via Zod schemas
 - Is error handling comprehensive?
 
 ### Code Quality
-- Clean, readable code with consistent style
+- Clean, readable TypeScript with consistent style
 - No hardcoded values — use config/constants
 - Proper error handling at every level
 - No dead code or unused variables
 - Functions < 50 lines, files < 800 lines
+- Immutable patterns preferred
 
 ### Design
 - Separation of concerns between pipeline stages
-- Each script/module has a single responsibility
-- Configuration is externalized (YAML)
-- Storage structure matches the design doc
+- Each module has a single responsibility
+- Project structure matches design doc:
+  - `src/config/` — loader, schema, types
+  - `src/pipeline/` — tape-builder, vhs-runner, frame-extractor, annotator, post-processor
+  - `src/mcp/` — MCP server
+  - `src/utils/` — ffmpeg helpers, logger
+  - `templates/` — Handlebars tape template
+- Configuration externalized via YAML + Zod validation
+- Simplified storage: timestamped dirs + `latest` symlink (no gallery, no retention policy)
 
 ### Testing
-- Unit tests for core logic (tape generation, config parsing)
+- Unit tests for core logic (tape builder, config loader/schema)
 - Integration tests for pipeline stages
 - Test coverage >= 80%
 - Tests are deterministic and isolated
@@ -45,10 +56,10 @@ This `.review/` directory is managed by a **Reviewer Agent** that continuously e
 ## Review Lifecycle
 
 ```
-1. INITIAL  — Project scaffold, no implementation yet
-2. MVP      — Core pipeline implemented, basic functionality
-3. GROWING  — Storage, history, scheduling added
-4. MATURE   — Multi-scenario, regression detection, polished
+1. INITIAL    — Project scaffold, no implementation yet
+2. MVP        — Core pipeline: record + annotate (Phase 1)
+3. GROWING    — Full CLI + MCP server (Phase 2)
+4. MATURE     — Multi-scenario, regression detection, tests, docs (Phase 3)
 5. BRAINSTORM — Implementation solid, proposing new features/refactors
 ```
 
