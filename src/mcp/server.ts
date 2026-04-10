@@ -110,23 +110,28 @@ export async function startMcpServer(): Promise<void> {
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       }
 
-      const config = await loadConfig(resolve(args.project_dir, 'demo-recorder.yaml'));
-      if (args.annotate === false) {
-        config.annotation.enabled = false;
-      }
-      if (args.format === 'gif') {
-        config.recording.format = 'gif';
-      }
+      const loaded = await loadConfig(resolve(args.project_dir, 'demo-recorder.yaml'));
+      const config = {
+        ...loaded,
+        annotation: {
+          ...loaded.annotation,
+          ...(args.annotate === false && { enabled: false }),
+        },
+        recording: {
+          ...loaded.recording,
+          ...(args.format === 'gif' && { format: 'gif' as const }),
+        },
+      };
 
       const scenarios = args.scenario
         ? [findScenario(config, args.scenario)]
         : config.scenarios;
 
-      const results = [];
-      for (const scenario of scenarios) {
-        const result = await record({ config, scenario, projectDir: args.project_dir, logger: mcpLogger });
-        results.push(result);
-      }
+      const results = await Promise.all(
+        scenarios.map((scenario) =>
+          record({ config, scenario, projectDir: args.project_dir, logger: mcpLogger }),
+        ),
+      );
 
       const response = results.length === 1
         ? {
