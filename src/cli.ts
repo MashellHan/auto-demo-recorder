@@ -57,7 +57,7 @@ export function createCli(): Command {
 
         for (const scenario of scenarios) {
           await record({ config, scenario, projectDir, logger });
-          console.log('');
+          if (!opts.quiet) console.log('');
         }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);

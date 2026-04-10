@@ -94,6 +94,9 @@ Analyze the screenshot and provide a JSON response (no markdown fences, just raw
           },
         ],
       }),
+      3,
+      1000,
+      logger,
     );
 
     const text = response.content
@@ -161,6 +164,7 @@ async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
   baseDelayMs: number = 1000,
+  logger: Logger = defaultLogger,
 ): Promise<T> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -168,7 +172,7 @@ async function retryWithBackoff<T>(
     } catch (error) {
       if (attempt === maxRetries) throw error;
       const delay = baseDelayMs * Math.pow(2, attempt);
-      console.warn(`  Retry ${attempt + 1}/${maxRetries} in ${delay}ms...`);
+      logger.warn(`  Retry ${attempt + 1}/${maxRetries} in ${delay}ms...`);
       await new Promise((r) => setTimeout(r, delay));
     }
   }

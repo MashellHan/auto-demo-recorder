@@ -8,8 +8,15 @@ import { loadConfig, findScenario } from '../config/loader.js';
 import { record } from '../index.js';
 import { resolve } from 'node:path';
 import type { Step, Config, Scenario } from '../config/schema.js';
+import type { Logger } from '../pipeline/annotator.js';
 
 const TOOL_NAME = 'demo_recorder_record';
+
+// MCP uses stdio transport — console.log would corrupt the protocol stream
+const mcpLogger: Logger = {
+  log: (msg) => process.stderr.write(`${msg}\n`),
+  warn: (msg) => process.stderr.write(`WARN: ${msg}\n`),
+};
 
 export async function startMcpServer(): Promise<void> {
   const server = new Server(
@@ -117,7 +124,7 @@ export async function startMcpServer(): Promise<void> {
 
       const results = [];
       for (const scenario of scenarios) {
-        const result = await record({ config, scenario, projectDir: args.project_dir });
+        const result = await record({ config, scenario, projectDir: args.project_dir, logger: mcpLogger });
         results.push(result);
       }
 
@@ -211,5 +218,5 @@ async function handleAdhocMcp(args: {
     steps,
   };
 
-  return record({ config, scenario, projectDir: args.project_dir });
+  return record({ config, scenario, projectDir: args.project_dir, logger: mcpLogger });
 }

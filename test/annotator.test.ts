@@ -151,4 +151,46 @@ describe('annotateFrames', () => {
     expect(result.frames[0].timestamp).toBe('0:00');
     expect(result.frames[2].timestamp).toBe('0:01');
   });
+
+  it('includes language instruction in prompt for non-English config', async () => {
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    const createMock = vi.fn().mockResolvedValue({
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          status: 'ok',
+          description: 'frame',
+          feature_being_demonstrated: 'test',
+          bugs_detected: [],
+          visual_quality: 'good',
+          annotation_text: 'test',
+        }),
+      }],
+    });
+    vi.mocked(Anthropic).mockImplementation(() => ({
+      messages: { create: createMock },
+    }) as any);
+
+    await annotateFrames(
+      '/tmp/frames',
+      1,
+      'test',
+      'desc',
+      'scenario',
+      {
+        enabled: true,
+        model: 'claude-sonnet-4-6',
+        extract_fps: 1,
+        language: 'zh',
+        overlay_position: 'bottom',
+        overlay_font_size: 14,
+      },
+    );
+
+    // Verify the prompt sent to Claude includes the language instruction
+    const callArgs = createMock.mock.calls[0][0];
+    const promptText = callArgs.messages[0].content[1].text;
+    expect(promptText).toContain('Respond in zh');
+    expect(promptText).toContain('annotation_text should be in zh');
+  });
 });
