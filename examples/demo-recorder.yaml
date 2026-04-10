@@ -1,0 +1,63 @@
+project:
+  name: agent-file-preview
+  description: "TUI file preview tool for AI agent outputs"
+  build_command: "make build"
+  binary: "./agent-file-preview"
+
+recording:
+  width: 1200
+  height: 800
+  font_size: 16
+  theme: "Catppuccin Mocha"
+  fps: 25
+  max_duration: 60
+
+output:
+  dir: ".demo-recordings"
+  keep_raw: true
+  keep_frames: false
+
+annotation:
+  enabled: true
+  model: "claude-sonnet-4-6"
+  extract_fps: 1
+  language: "zh"
+  overlay_position: "bottom"
+  overlay_font_size: 14
+
+scenarios:
+  - name: "basic-navigation"
+    description: "Add files and navigate through the list"
+    setup:
+      - "agent-file-preview clear"
+      - "agent-file-preview add README.md"
+      - "agent-file-preview add go.mod"
+      - "agent-file-preview add internal/ui/model.go"
+      - "agent-file-preview add internal/preview/detect.go"
+    steps:
+      - { action: "type", value: "agent-file-preview", pause: "2s" }
+      - { action: "key", value: "j", pause: "500ms" }
+      - { action: "key", value: "j", pause: "500ms" }
+      - { action: "key", value: "j", pause: "500ms" }
+      - { action: "key", value: "Enter", pause: "2s" }
+      - { action: "key", value: "k", pause: "500ms" }
+      - { action: "key", value: "k", pause: "500ms" }
+      - { action: "key", value: "Enter", pause: "2s" }
+      - { action: "key", value: "q", pause: "500ms" }
+
+  - name: "file-filter"
+    description: "Test file filtering functionality"
+    setup:
+      - "agent-file-preview clear"
+      - "agent-file-preview add README.md"
+      - "agent-file-preview add go.mod"
+      - "agent-file-preview add Makefile"
+      - "agent-file-preview add internal/ui/model.go"
+      - "agent-file-preview add internal/preview/detect.go"
+    steps:
+      - { action: "type", value: "agent-file-preview", pause: "2s" }
+      - { action: "key", value: "/", pause: "500ms" }
+      - { action: "type", value: "go", pause: "1s" }
+      - { action: "key", value: "Enter", pause: "1s" }
+      - { action: "key", value: "Enter", pause: "2s" }
+      - { action: "key", value: "q", pause: "500ms" }

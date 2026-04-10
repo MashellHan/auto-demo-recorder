@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.demo-recordings/
+*.mp4
+*.png
+*.tape
+!templates/*.tape
+!examples/*.yaml
+.env
+.DS_Store
+coverage/
