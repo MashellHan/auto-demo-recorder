@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, readFile, realpath } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
@@ -107,20 +107,13 @@ export function createCli(): Command {
           return;
         }
 
-        const latestDir = await readFile(latestLink, 'utf-8').catch(() => null);
-        const targetDir = existsSync(latestLink) ? latestLink : null;
-
-        if (!targetDir) {
-          console.log('No recordings found.');
-          return;
-        }
-
-        const entries = await readdir(latestLink);
+        const resolvedDir = await realpath(latestLink);
+        const entries = await readdir(resolvedDir);
         console.log('Last recording:');
-        console.log(`  Directory: ${latestLink}`);
+        console.log(`  Directory: ${resolvedDir}`);
 
         for (const entry of entries) {
-          const reportPath = join(latestLink, entry, 'report.json');
+          const reportPath = join(resolvedDir, entry, 'report.json');
           if (existsSync(reportPath)) {
             const report = JSON.parse(await readFile(reportPath, 'utf-8'));
             console.log(`  Scenario: ${report.scenario}`);

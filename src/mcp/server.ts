@@ -6,6 +6,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { loadConfig, findScenario } from '../config/loader.js';
 import { record } from '../index.js';
+import { resolve } from 'node:path';
 import type { Step, Config, Scenario } from '../config/schema.js';
 
 const TOOL_NAME = 'demo_recorder_record';
@@ -146,13 +147,6 @@ export async function startMcpServer(): Promise<void> {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-}
-
-function resolve(...parts: string[]): string {
-  return parts.reduce((acc, part) => {
-    if (part.startsWith('/')) return part;
-    return acc ? `${acc}/${part}` : part;
-  });
 }
 
 async function handleAdhocMcp(args: {
