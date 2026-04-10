@@ -2,7 +2,6 @@ import { mkdir, writeFile, symlink, unlink, rm } from 'node:fs/promises';
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { resolve, join } from 'node:path';
-import { existsSync } from 'node:fs';
 import type { Config, Scenario } from './config/schema.js';
 import { buildTape } from './pipeline/tape-builder.js';
 import { runVhs } from './pipeline/vhs-runner.js';

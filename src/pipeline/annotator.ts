@@ -45,6 +45,10 @@ export async function annotateFrames(
     const seconds = (i - 1) / config.extract_fps;
     const timestamp = `${Math.floor(seconds / 60)}:${String(Math.floor(seconds) % 60).padStart(2, '0')}`;
 
+    const languageInstruction = config.language !== 'en'
+      ? `\nRespond in ${config.language}. All text fields including description and annotation_text should be in ${config.language}.`
+      : '';
+
     const prompt = `You are analyzing a screenshot from a terminal TUI application called "${projectName}".
 This is frame ${i} of ${frameCount} (timestamp: ${timestamp}).
 
@@ -60,7 +64,7 @@ Analyze the screenshot and provide a JSON response (no markdown fences, just raw
   "bugs_detected": [],
   "visual_quality": "good" | "degraded" | "broken",
   "annotation_text": "Short text (< 50 chars) to overlay on this frame"
-}`;
+}${languageInstruction}`;
 
     const response = await retryWithBackoff(() =>
       client.messages.create({
