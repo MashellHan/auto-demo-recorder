@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile, symlink, unlink, rm } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, symlink, unlink, rm, realpath } from 'node:fs/promises';
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { resolve, join } from 'node:path';
@@ -223,7 +223,6 @@ async function checkPreviousReport(
     const latestLink = resolve(projectDir, outputDir, 'latest');
     if (!existsSync(latestLink)) return undefined;
 
-    const { realpath } = await import('node:fs/promises');
     const latestDir = await realpath(latestLink);
     const previousReportPath = join(latestDir, scenarioName, 'report.json');
 

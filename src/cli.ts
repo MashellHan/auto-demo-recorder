@@ -43,14 +43,18 @@ export function createCli(): Command {
           return;
         }
 
-        const config = await loadConfig(opts.config);
-
-        if (opts.annotate === false) {
-          config.annotation.enabled = false;
-        }
-        if (opts.format === 'gif') {
-          config.recording.format = 'gif';
-        }
+        const loaded = await loadConfig(opts.config);
+        const config = {
+          ...loaded,
+          annotation: {
+            ...loaded.annotation,
+            ...(opts.annotate === false && { enabled: false }),
+          },
+          recording: {
+            ...loaded.recording,
+            ...(opts.format === 'gif' && { format: 'gif' as const }),
+          },
+        };
 
         const projectDir = process.cwd();
         const scenarios = opts.scenario
