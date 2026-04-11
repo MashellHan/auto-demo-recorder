@@ -51,6 +51,8 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'step-analysis', description: 'Analyze step distribution', options: ['--config'] },
   { name: 'search', description: 'Search recording history', options: ['--config', '--limit', '--status', '--backend', '--min-score'] },
   { name: 'scaffold', description: 'Generate starter config', options: ['--category', '--output'] },
+  { name: 'heatmap', description: 'Recording frequency heat map', options: ['--config'] },
+  { name: 'diagnose', description: 'Diagnose config problems', options: ['--config'] },
 ];
 
 /**

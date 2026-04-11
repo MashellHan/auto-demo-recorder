@@ -197,3 +197,11 @@ export type { SearchHit, SearchResult, SearchOptions } from './analytics/search.
 /** Config scaffold generator. */
 export { listScaffolds, findScaffold, getScaffoldCategories, listScaffoldsByCategory, formatScaffoldList } from './config/scaffold.js';
 export type { Scaffold } from './config/scaffold.js';
+
+/** Recording heat map visualization. */
+export { generateHeatMap, formatHeatMap } from './analytics/heatmap.js';
+export type { HeatMapCell, HeatMapResult } from './analytics/heatmap.js';
+
+/** Config doctor — deep diagnostics. */
+export { diagnoseConfig, formatDoctorResult } from './config/config-doctor.js';
+export type { Diagnostic, DoctorResult } from './config/config-doctor.js';

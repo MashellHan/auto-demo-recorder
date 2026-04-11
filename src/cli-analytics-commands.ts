@@ -15,6 +15,7 @@ import { readHistory, formatHistoryTable } from './analytics/history.js';
 import { generateTimeline, formatTimeline } from './analytics/timeline.js';
 import { analyzeSteps, formatStepAnalysis } from './analytics/step-analysis.js';
 import { searchHistory, formatSearchResults } from './analytics/search.js';
+import { generateHeatMap, formatHeatMap } from './analytics/heatmap.js';
 
 /**
  * Register analytics CLI commands onto the given program.
@@ -33,6 +34,7 @@ export function registerAnalyticsCommands(program: Command): void {
   registerTimelineCommand(program);
   registerStepAnalysisCommand(program);
   registerSearchCommand(program);
+  registerHeatMapCommand(program);
 }
 
 function registerAnalyzeCommand(program: Command): void {
@@ -352,6 +354,26 @@ function registerSearchCommand(program: Command): void {
         });
 
         console.log(formatSearchResults(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerHeatMapCommand(program: Command): void {
+  program
+    .command('heatmap')
+    .description('Show recording frequency heat map by day and hour')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+
+        const entries = await readHistory(outputDir);
+        const result = generateHeatMap(entries);
+        console.log(formatHeatMap(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
