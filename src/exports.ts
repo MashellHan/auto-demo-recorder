@@ -321,3 +321,7 @@ export type { RiskLevel, ScenarioRisk, RiskResult } from './analytics/risk-score
 /** Recording efficiency metrics. */
 export { computeEfficiency, formatEfficiency } from './analytics/efficiency.js';
 export type { EfficiencyResult, IdleAnalysis, HourlyBucket } from './analytics/efficiency.js';
+
+/** Recording velocity tracker. */
+export { analyzeVelocity, formatVelocity } from './analytics/velocity.js';
+export type { VelocityWindow, VelocityResult } from './analytics/velocity.js';

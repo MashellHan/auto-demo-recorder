@@ -16,6 +16,7 @@ import { computeHealthDashboard, formatHealthDashboard } from './analytics/healt
 import { analyzeStreaks, formatStreaks } from './analytics/streaks.js';
 import { computeRiskScores, formatRiskScores } from './analytics/risk-score.js';
 import { computeEfficiency, formatEfficiency } from './analytics/efficiency.js';
+import { analyzeVelocity, formatVelocity } from './analytics/velocity.js';
 import type { GroupBy } from './analytics/grouping.js';
 
 /**
@@ -40,6 +41,7 @@ export function registerAnalyticsMonitorCommands(program: Command): void {
   registerStreaksCommand(program);
   registerRiskCommand(program);
   registerEfficiencyCommand(program);
+  registerVelocityCommand(program);
 }
 
 function registerDuplicatesCommand(program: Command): void {
@@ -356,6 +358,25 @@ function registerEfficiencyCommand(program: Command): void {
         const entries = await readHistory(outputDir);
         const result = computeEfficiency(entries);
         console.log(formatEfficiency(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerVelocityCommand(program: Command): void {
+  program
+    .command('velocity')
+    .description('Show recording velocity over rolling windows with projections')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const result = analyzeVelocity(entries);
+        console.log(formatVelocity(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

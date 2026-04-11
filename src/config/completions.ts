@@ -81,6 +81,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'distribution', description: 'Recording distribution analysis', options: ['--config'] },
   { name: 'risk', description: 'Scenario risk scoring', options: ['--config'] },
   { name: 'efficiency', description: 'Recording efficiency metrics', options: ['--config'] },
+  { name: 'velocity', description: 'Recording velocity tracker', options: ['--config'] },
 ];
 
 /**
