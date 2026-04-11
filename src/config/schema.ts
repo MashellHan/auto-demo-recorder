@@ -1,10 +1,12 @@
 import { z } from 'zod';
 
 const StepSchema = z.object({
-  action: z.enum(['type', 'key', 'sleep', 'screenshot']),
+  action: z.enum(['type', 'key', 'sleep', 'screenshot', 'wait', 'assert', 'assert_exit']),
   value: z.string(),
   pause: z.string().default('500ms'),
   repeat: z.number().optional(),
+  /** Timeout for wait/assert actions (e.g., "10s"). */
+  timeout: z.string().optional(),
 });
 
 /** Browser-specific step schema with extended actions (navigate, click, fill, scroll, hover, select, screenshot). */
@@ -66,6 +68,20 @@ const BrowserConfigSchema = z.object({
   record_video: z.boolean().default(true),
 });
 
+/** Window frame decoration options for terminal recordings. */
+const FrameSchema = z.object({
+  /** Window bar style: none, colorful (macOS dots), or rings. */
+  style: z.enum(['none', 'colorful', 'rings']).default('none'),
+  /** Title text shown in the window bar. */
+  title: z.string().optional(),
+  /** Window bar size in pixels. */
+  bar_size: z.number().optional(),
+  /** Border radius in pixels for rounded corners. */
+  border_radius: z.number().optional(),
+  /** Padding around the terminal content in pixels. */
+  padding: z.number().optional(),
+});
+
 const RecordingSchema = z.object({
   width: z.number().default(1200),
   height: z.number().default(800),
@@ -82,6 +98,8 @@ const RecordingSchema = z.object({
   idle_time_limit: z.number().positive().optional(),
   /** Generate multiple formats in a single pass (overrides format when set). */
   formats: z.array(z.enum(['mp4', 'gif'])).optional(),
+  /** Window frame decoration. */
+  frame: FrameSchema.default({}),
 });
 
 const OutputSchema = z.object({

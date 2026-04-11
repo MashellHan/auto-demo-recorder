@@ -323,4 +323,83 @@ describe('buildTape', () => {
     const outputCount = (tape.match(/^Output /gm) || []).length;
     expect(outputCount).toBe(1);
   });
+
+  it('generates window bar directives for colorful frame style', () => {
+    const scenario: Scenario = {
+      name: 'frame-test',
+      description: 'Frame test',
+      setup: [],
+      steps: [{ action: 'key', value: 'q', pause: '500ms' }],
+    };
+    const recording = {
+      ...defaultRecording,
+      frame: { style: 'colorful' as const, title: 'My App', bar_size: 50, border_radius: 8, padding: 20 },
+    };
+    const tape = buildTape({ scenario, recording, outputPath: '/tmp/test.mp4' });
+    expect(tape).toContain('Set WindowBar "colorful"');
+    expect(tape).toContain('Set WindowBarSize 50');
+    expect(tape).toContain('Set WindowTitle "My App"');
+    expect(tape).toContain('Set BorderRadius 8');
+    expect(tape).toContain('Set Padding 20');
+  });
+
+  it('does not generate window bar directives for none style', () => {
+    const scenario: Scenario = {
+      name: 'no-frame',
+      description: 'No frame test',
+      setup: [],
+      steps: [{ action: 'key', value: 'q', pause: '500ms' }],
+    };
+    const recording = { ...defaultRecording, frame: { style: 'none' as const } };
+    const tape = buildTape({ scenario, recording, outputPath: '/tmp/test.mp4' });
+    expect(tape).not.toContain('Set WindowBar');
+    expect(tape).not.toContain('Set WindowBarSize');
+    expect(tape).not.toContain('Set WindowTitle');
+  });
+
+  it('generates Wait+Screen for wait action', () => {
+    const scenario: Scenario = {
+      name: 'wait-test',
+      description: 'Wait test',
+      setup: [],
+      steps: [{ action: 'wait', value: 'Ready', pause: '500ms', timeout: '15s' }],
+    };
+    const tape = buildTape({ scenario, recording: defaultRecording, outputPath: '/tmp/test.mp4' });
+    expect(tape).toContain('Wait+Screen /Ready/ 15s');
+  });
+
+  it('generates Wait+Screen for assert action', () => {
+    const scenario: Scenario = {
+      name: 'assert-test',
+      description: 'Assert test',
+      setup: [],
+      steps: [{ action: 'assert', value: '0 vulnerabilities', pause: '500ms' }],
+    };
+    const tape = buildTape({ scenario, recording: defaultRecording, outputPath: '/tmp/test.mp4' });
+    expect(tape).toContain('Wait+Screen /0 vulnerabilities/ 10s');
+  });
+
+  it('generates echo and Wait+Screen for assert_exit action', () => {
+    const scenario: Scenario = {
+      name: 'assert-exit-test',
+      description: 'Assert exit test',
+      setup: [],
+      steps: [{ action: 'assert_exit', value: '0', pause: '500ms' }],
+    };
+    const tape = buildTape({ scenario, recording: defaultRecording, outputPath: '/tmp/test.mp4' });
+    expect(tape).toContain('Type "echo $?"');
+    expect(tape).toContain('Enter');
+    expect(tape).toContain('Wait+Screen /0/ 5s');
+  });
+
+  it('uses default timeout for wait when not specified', () => {
+    const scenario: Scenario = {
+      name: 'wait-default-timeout',
+      description: 'Default timeout test',
+      setup: [],
+      steps: [{ action: 'wait', value: 'Done', pause: '500ms' }],
+    };
+    const tape = buildTape({ scenario, recording: defaultRecording, outputPath: '/tmp/test.mp4' });
+    expect(tape).toContain('Wait+Screen /Done/ 10s');
+  });
 });

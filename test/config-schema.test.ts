@@ -202,6 +202,48 @@ describe('ConfigSchema', () => {
     const config = ConfigSchema.parse(raw);
     expect(config.recording.formats).toBeUndefined();
   });
+
+  it('defaults frame style to none', () => {
+    const raw = {
+      project: { name: 'test' },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.recording.frame.style).toBe('none');
+  });
+
+  it('accepts frame with colorful style and title', () => {
+    const raw = {
+      project: { name: 'test' },
+      recording: { frame: { style: 'colorful', title: 'My App', bar_size: 40, border_radius: 8, padding: 20 } },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.recording.frame.style).toBe('colorful');
+    expect(config.recording.frame.title).toBe('My App');
+    expect(config.recording.frame.bar_size).toBe(40);
+    expect(config.recording.frame.border_radius).toBe(8);
+    expect(config.recording.frame.padding).toBe(20);
+  });
+
+  it('accepts wait, assert, and assert_exit step actions', () => {
+    const raw = {
+      project: { name: 'test' },
+      scenarios: [{
+        name: 'test', description: 'Test',
+        steps: [
+          { action: 'wait', value: 'Ready', timeout: '15s' },
+          { action: 'assert', value: '0 vulnerabilities' },
+          { action: 'assert_exit', value: '0' },
+        ],
+      }],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.scenarios[0].steps[0].action).toBe('wait');
+    expect(config.scenarios[0].steps[0].timeout).toBe('15s');
+    expect(config.scenarios[0].steps[1].action).toBe('assert');
+    expect(config.scenarios[0].steps[2].action).toBe('assert_exit');
+  });
 });
 
 describe('ConfigSchema — browser backend', () => {

@@ -22,6 +22,25 @@ export function buildTape(options: TapeBuildOptions): string {
   lines.push(`Set Height ${recording.height}`);
   lines.push(`Set FontSize ${recording.font_size}`);
   lines.push(`Set Theme "${recording.theme}"`);
+
+  // Window frame decorations
+  const frame = recording.frame ?? { style: 'none' as const };
+  if (frame.style !== 'none') {
+    lines.push(`Set WindowBar "${frame.style}"`);
+  }
+  if (frame.title) {
+    lines.push(`Set WindowBarSize ${frame.bar_size ?? 40}`);
+    lines.push(`Set WindowTitle "${escapeQuotes(frame.title)}"`);
+  } else if (frame.bar_size) {
+    lines.push(`Set WindowBarSize ${frame.bar_size}`);
+  }
+  if (frame.border_radius) {
+    lines.push(`Set BorderRadius ${frame.border_radius}`);
+  }
+  if (frame.padding) {
+    lines.push(`Set Padding ${frame.padding}`);
+  }
+
   lines.push('');
 
   // Setup phase (hidden)
@@ -56,6 +75,21 @@ export function buildTape(options: TapeBuildOptions): string {
         case 'screenshot':
           lines.push(`Screenshot "${escapeQuotes(step.value)}"`);
           continue; // screenshot doesn't need a trailing pause
+        case 'wait': {
+          const waitTimeout = step.timeout ?? '10s';
+          lines.push(`Wait+Screen /${escapeRegex(step.value)}/ ${waitTimeout}`);
+          break;
+        }
+        case 'assert': {
+          const assertTimeout = step.timeout ?? '10s';
+          lines.push(`Wait+Screen /${escapeRegex(step.value)}/ ${assertTimeout}`);
+          break;
+        }
+        case 'assert_exit':
+          lines.push(`Type "echo $?"`);
+          lines.push('Enter');
+          lines.push(`Wait+Screen /${escapeRegex(step.value)}/ ${step.timeout ?? '5s'}`);
+          break;
       }
       lines.push(`Sleep ${capDuration(step.pause, idleLimit)}`);
     }
@@ -66,6 +100,11 @@ export function buildTape(options: TapeBuildOptions): string {
 
 function escapeQuotes(s: string): string {
   return s.replace(/"/g, '\\"');
+}
+
+/** Escape forward slashes in regex patterns for VHS Wait+Screen directives. */
+function escapeRegex(s: string): string {
+  return s.replace(/\//g, '\\/');
 }
 
 /** Cap a duration string (e.g. "10s", "3000ms") to a maximum number of seconds. */

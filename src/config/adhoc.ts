@@ -37,6 +37,7 @@ export function buildAdhocConfig(opts: AdhocOptions): Config {
         device_scale_factor: 1,
         record_video: true,
       },
+      frame: { style: 'none' },
     },
     output: {
       dir: '.demo-recordings',
