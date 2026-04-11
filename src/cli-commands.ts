@@ -24,6 +24,9 @@ import { resolveExtendsChain, formatExtendsChain } from './config/extends-resolv
 import { generateComparisonReport, formatComparisonReport } from './analytics/comparison-report.js';
 import { generateValidationHints, formatValidationHints } from './config/validation-hints.js';
 import { readHistory, formatHistoryTable } from './analytics/history.js';
+import { generateCompletion, detectShell } from './config/completions.js';
+import { PluginRegistry, formatPluginList } from './pipeline/plugin-system.js';
+import { listSnapshots, saveSnapshot, restoreSnapshot, formatSnapshotList } from './pipeline/snapshots.js';
 import { findScenario } from './config/loader.js';
 
 /**
@@ -50,6 +53,9 @@ export function registerCommands(program: Command): void {
   registerShowCommand(program);
   registerCompareCommand(program);
   registerHistoryCommand(program);
+  registerCompletionCommand(program);
+  registerPluginsCommand(program);
+  registerSnapshotCommand(program);
 }
 
 function registerAnalyzeCommand(program: Command): void {
@@ -612,6 +618,92 @@ function registerHistoryCommand(program: Command): void {
         });
 
         console.log(formatHistoryTable(entries));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerCompletionCommand(program: Command): void {
+  program
+    .command('completion')
+    .description('Generate shell completion script')
+    .option('--shell <shell>', 'Shell type: bash, zsh, or fish')
+    .action((opts: { shell?: string }) => {
+      const shell = (opts.shell ?? detectShell()) as 'bash' | 'zsh' | 'fish';
+      if (!['bash', 'zsh', 'fish'].includes(shell)) {
+        console.error(`Unsupported shell: ${shell}. Use --shell bash|zsh|fish`);
+        process.exit(1);
+      }
+      console.log(generateCompletion(shell));
+    });
+}
+
+function registerPluginsCommand(program: Command): void {
+  program
+    .command('plugins')
+    .description('List registered plugins')
+    .action(() => {
+      // In a real implementation, plugins would be loaded from config.
+      // For now, show the empty plugin registry.
+      const registry = new PluginRegistry();
+      console.log(formatPluginList(registry.getPlugins()));
+    });
+}
+
+function registerSnapshotCommand(program: Command): void {
+  const snapshotCmd = program
+    .command('snapshot')
+    .description('Manage recording session snapshots');
+
+  snapshotCmd
+    .command('save <session>')
+    .description('Save a snapshot of a recording session')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('-l, --label <label>', 'Optional label for the snapshot')
+    .action(async (sessionId: string, opts: { config?: string; label?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const result = await saveSnapshot(outputDir, sessionId, opts.label);
+        console.log(`✓ Snapshot saved: ${result.snapshot.id}`);
+        console.log(`  Files: ${result.filesCopied}`);
+        console.log(`  Path: ${result.snapshot.path}`);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  snapshotCmd
+    .command('list <session>')
+    .description('List snapshots for a recording session')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (sessionId: string, opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const snapshots = await listSnapshots(outputDir, sessionId);
+        console.log(formatSnapshotList(snapshots));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  snapshotCmd
+    .command('restore <session> <snapshotId>')
+    .description('Restore a session from a snapshot')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (sessionId: string, snapshotId: string, opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const result = await restoreSnapshot(outputDir, sessionId, snapshotId);
+        console.log(`✓ Session restored from snapshot`);
+        console.log(`  Restored from: ${result.restoredFrom}`);
+        console.log(`  Files: ${result.filesRestored}`);
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

@@ -151,6 +151,17 @@ export type { ValidationHint } from './config/validation-hints.js';
 export { appendHistoryEntry, readHistory, historyStats, formatHistoryTable } from './analytics/history.js';
 export type { HistoryEntry, HistoryFilter } from './analytics/history.js';
 
+/** Shell completion scripts. */
+export { generateBashCompletion, generateZshCompletion, generateFishCompletion, generateCompletion, detectShell } from './config/completions.js';
+
+/** Plugin system. */
+export { PluginRegistry, formatPluginList } from './pipeline/plugin-system.js';
+export type { Plugin, StepAction, OutputFormat, PluginHooks, PluginRegistration } from './pipeline/plugin-system.js';
+
+/** Recording snapshots. */
+export { saveSnapshot, listSnapshots, restoreSnapshot, deleteSnapshot, formatSnapshotList } from './pipeline/snapshots.js';
+export type { Snapshot, SaveSnapshotResult } from './pipeline/snapshots.js';
+
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
   /** Whether the recording completed successfully. */
