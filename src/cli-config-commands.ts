@@ -14,6 +14,7 @@ import { generateCompletion, detectShell } from './config/completions.js';
 import { diffConfigs, formatConfigDiff } from './config/config-diff.js';
 import { lintConfig, formatLintReport } from './config/linter.js';
 import { runPreflightChecks, formatPreflightReport } from './config/preflight.js';
+import { mergeConfigs, formatMergeReport } from './config/config-merge.js';
 
 /**
  * Register config-related CLI commands onto the given program.
@@ -33,6 +34,7 @@ export function registerConfigCommands(program: Command): void {
   registerDiffCommand(program);
   registerLintCommand(program);
   registerCheckCommand(program);
+  registerMergeCommand(program);
 }
 
 function registerEnvCommand(program: Command): void {
@@ -339,6 +341,54 @@ function registerCheckCommand(program: Command): void {
         console.log(formatPreflightReport(result));
         if (!result.passed) {
           process.exit(1);
+        }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerMergeCommand(program: Command): void {
+  program
+    .command('config-merge')
+    .description('Deep-merge two config files (base + override)')
+    .argument('<base>', 'Path to base config file')
+    .argument('<override>', 'Path to override config file')
+    .option('-o, --output <path>', 'Write merged config to file')
+    .option('--json', 'Output as JSON instead of YAML')
+    .action(async (basePath: string, overridePath: string, opts: { output?: string; json?: boolean }) => {
+      try {
+        const yaml = await import('yaml');
+        const resolvedBase = resolve(process.cwd(), basePath);
+        const resolvedOverride = resolve(process.cwd(), overridePath);
+
+        if (!existsSync(resolvedBase)) {
+          throw new Error(`Base config not found: ${resolvedBase}`);
+        }
+        if (!existsSync(resolvedOverride)) {
+          throw new Error(`Override config not found: ${resolvedOverride}`);
+        }
+
+        const baseContent = yaml.parse(await readFile(resolvedBase, 'utf-8')) as Record<string, unknown>;
+        const overrideContent = yaml.parse(await readFile(resolvedOverride, 'utf-8')) as Record<string, unknown>;
+        const result = mergeConfigs(baseContent, overrideContent);
+
+        if (opts.output) {
+          const outputPath = resolve(process.cwd(), opts.output);
+          const content = opts.json
+            ? JSON.stringify(result.merged, null, 2)
+            : yaml.stringify(result.merged);
+          await writeFile(outputPath, content, 'utf-8');
+          console.log(`✓ Merged config written to ${outputPath}`);
+        } else {
+          console.log(formatMergeReport(result));
+          console.log('');
+          if (opts.json) {
+            console.log(JSON.stringify(result.merged, null, 2));
+          } else {
+            console.log(yaml.stringify(result.merged));
+          }
         }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);

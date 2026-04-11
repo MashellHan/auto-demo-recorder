@@ -173,3 +173,7 @@ export type { LintSeverity, LintWarning, LintResult } from './config/linter.js';
 /** Pre-flight checks (validation + lint + health). */
 export { runPreflightChecks, formatPreflightReport } from './config/preflight.js';
 export type { PreflightCheck, PreflightResult } from './config/preflight.js';
+
+/** Config merge utility. */
+export { mergeConfigs, formatMergeReport } from './config/config-merge.js';
+export type { MergeSource, MergeResolution, MergeResult } from './config/config-merge.js';

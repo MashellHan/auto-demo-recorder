@@ -45,6 +45,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'estimate', description: 'Estimate annotation cost', options: ['--config', '--model', '--fps'] },
   { name: 'lint', description: 'Run config best-practice checks', options: ['--config'] },
   { name: 'check', description: 'Run pre-flight checks', options: ['--config', '--backend'] },
+  { name: 'config-merge', description: 'Merge two config files', options: ['--output', '--json'] },
 ];
 
 /**
