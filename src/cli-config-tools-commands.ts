@@ -13,6 +13,7 @@ import { diagnoseConfig, formatDoctorResult } from './config/config-doctor.js';
 import { exportConfig, formatExportSummary } from './config/config-export.js';
 import { cloneScenario, cloneBrowserScenario, formatCloneSummary } from './config/scenario-clone.js';
 import { interpolateConfig, listConfigVariables, formatInterpolationResult } from './config/interpolation.js';
+import { compareConfigs, formatComparisonReport } from './config/config-comparison.js';
 
 /**
  * Register config tool CLI commands onto the given program.
@@ -30,6 +31,7 @@ export function registerConfigToolCommands(program: Command): void {
   registerConfigExportCommand(program);
   registerCloneCommand(program);
   registerInterpolateCommand(program);
+  registerConfigCompareCommand(program);
 }
 
 function registerLintCommand(program: Command): void {
@@ -306,6 +308,39 @@ function registerInterpolateCommand(program: Command): void {
 
         const result = interpolateConfig(raw, process.env, false);
         console.log(formatInterpolationResult(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerConfigCompareCommand(program: Command): void {
+  program
+    .command('config-compare')
+    .description('Compare two config files and show structural differences')
+    .argument('<fileA>', 'Path to first config file')
+    .argument('<fileB>', 'Path to second config file')
+    .action(async (fileA: string, fileB: string) => {
+      try {
+        const yaml = await import('yaml');
+        const { ConfigSchema } = await import('./config/schema.js');
+        const resolvedA = resolve(process.cwd(), fileA);
+        const resolvedB = resolve(process.cwd(), fileB);
+
+        if (!existsSync(resolvedA)) {
+          throw new Error(`Config file not found: ${resolvedA}`);
+        }
+        if (!existsSync(resolvedB)) {
+          throw new Error(`Config file not found: ${resolvedB}`);
+        }
+
+        const rawA = yaml.parse(await readFile(resolvedA, 'utf-8'));
+        const rawB = yaml.parse(await readFile(resolvedB, 'utf-8'));
+        const configA = ConfigSchema.parse(rawA);
+        const configB = ConfigSchema.parse(rawB);
+        const report = compareConfigs(configA, configB);
+        console.log(formatComparisonReport(report));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
