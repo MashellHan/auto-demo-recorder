@@ -42,6 +42,9 @@ export type { DocGeneratorOptions } from './pipeline/doc-generator.js';
 /** SVG terminal image generator. */
 export { generateSvg, generateSvgFromReport } from './pipeline/svg-generator.js';
 export type { SvgGeneratorOptions, SvgTheme } from './pipeline/svg-generator.js';
+/** HTML report dashboard generator. */
+export { generateReport } from './pipeline/report-generator.js';
+export type { ReportDashboardOptions } from './pipeline/report-generator.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
