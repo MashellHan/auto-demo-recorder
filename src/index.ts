@@ -71,6 +71,9 @@ export { pLimit } from './pipeline/concurrency.js';
 /** Recording session export/archive utilities. */
 export { createArchive, listSessionArtifacts } from './pipeline/exporter.js';
 export type { ArchiveResult, SessionArtifacts } from './pipeline/exporter.js';
+/** Recording replay utilities. */
+export { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipeline/replay.js';
+export type { ReplayPlan, ReplayStep } from './pipeline/replay.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {

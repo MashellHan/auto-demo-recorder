@@ -17,6 +17,7 @@ import { generateChangelog, formatChangelog, type SessionData } from './analytic
 import { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate } from './cli-utils.js';
 import { pLimit } from './pipeline/concurrency.js';
 import { createArchive, listSessionArtifacts } from './pipeline/exporter.js';
+import { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipeline/replay.js';
 import type { Step, BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -472,6 +473,51 @@ export function createCli(): Command {
 
         const changelogEntries = generateChangelog(sessions);
         console.log(formatChangelog(changelogEntries));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('replay')
+    .description('Replay a recorded session step-by-step')
+    .argument('<path>', 'Path to scenario directory (e.g., 2026-04-11_08-00/basic)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--auto', 'Auto-play without pausing')
+    .option('--speed <multiplier>', 'Playback speed multiplier (default: 1)', '1')
+    .action(async (replayPath: string, opts: { config?: string; auto?: boolean; speed?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const scenarioDir = join(outputDir, replayPath);
+        const reportPath = join(scenarioDir, 'report.json');
+
+        if (!existsSync(reportPath)) {
+          throw new Error(`Report not found: ${reportPath}`);
+        }
+
+        const report = JSON.parse(await readFile(reportPath, 'utf-8'));
+        const plan = buildReplayPlan(report);
+
+        console.log(formatReplayHeader(plan));
+
+        if (plan.steps.length === 0) {
+          console.log('No frames to replay.');
+          return;
+        }
+
+        const speed = parseFloat(opts.speed ?? '1') || 1;
+
+        for (const step of plan.steps) {
+          if (opts.auto && step.delayMs > 0) {
+            await new Promise((r) => setTimeout(r, step.delayMs / speed));
+          }
+          console.log(formatReplayStep(step, plan.totalSteps));
+          console.log('');
+        }
+
+        console.log(`[Replay complete] ${plan.scenarioName} — ${plan.bugsFound} bug(s) found`);
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
