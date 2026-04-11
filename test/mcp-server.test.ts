@@ -121,6 +121,73 @@ describe('MCP Server', () => {
     expect(callArgs.scenario.steps[0].value).toBe('ls -la');
   });
 
+  it('adhoc applies default pause to steps without pause', async () => {
+    const { record } = await import('../src/index.js');
+    await startMcpServer();
+    const callHandler = handlers.get('tools/call')!;
+    await callHandler({
+      params: {
+        name: 'demo_recorder_record',
+        arguments: {
+          project_dir: '/tmp/project',
+          adhoc: {
+            command: './my-tui',
+            steps: [
+              { action: 'key', value: 'j' },
+              { action: 'key', value: 'q', pause: '1s' },
+            ],
+          },
+        },
+      },
+    });
+
+    const callArgs = vi.mocked(record).mock.calls[0][0];
+    // First step is the command itself (type), then the user steps
+    expect(callArgs.scenario.steps[1]).toEqual({ action: 'key', value: 'j', pause: '500ms' });
+    expect(callArgs.scenario.steps[2]).toEqual({ action: 'key', value: 'q', pause: '1s' });
+  });
+
+  it('adhoc passes format and annotate through to config', async () => {
+    const { record } = await import('../src/index.js');
+    await startMcpServer();
+    const callHandler = handlers.get('tools/call')!;
+    await callHandler({
+      params: {
+        name: 'demo_recorder_record',
+        arguments: {
+          project_dir: '/tmp/project',
+          adhoc: { command: './my-tui' },
+          format: 'gif',
+          annotate: false,
+        },
+      },
+    });
+
+    const callArgs = vi.mocked(record).mock.calls[0][0];
+    expect(callArgs.config.recording.format).toBe('gif');
+    expect(callArgs.config.annotation.enabled).toBe(false);
+  });
+
+  it('adhoc with no steps records command only', async () => {
+    const { record } = await import('../src/index.js');
+    await startMcpServer();
+    const callHandler = handlers.get('tools/call')!;
+    await callHandler({
+      params: {
+        name: 'demo_recorder_record',
+        arguments: {
+          project_dir: '/tmp/project',
+          adhoc: { command: 'htop' },
+        },
+      },
+    });
+
+    const callArgs = vi.mocked(record).mock.calls[0][0];
+    // Only the type command step, no user steps
+    expect(callArgs.scenario.steps).toHaveLength(1);
+    expect(callArgs.scenario.steps[0]).toEqual({ action: 'type', value: 'htop', pause: '2s' });
+  });
+
   it('throws for unknown tool', async () => {
     await startMcpServer();
     const callHandler = handlers.get('tools/call')!;
@@ -174,5 +241,24 @@ describe('MCP Server', () => {
       '.demo-recordings',
       '2026-04-11_07-30',
     );
+  });
+
+  it('returns error response when record throws', async () => {
+    const { record } = await import('../src/index.js');
+    vi.mocked(record).mockRejectedValueOnce(new Error('VHS not installed'));
+
+    await startMcpServer();
+    const callHandler = handlers.get('tools/call')!;
+    const result = await callHandler({
+      params: {
+        name: 'demo_recorder_record',
+        arguments: { project_dir: '/tmp/project' },
+      },
+    }) as { content: Array<{ type: string; text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(false);
+    expect(parsed.error).toBe('VHS not installed');
   });
 });
