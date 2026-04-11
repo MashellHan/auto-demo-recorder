@@ -154,7 +154,7 @@ export function formatStats(stats: RecordingStats): string {
     lines.push('Quality Trend (last 10):');
     for (const dp of stats.qualityTrend) {
       const icon = dp.status === 'ok' ? '✅' : dp.status === 'warning' ? '⚠️' : '❌';
-      const bugStr = dp.bugs > 0 ? ` (${dp.bugs} bugs)` : '';
+      const bugStr = dp.bugs > 0 ? ` (${dp.bugs} ${dp.bugs === 1 ? 'bug' : 'bugs'})` : '';
       lines.push(`  ${icon} ${dp.timestamp} — ${dp.scenario}${bugStr}`);
     }
   }

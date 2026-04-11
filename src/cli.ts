@@ -12,6 +12,7 @@ import { detectRegressions } from './pipeline/regression.js';
 import { startWatcher } from './pipeline/watcher.js';
 import { VHS_THEMES, findTheme, resolveThemeId } from './config/themes.js';
 import { computeStats, formatStats } from './analytics/stats.js';
+import { diffSessions, formatSessionDiff } from './analytics/diff.js';
 import type { Step, BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -355,6 +356,28 @@ export function createCli(): Command {
         const outputDir = resolve(process.cwd(), config.output.dir);
         const stats = await computeStats(outputDir);
         console.log(formatStats(stats));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('session-diff')
+    .description('Compare two recording sessions')
+    .argument('<sessionA>', 'Session A timestamp (e.g., 2026-04-11_08-00)')
+    .argument('<sessionB>', 'Session B timestamp (e.g., 2026-04-11_09-00)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (sessionA: string, sessionB: string, opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const result = await diffSessions(outputDir, sessionA, sessionB);
+        console.log(formatSessionDiff(result));
+
+        if (result.regressed > 0) {
+          process.exit(1);
+        }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

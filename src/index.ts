@@ -60,6 +60,9 @@ export type { BundleOptions, BundleManifest, BundleFile } from './pipeline/bundl
 /** Recording analytics and statistics. */
 export { computeStats, formatStats } from './analytics/stats.js';
 export type { RecordingStats, QualityDataPoint } from './analytics/stats.js';
+/** Recording session comparison. */
+export { diffSessions, formatSessionDiff } from './analytics/diff.js';
+export type { SessionDiffResult, ScenarioDiff } from './analytics/diff.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {

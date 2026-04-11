@@ -248,7 +248,7 @@ describe('formatStats', () => {
     expect(result).toContain('Quality Trend');
     expect(result).toContain('✅');
     expect(result).toContain('⚠️');
-    expect(result).toContain('(1 bugs)');
+    expect(result).toContain('(1 bug)');
   });
 
   it('formats short duration in seconds', () => {
