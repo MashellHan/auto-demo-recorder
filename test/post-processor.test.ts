@@ -246,4 +246,60 @@ describe('postProcess', () => {
     expect(vfArg).toBeDefined();
     expect(vfArg).toContain('0.3');
   });
+
+  it('falls back gracefully when ffmpeg -filters check fails', async () => {
+    const { execFile } = await import('node:child_process');
+
+    // First call (checkDrawtextSupport) should fail
+    vi.mocked(execFile).mockImplementationOnce(
+      (_cmd: string, _args: unknown, _opts: unknown, cb: (err: Error | null) => void) => {
+        cb(new Error('ffmpeg not found'));
+        return { stderr: { on: vi.fn() } } as never;
+      },
+    );
+
+    await postProcess({
+      inputVideo: '/tmp/raw.mp4',
+      outputVideo: '/tmp/annotated.mp4',
+      thumbnailPath: '/tmp/thumb.png',
+      frames: [frames[0]],
+      overlayFontSize: 14,
+      overlayPosition: 'bottom',
+      extractFps: 1,
+    });
+
+    // With drawtext unsupported, the vf filter should NOT contain drawtext
+    const overlayArgs = vi.mocked(execFile).mock.calls[1][1];
+    const vfArg = overlayArgs?.find((a: string) => a.includes('drawbox'));
+    expect(vfArg).toBeDefined();
+    // Should only have the bar filter, no drawtext
+    expect(vfArg).not.toContain('drawtext');
+  });
+
+  it('throws when ffmpeg overlay command fails', async () => {
+    const { execFile } = await import('node:child_process');
+
+    // First call succeeds (drawtext check), second call fails (overlay)
+    vi.mocked(execFile)
+      .mockImplementationOnce((_cmd: string, args: unknown, _opts: unknown, cb: (err: Error | null, stdout?: string, stderr?: string) => void) => {
+        cb(null, 'T. drawtext V->V Draw text', '');
+        return { stderr: { on: vi.fn() } } as never;
+      })
+      .mockImplementationOnce((_cmd: string, _args: unknown, _opts: unknown, cb: (err: Error | null) => void) => {
+        cb(new Error('encoding failed'));
+        return { stderr: { on: vi.fn() } } as never;
+      });
+
+    await expect(
+      postProcess({
+        inputVideo: '/tmp/raw.mp4',
+        outputVideo: '/tmp/annotated.mp4',
+        thumbnailPath: '/tmp/thumb.png',
+        frames: [frames[0]],
+        overlayFontSize: 14,
+        overlayPosition: 'bottom',
+        extractFps: 1,
+      }),
+    ).rejects.toThrow('ffmpeg failed: encoding failed');
+  });
 });

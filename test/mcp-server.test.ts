@@ -285,6 +285,31 @@ describe('MCP Server', () => {
     expect(parsed.recordings[0].summary).toBeDefined();
   });
 
+  it('uses findScenario when scenario name is provided', async () => {
+    const { findScenario } = await import('../src/config/loader.js');
+    const { record } = await import('../src/index.js');
+
+    await startMcpServer();
+    const callHandler = handlers.get('tools/call')!;
+    await callHandler({
+      params: {
+        name: 'demo_recorder_record',
+        arguments: { project_dir: '/tmp/project', scenario: 'basic' },
+      },
+    });
+
+    // findScenario should have been called with the scenario name
+    expect(vi.mocked(findScenario)).toHaveBeenCalledWith(
+      expect.objectContaining({ scenarios: expect.any(Array) }),
+      'basic',
+    );
+    // record should be called with a single scenario (not all)
+    expect(vi.mocked(record)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(record).mock.calls[0][0].scenario.name).toBe('basic');
+    // Single scenario should NOT set skipSymlinkUpdate
+    expect(vi.mocked(record).mock.calls[0][0].skipSymlinkUpdate).toBe(false);
+  });
+
   it('returns error response when record throws', async () => {
     const { record } = await import('../src/index.js');
     vi.mocked(record).mockRejectedValueOnce(new Error('VHS not installed'));
