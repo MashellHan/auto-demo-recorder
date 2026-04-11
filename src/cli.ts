@@ -12,9 +12,9 @@ import { startWatcher } from './pipeline/watcher.js';
 import { VHS_THEMES, findTheme, resolveThemeId } from './config/themes.js';
 import { computeStats, formatStats } from './analytics/stats.js';
 import { diffSessions, formatSessionDiff } from './analytics/diff.js';
-import { generateChangelog, formatChangelog, type SessionData } from './analytics/changelog.js';
+import { generateChangelog, formatChangelog } from './analytics/changelog.js';
 import { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate, resolveSessionPath } from './cli-utils.js';
-import { filterByTag, handleVhsRecord, handleBrowserRecord, handleAdhocRecord } from './cli-handlers.js';
+import { filterByTag, handleVhsRecord, handleBrowserRecord, handleAdhocRecord, loadChangelogSessions } from './cli-handlers.js';
 import { createArchive, listSessionArtifacts } from './pipeline/exporter.js';
 import { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile } from './config/profiles.js';
 import { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipeline/replay.js';
@@ -24,6 +24,7 @@ import { migrateConfig, formatMigrationReport } from './config/migration.js';
 import { pruneRecordings, formatPruneReport } from './pipeline/prune.js';
 import { generateCIConfig, getSupportedProviders } from './config/ci-generator.js';
 import { runHealthCheck, formatHealthCheck } from './pipeline/health-check.js';
+import { saveBaseline, checkBaseline, listBaselines, formatBaselineComparison } from './analytics/baseline.js';
 import type { BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -456,42 +457,11 @@ export function createCli(): Command {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
+        const sessions = await loadChangelogSessions(outputDir);
 
-        if (!existsSync(outputDir)) {
-          console.log('No recording history found.');
-          return;
-        }
-
-        const entries = await readdir(outputDir);
-        const sessionDirs = entries
-          .filter((e) => /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}$/.test(e))
-          .sort();
-
-        if (sessionDirs.length === 0) {
+        if (sessions.length === 0) {
           console.log('No recording sessions found.');
           return;
-        }
-
-        const sessions: SessionData[] = [];
-        for (const dir of sessionDirs) {
-          const sessionPath = join(outputDir, dir);
-          const scenarioEntries = await readdir(sessionPath);
-          const scenarios: SessionData['scenarios'] = [];
-
-          for (const entry of scenarioEntries) {
-            const reportPath = join(sessionPath, entry, 'report.json');
-            if (existsSync(reportPath)) {
-              const report = JSON.parse(await readFile(reportPath, 'utf-8'));
-              scenarios.push({
-                name: report.scenario ?? entry,
-                status: report.overall_status ?? 'unknown',
-                bugs: report.bugs_found ?? 0,
-                duration: report.duration_seconds ?? 0,
-              });
-            }
-          }
-
-          sessions.push({ timestamp: dir, scenarios });
         }
 
         const changelogEntries = generateChangelog(sessions);
@@ -731,6 +701,70 @@ export function createCli(): Command {
         console.log(formatHealthCheck(result));
         if (!result.allPassed) {
           process.exit(1);
+        }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  const baselineCmd = program
+    .command('baseline')
+    .description('Manage recording baselines for regression detection');
+
+  baselineCmd
+    .command('save <scenario>')
+    .description('Save the latest recording as the baseline for a scenario')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (scenario: string, opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const result = await saveBaseline(outputDir, scenario);
+        console.log(`✓ Baseline saved for "${scenario}"`);
+        console.log(`  From: ${result.savedFrom}`);
+        console.log(`  To: ${result.baselinePath}`);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  baselineCmd
+    .command('check <scenario>')
+    .description('Compare the latest recording against the saved baseline')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (scenario: string, opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const comparison = await checkBaseline(outputDir, scenario);
+        console.log(formatBaselineComparison(comparison));
+        if (!comparison.passed) process.exit(1);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  baselineCmd
+    .command('list')
+    .description('List all saved baselines')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const baselines = await listBaselines(outputDir);
+        if (baselines.length === 0) {
+          console.log('No baselines saved yet. Use "demo-recorder baseline save <scenario>" to create one.');
+          return;
+        }
+        console.log('Saved Baselines:\n');
+        for (const b of baselines) {
+          console.log(`  ${b.scenario.padEnd(24)} Status: ${b.status}, Bugs: ${b.bugs}, Duration: ${b.duration.toFixed(1)}s`);
+          console.log(`  ${''.padEnd(24)} Saved: ${b.savedAt}`);
+          console.log('');
         }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);

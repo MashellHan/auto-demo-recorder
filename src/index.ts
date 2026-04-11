@@ -106,6 +106,9 @@ export type { CIProvider, CIConfigOptions, CIConfigResult } from './config/ci-ge
 /** Health check for tool availability. */
 export { runHealthCheck, formatHealthCheck } from './pipeline/health-check.js';
 export type { HealthCheckItem, HealthCheckResult } from './pipeline/health-check.js';
+/** Recording baseline management. */
+export { saveBaseline, checkBaseline, listBaselines, formatBaselineComparison } from './analytics/baseline.js';
+export type { BaselineComparison, BaselineChange, BaselineData } from './analytics/baseline.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {

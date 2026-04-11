@@ -1,5 +1,6 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
+import { existsSync } from 'node:fs';
 import { findScenario } from './config/loader.js';
 import { buildAdhocConfig, buildAdhocScenario } from './config/adhoc.js';
 import { record, recordBrowser, writeSessionReport, formatTimestamp } from './index.js';
@@ -301,4 +302,49 @@ export function parseAdhocBrowserSteps(stepsStr: string): BrowserScenario['steps
     // Default: type the text
     return { action: 'type' as const, value: trimmed, pause: '500ms' };
   });
+}
+
+/** Session scenario data for changelog generation. */
+export interface ChangelogSessionData {
+  timestamp: string;
+  scenarios: Array<{ name: string; status: string; bugs: number; duration: number }>;
+}
+
+/**
+ * Load session data from the output directory for changelog generation.
+ * Returns empty array if no sessions found.
+ */
+export async function loadChangelogSessions(outputDir: string): Promise<ChangelogSessionData[]> {
+  if (!existsSync(outputDir)) return [];
+
+  const entries = await readdir(outputDir);
+  const sessionDirs = entries
+    .filter((e) => /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}$/.test(e))
+    .sort();
+
+  if (sessionDirs.length === 0) return [];
+
+  const sessions: ChangelogSessionData[] = [];
+  for (const dir of sessionDirs) {
+    const sessionPath = join(outputDir, dir);
+    const scenarioEntries = await readdir(sessionPath);
+    const scenarios: ChangelogSessionData['scenarios'] = [];
+
+    for (const entry of scenarioEntries) {
+      const reportPath = join(sessionPath, entry, 'report.json');
+      if (existsSync(reportPath)) {
+        const report = JSON.parse(await readFile(reportPath, 'utf-8'));
+        scenarios.push({
+          name: report.scenario ?? entry,
+          status: report.overall_status ?? 'unknown',
+          bugs: report.bugs_found ?? 0,
+          duration: report.duration_seconds ?? 0,
+        });
+      }
+    }
+
+    sessions.push({ timestamp: dir, scenarios });
+  }
+
+  return sessions;
 }
