@@ -369,3 +369,7 @@ export type { HealthDimension, HealthScoreGrade, HealthScoreResult } from './ana
 /** Recording funnel analysis. */
 export { analyzeFunnel, formatFunnel } from './analytics/funnel.js';
 export type { FunnelStage, ScenarioFunnel, FunnelResult } from './analytics/funnel.js';
+
+/** Recording comparison radar. */
+export { computeRadar, formatRadar, RADAR_DIMENSIONS } from './analytics/radar.js';
+export type { RadarDimensionName, RadarValue, RadarProfile, RadarResult } from './analytics/radar.js';
