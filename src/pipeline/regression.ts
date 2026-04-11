@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 
 /** Per-frame data stored in a recording report JSON file. */
 export interface ReportFrame {
@@ -70,6 +70,64 @@ export interface RegressionResult {
   changes: RegressionChange[];
   /** Human-readable summary of the regression analysis. */
   summary: string;
+}
+
+/** Combined session-level report aggregating results from all recorded scenarios. */
+export interface SessionReport {
+  /** Project name from the config. */
+  project: string;
+  /** ISO 8601 timestamp of the session. */
+  timestamp: string;
+  /** Total number of scenarios recorded. */
+  scenarios_recorded: number;
+  /** Worst status across all scenarios. */
+  overall_status: 'ok' | 'warning' | 'error';
+  /** Total bugs found across all scenarios. */
+  total_bugs: number;
+  /** Total recording duration across all scenarios in seconds. */
+  total_duration_seconds: number;
+  /** Per-scenario summary. */
+  scenarios: Array<{
+    name: string;
+    status: string;
+    duration_seconds: number;
+    bugs_found: number;
+    frames_analyzed: number;
+    summary: string;
+  }>;
+}
+
+/** Write a combined session report aggregating multiple scenario reports. */
+export async function writeSessionReport(
+  sessionReportPath: string,
+  projectName: string,
+  reports: Report[],
+): Promise<SessionReport> {
+  const worstStatus = resolveWorstStatus(reports.map((r) => r.overall_status));
+  const session: SessionReport = {
+    project: projectName,
+    timestamp: new Date().toISOString(),
+    scenarios_recorded: reports.length,
+    overall_status: worstStatus,
+    total_bugs: reports.reduce((sum, r) => sum + r.bugs_found, 0),
+    total_duration_seconds: reports.reduce((sum, r) => sum + r.duration_seconds, 0),
+    scenarios: reports.map((r) => ({
+      name: r.scenario,
+      status: r.overall_status,
+      duration_seconds: r.duration_seconds,
+      bugs_found: r.bugs_found,
+      frames_analyzed: r.total_frames_analyzed,
+      summary: r.summary,
+    })),
+  };
+  await writeFile(sessionReportPath, JSON.stringify(session, null, 2));
+  return session;
+}
+
+function resolveWorstStatus(statuses: string[]): 'ok' | 'warning' | 'error' {
+  if (statuses.some((s) => s === 'error')) return 'error';
+  if (statuses.some((s) => s === 'warning')) return 'warning';
+  return 'ok';
 }
 
 /** Load and validate a recording report from a JSON file. Throws if required fields are missing. */

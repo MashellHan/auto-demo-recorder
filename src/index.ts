@@ -9,7 +9,7 @@ import { runVhs } from './pipeline/vhs-runner.js';
 import { extractFrames } from './pipeline/frame-extractor.js';
 import { annotateFrames, type Logger } from './pipeline/annotator.js';
 import { postProcess } from './pipeline/post-processor.js';
-import { compareReports, type Report } from './pipeline/regression.js';
+import { compareReports, writeSessionReport, type Report } from './pipeline/regression.js';
 
 /** Load and validate a demo-recorder.yaml config file. */
 export { loadConfig, findScenario } from './config/loader.js';
@@ -18,8 +18,8 @@ export { ConfigSchema } from './config/schema.js';
 export type { Config, Scenario } from './config/schema.js';
 export type { Logger } from './pipeline/annotator.js';
 /** Regression detection utilities for comparing recording reports. */
-export { detectRegressions, compareReports, loadReport } from './pipeline/regression.js';
-export type { RegressionResult, RegressionChange, Report } from './pipeline/regression.js';
+export { detectRegressions, compareReports, loadReport, writeSessionReport } from './pipeline/regression.js';
+export type { RegressionResult, RegressionChange, Report, SessionReport } from './pipeline/regression.js';
 /** File watcher for auto-recording on source changes. */
 export { startWatcher, matchesGlobs } from './pipeline/watcher.js';
 export type { WatchOptions, WatchHandle } from './pipeline/watcher.js';

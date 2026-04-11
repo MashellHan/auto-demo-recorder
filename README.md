@@ -10,6 +10,7 @@ On-demand terminal demo recording + AI annotation CLI tool, callable by agents o
 - CLI tool + MCP server for agent integration
 - Ad-hoc recording mode (no config needed)
 - Regression detection between recordings
+- Session report: combined `session-report.json` for multi-scenario runs
 - Language-aware annotations (configurable via `annotation.language`)
 - Watch mode: auto-record on source file changes
 - CI/CD GitHub Action: record demos on PR, upload artifacts, post regression summary
@@ -115,12 +116,20 @@ Recordings are saved to `.demo-recordings/` with this structure:
 .demo-recordings/
 ├── latest -> 2026-04-11_14-30/
 └── 2026-04-11_14-30/
-    └── basic-navigation/
+    ├── session-report.json          # combined report (multi-scenario runs)
+    ├── basic-navigation/
+    │   ├── raw.mp4
+    │   ├── annotated.mp4
+    │   ├── thumbnail.png
+    │   └── report.json
+    └── advanced-features/
         ├── raw.mp4
         ├── annotated.mp4
         ├── thumbnail.png
         └── report.json
 ```
+
+When multiple scenarios are recorded in a single run, a `session-report.json` is written at the timestamp directory level with combined metrics (overall status, total bugs, total duration, per-scenario summaries).
 
 Auto-regression: when a previous recording exists for the same scenario, `record` automatically compares reports and includes regression info in the result.
 

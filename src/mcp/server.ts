@@ -6,8 +6,9 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { loadConfig, findScenario } from '../config/loader.js';
 import { buildAdhocConfig, buildAdhocScenario } from '../config/adhoc.js';
-import { record, updateLatestSymlink } from '../index.js';
-import { resolve, dirname, basename } from 'node:path';
+import { record, updateLatestSymlink, writeSessionReport } from '../index.js';
+import { readFile } from 'node:fs/promises';
+import { resolve, dirname, basename, join } from 'node:path';
 import type { Logger } from '../pipeline/annotator.js';
 
 const TOOL_NAME = 'demo_recorder_record';
@@ -144,6 +145,14 @@ export async function startMcpServer(): Promise<void> {
         // Extract timestamp from first result's path: .../outputDir/timestamp/scenario/report.json
         const timestamp = basename(dirname(dirname(results[0].reportPath)));
         await updateLatestSymlink(args.project_dir, config.output.dir, timestamp);
+
+        // Write session report combining all scenario results
+        const sessionDir = dirname(dirname(results[0].reportPath));
+        const sessionPath = join(sessionDir, 'session-report.json');
+        const reports = await Promise.all(
+          results.map(async (r) => JSON.parse(await readFile(r.reportPath, 'utf-8'))),
+        );
+        await writeSessionReport(sessionPath, config.project.name, reports);
       }
 
       const response = results.length === 1
@@ -157,6 +166,7 @@ export async function startMcpServer(): Promise<void> {
           }
         : {
             success: true,
+            session_report_path: join(dirname(dirname(results[0].reportPath)), 'session-report.json'),
             recordings: results.map((r) => ({
               video_path: r.videoPath,
               report_path: r.reportPath,

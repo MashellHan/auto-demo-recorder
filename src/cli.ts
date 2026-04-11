@@ -1,12 +1,12 @@
 import { Command } from 'commander';
 import { readdir, readFile, realpath } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
+import { resolve, join, dirname } from 'node:path';
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { loadConfig, findScenario } from './config/loader.js';
 import { buildAdhocConfig, buildAdhocScenario } from './config/adhoc.js';
 import { scanProject, generateConfig } from './config/scanner.js';
-import { record } from './index.js';
+import { record, writeSessionReport } from './index.js';
 import { startMcpServer } from './mcp/server.js';
 import { detectRegressions } from './pipeline/regression.js';
 import { startWatcher } from './pipeline/watcher.js';
@@ -63,9 +63,21 @@ export function createCli(): Command {
           ? [findScenario(config, opts.scenario)]
           : config.scenarios;
 
+        const results = [];
         for (const scenario of scenarios) {
-          await record({ config, scenario, projectDir, logger });
+          const result = await record({ config, scenario, projectDir, logger });
+          results.push(result);
           if (!opts.quiet) console.log('');
+        }
+
+        if (results.length > 1) {
+          const sessionDir = dirname(dirname(results[0].reportPath));
+          const sessionPath = join(sessionDir, 'session-report.json');
+          const reports = await Promise.all(
+            results.map(async (r) => JSON.parse(await readFile(r.reportPath, 'utf-8'))),
+          );
+          await writeSessionReport(sessionPath, config.project.name, reports);
+          if (!opts.quiet) console.log(`Session report: ${sessionPath}`);
         }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);

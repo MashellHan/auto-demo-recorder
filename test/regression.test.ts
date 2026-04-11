@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { writeFile, mkdir, rm } from 'node:fs/promises';
+import { writeFile, mkdir, rm, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { compareReports, detectRegressions, loadReport } from '../src/pipeline/regression.js';
+import { compareReports, detectRegressions, loadReport, writeSessionReport } from '../src/pipeline/regression.js';
 import type { Report, ReportFrame } from '../src/pipeline/regression.js';
 
 function makeFrame(overrides: Partial<ReportFrame> = {}): ReportFrame {
@@ -285,6 +285,79 @@ describe('loadReport', () => {
     await writeFile(path, JSON.stringify({ project: 'test', scenario: 'basic' }));
 
     await expect(loadReport(path)).rejects.toThrow('Invalid report');
+
+    await rm(testDir, { recursive: true, force: true });
+  });
+});
+
+describe('writeSessionReport', () => {
+  const testDir = join(tmpdir(), 'demo-recorder-session-test');
+
+  it('writes combined session report for multiple scenarios', async () => {
+    await mkdir(testDir, { recursive: true });
+    const reportA = makeReport({ scenario: 'basic', duration_seconds: 5, bugs_found: 0 });
+    const reportB = makeReport({ scenario: 'advanced', duration_seconds: 8, bugs_found: 2, overall_status: 'warning' });
+
+    const sessionPath = join(testDir, 'session-report.json');
+    const session = await writeSessionReport(sessionPath, 'test-project', [reportA, reportB]);
+
+    expect(session.project).toBe('test-project');
+    expect(session.scenarios_recorded).toBe(2);
+    expect(session.overall_status).toBe('warning');
+    expect(session.total_bugs).toBe(2);
+    expect(session.total_duration_seconds).toBe(13);
+    expect(session.scenarios).toHaveLength(2);
+    expect(session.scenarios[0].name).toBe('basic');
+    expect(session.scenarios[1].name).toBe('advanced');
+
+    const written = JSON.parse(await readFile(sessionPath, 'utf-8'));
+    expect(written.project).toBe('test-project');
+    expect(written.scenarios_recorded).toBe(2);
+
+    await rm(testDir, { recursive: true, force: true });
+  });
+
+  it('resolves worst status across scenarios', async () => {
+    await mkdir(testDir, { recursive: true });
+    const reports = [
+      makeReport({ scenario: 'a', overall_status: 'ok' }),
+      makeReport({ scenario: 'b', overall_status: 'error' }),
+      makeReport({ scenario: 'c', overall_status: 'warning' }),
+    ];
+
+    const sessionPath = join(testDir, 'session2.json');
+    const session = await writeSessionReport(sessionPath, 'test', reports);
+
+    expect(session.overall_status).toBe('error');
+
+    await rm(testDir, { recursive: true, force: true });
+  });
+
+  it('handles single scenario gracefully', async () => {
+    await mkdir(testDir, { recursive: true });
+    const report = makeReport({ scenario: 'solo', duration_seconds: 3, bugs_found: 1 });
+
+    const sessionPath = join(testDir, 'session-single.json');
+    const session = await writeSessionReport(sessionPath, 'proj', [report]);
+
+    expect(session.scenarios_recorded).toBe(1);
+    expect(session.total_bugs).toBe(1);
+    expect(session.total_duration_seconds).toBe(3);
+
+    await rm(testDir, { recursive: true, force: true });
+  });
+
+  it('returns ok when all scenarios are ok', async () => {
+    await mkdir(testDir, { recursive: true });
+    const reports = [
+      makeReport({ scenario: 'a', overall_status: 'ok' }),
+      makeReport({ scenario: 'b', overall_status: 'ok' }),
+    ];
+
+    const sessionPath = join(testDir, 'session-ok.json');
+    const session = await writeSessionReport(sessionPath, 'proj', reports);
+
+    expect(session.overall_status).toBe('ok');
 
     await rm(testDir, { recursive: true, force: true });
   });
