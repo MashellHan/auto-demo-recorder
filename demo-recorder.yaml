@@ -1,24 +1,25 @@
 project:
   name: e2e-test
-  description: "Simple E2E test"
-
+  description: Simple E2E test
 recording:
   width: 800
   height: 400
   font_size: 14
-  theme: "Catppuccin Mocha"
-
+  theme: Catppuccin Mocha
 output:
-  dir: ".demo-recordings"
+  dir: .demo-recordings
   keep_raw: true
-
 annotation:
   enabled: false
-
 scenarios:
-  - name: "hello-world"
-    description: "Simple echo test"
+  - name: hello-world
+    description: Simple echo test
     setup: []
     steps:
-      - { action: "type", value: "echo 'Hello from auto-demo-recorder!'", pause: "1s" }
-      - { action: "sleep", value: "1s", pause: "500ms" }
+      - action: type
+        value: echo 'Hello from auto-demo-recorder!'
+        pause: 1s
+      - action: sleep
+        value: 1s
+        pause: 500ms
+    depends_on: []
