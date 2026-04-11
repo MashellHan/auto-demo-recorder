@@ -181,3 +181,7 @@ export type { MergeSource, MergeResolution, MergeResult } from './config/config-
 /** Scenario cloning utility. */
 export { cloneScenario, cloneBrowserScenario, batchClone, formatCloneSummary } from './config/scenario-clone.js';
 export type { CloneOptions, BatchCloneResult } from './config/scenario-clone.js';
+
+/** Recording timeline visualization. */
+export { generateTimeline, formatTimeline } from './analytics/timeline.js';
+export type { TimelineEntry, TimelineResult } from './analytics/timeline.js';

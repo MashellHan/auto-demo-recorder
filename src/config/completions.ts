@@ -47,6 +47,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'check', description: 'Run pre-flight checks', options: ['--config', '--backend'] },
   { name: 'config-merge', description: 'Merge two config files', options: ['--output', '--json'] },
   { name: 'graph', description: 'Show dependency graph', options: ['--config'] },
+  { name: 'timeline', description: 'Show recording timeline', options: ['--config', '--limit'] },
 ];
 
 /**

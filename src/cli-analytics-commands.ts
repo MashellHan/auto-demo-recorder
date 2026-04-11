@@ -12,6 +12,7 @@ import { generateComparisonMatrix, formatComparisonMatrix } from './analytics/co
 import { computeTagStats, formatTagStats } from './analytics/tag-stats.js';
 import { generateComparisonReport, formatComparisonReport } from './analytics/comparison-report.js';
 import { readHistory, formatHistoryTable } from './analytics/history.js';
+import { generateTimeline, formatTimeline } from './analytics/timeline.js';
 
 /**
  * Register analytics CLI commands onto the given program.
@@ -27,6 +28,7 @@ export function registerAnalyticsCommands(program: Command): void {
   registerTagStatsCommand(program);
   registerCompareCommand(program);
   registerHistoryCommand(program);
+  registerTimelineCommand(program);
 }
 
 function registerAnalyzeCommand(program: Command): void {
@@ -274,6 +276,30 @@ function registerHistoryCommand(program: Command): void {
         });
 
         console.log(formatHistoryTable(entries));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerTimelineCommand(program: Command): void {
+  program
+    .command('timeline')
+    .description('Show recording timeline with duration bars')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('-n, --limit <n>', 'Limit number of entries')
+    .action(async (opts: { config?: string; limit?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+
+        const entries = await readHistory(outputDir, {
+          limit: opts.limit ? parseInt(opts.limit, 10) : undefined,
+        });
+
+        const result = generateTimeline(entries);
+        console.log(formatTimeline(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
