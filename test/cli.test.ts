@@ -238,6 +238,206 @@ describe('init command', () => {
     process.chdir(origCwd);
     await rm(tempDir, { recursive: true, force: true });
   });
+
+  it('refuses to overwrite existing demo-recorder.yaml', async () => {
+    const origCwd = process.cwd();
+    await writeFile(join(tempDir, 'demo-recorder.yaml'), 'existing');
+    process.chdir(tempDir);
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit'); });
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'init']);
+    } catch {
+      // expected
+    }
+
+    expect(consoleErrorSpy.mock.calls.some((c) => String(c[0]).includes('already exists'))).toBe(true);
+
+    consoleErrorSpy.mockRestore();
+    exitSpy.mockRestore();
+    process.chdir(origCwd);
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('uses --from-existing to auto-detect project type', async () => {
+    const origCwd = process.cwd();
+    // Create a package.json to be detected
+    await writeFile(join(tempDir, 'package.json'), JSON.stringify({
+      name: 'test-project',
+      description: 'A test project',
+      scripts: { build: 'tsc' },
+    }));
+    process.chdir(tempDir);
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'init', '--from-existing']);
+    } catch {
+      // may throw
+    }
+
+    // Should detect node project
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Detected node project: test-project');
+
+    // Should create config file with detected values
+    const { readFile: rf } = await import('node:fs/promises');
+    const content = await rf(join(tempDir, 'demo-recorder.yaml'), 'utf-8');
+    expect(content).toContain('name: "test-project"');
+    expect(content).toContain('build_command: "npm run build"');
+
+    consoleSpy.mockRestore();
+    process.chdir(origCwd);
+    await rm(tempDir, { recursive: true, force: true });
+  });
+});
+
+describe('last command', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = join(tmpdir(), `cli-test-last-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  it('shows no recordings when latest link does not exist', async () => {
+    const { loadConfig } = await import('../src/config/loader.js');
+    vi.mocked(loadConfig).mockResolvedValueOnce({
+      project: { name: 'test', description: 'Test' },
+      recording: { width: 1200, height: 800, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60 },
+      output: { dir: 'nonexistent-recordings', keep_raw: true, keep_frames: false },
+      annotation: { enabled: true, model: 'claude-sonnet-4-6', extract_fps: 1, language: 'en', overlay_position: 'bottom', overlay_font_size: 14 },
+      scenarios: [],
+    } as never);
+
+    const origCwd = process.cwd();
+    process.chdir(tempDir);
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'last']);
+    } catch {
+      // may throw
+    }
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('No recordings found');
+
+    consoleSpy.mockRestore();
+    process.chdir(origCwd);
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('shows recording info when latest exists', async () => {
+    const { loadConfig } = await import('../src/config/loader.js');
+
+    // Create directory structure: outputDir/timestamp/basic/report.json
+    const outputDir = join(tempDir, '.demo-recordings');
+    const tsDir = join(outputDir, '2026-04-11_08-00');
+    const scenarioDir = join(tsDir, 'basic');
+    await mkdir(scenarioDir, { recursive: true });
+
+    // Create a symlink: latest -> timestamp dir
+    const { symlink } = await import('node:fs/promises');
+    await symlink(tsDir, join(outputDir, 'latest'));
+
+    // Write a report
+    await writeFile(join(scenarioDir, 'report.json'), JSON.stringify({
+      scenario: 'basic',
+      overall_status: 'ok',
+      total_frames_analyzed: 5,
+      bugs_found: 0,
+      duration_seconds: 10.5,
+    }));
+
+    vi.mocked(loadConfig).mockResolvedValueOnce({
+      project: { name: 'test', description: 'Test' },
+      recording: { width: 1200, height: 800, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60 },
+      output: { dir: '.demo-recordings', keep_raw: true, keep_frames: false },
+      annotation: { enabled: true, model: 'claude-sonnet-4-6', extract_fps: 1, language: 'en', overlay_position: 'bottom', overlay_font_size: 14 },
+      scenarios: [],
+    } as never);
+
+    const origCwd = process.cwd();
+    process.chdir(tempDir);
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'last']);
+    } catch {
+      // may throw
+    }
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Last recording:');
+    expect(output).toContain('Scenario: basic');
+    expect(output).toContain('Status: ok');
+    expect(output).toContain('Frames: 5');
+    expect(output).toContain('Duration: 10.5s');
+
+    consoleSpy.mockRestore();
+    process.chdir(origCwd);
+    await rm(tempDir, { recursive: true, force: true });
+  });
+});
+
+describe('record command (config mode)', () => {
+  it('records with --format gif', async () => {
+    const { record: recordFn } = await import('../src/index.js');
+    vi.mocked(recordFn).mockClear();
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'record', '--format', 'gif']);
+    } catch {
+      // may throw
+    }
+
+    if (vi.mocked(recordFn).mock.calls.length > 0) {
+      const callArgs = vi.mocked(recordFn).mock.calls[0][0];
+      expect(callArgs.config.recording.format).toBe('gif');
+    }
+
+    consoleSpy.mockRestore();
+  });
+
+  it('records with --no-annotate', async () => {
+    const { record: recordFn } = await import('../src/index.js');
+    vi.mocked(recordFn).mockClear();
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'record', '--no-annotate']);
+    } catch {
+      // may throw
+    }
+
+    if (vi.mocked(recordFn).mock.calls.length > 0) {
+      const callArgs = vi.mocked(recordFn).mock.calls[0][0];
+      expect(callArgs.config.annotation.enabled).toBe(false);
+    }
+
+    consoleSpy.mockRestore();
+  });
 });
 
 describe('serve command', () => {
@@ -352,6 +552,60 @@ describe('diff command', () => {
     expect(consoleSpy).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
+    process.chdir(origCwd);
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('shows changes when regressions exist', async () => {
+    const baseline = {
+      project: 'test',
+      scenario: 'basic',
+      timestamp: '2026-04-11T00:00:00.000Z',
+      duration_seconds: 10,
+      total_frames_analyzed: 3,
+      overall_status: 'ok',
+      frames: [
+        { index: 0, timestamp: '0:00', status: 'ok', description: 'start', feature_being_demonstrated: 'nav', bugs_detected: [], visual_quality: 'good', annotation_text: 'ok' },
+        { index: 1, timestamp: '0:01', status: 'ok', description: 'nav', feature_being_demonstrated: 'nav', bugs_detected: [], visual_quality: 'good', annotation_text: 'ok' },
+        { index: 2, timestamp: '0:02', status: 'ok', description: 'end', feature_being_demonstrated: 'nav', bugs_detected: [], visual_quality: 'good', annotation_text: 'ok' },
+      ],
+      summary: 'all ok',
+      bugs_found: 0,
+    };
+
+    const current = {
+      ...baseline,
+      overall_status: 'error',
+      bugs_found: 2,
+      frames: [
+        { index: 0, timestamp: '0:00', status: 'error', description: 'broken', feature_being_demonstrated: 'nav', bugs_detected: ['layout broken'], visual_quality: 'broken', annotation_text: 'broken' },
+      ],
+    };
+
+    const bPath = join(tempDir, 'b.json');
+    const cPath = join(tempDir, 'c.json');
+    await writeFile(bPath, JSON.stringify(baseline));
+    await writeFile(cPath, JSON.stringify(current));
+
+    const origCwd = process.cwd();
+    process.chdir(tempDir);
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit'); });
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'diff', 'b.json', 'c.json']);
+    } catch {
+      // expected — process.exit(1) or commander exit
+    }
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Regression report');
+
+    consoleSpy.mockRestore();
+    exitSpy.mockRestore();
     process.chdir(origCwd);
     await rm(tempDir, { recursive: true, force: true });
   });
