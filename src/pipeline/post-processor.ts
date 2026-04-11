@@ -15,18 +15,47 @@ export async function postProcess(options: PostProcessOptions): Promise<void> {
   const { inputVideo, outputVideo, thumbnailPath, frames, overlayFontSize, overlayPosition, extractFps } =
     options;
 
+  const hasDrawtext = await checkDrawtextSupport();
+
   // Build filter chain
-  const barFilter = buildBarFilter(overlayPosition);
-  const drawFilters = buildDrawTextFilters(frames, overlayFontSize, overlayPosition, extractFps);
-  const statusDotFilters = buildStatusDotFilters(frames, extractFps);
-  const bugBorderFilters = buildBugBorderFilters(frames, extractFps);
-  const vf = [barFilter, ...drawFilters, ...statusDotFilters, ...bugBorderFilters].join(',');
+  const filters: string[] = [buildBarFilter(overlayPosition)];
+
+  if (hasDrawtext) {
+    filters.push(...buildDrawTextFilters(frames, overlayFontSize, overlayPosition, extractFps));
+    filters.push(...buildStatusDotFilters(frames, extractFps));
+  }
+
+  filters.push(...buildBugBorderFilters(frames, extractFps));
+  const vf = filters.join(',');
 
   // Overlay annotations
   await runFfmpeg(['-i', inputVideo, '-vf', vf, '-codec:a', 'copy', '-y', outputVideo]);
 
   // Generate thumbnail from first frame
   await runFfmpeg(['-i', outputVideo, '-vframes', '1', '-y', thumbnailPath]);
+}
+
+let _drawtextSupported: boolean | null = null;
+
+async function checkDrawtextSupport(): Promise<boolean> {
+  if (_drawtextSupported !== null) return _drawtextSupported;
+  try {
+    const output = await new Promise<string>((resolve, reject) => {
+      execFile('ffmpeg', ['-filters'], { timeout: 5000 }, (error, stdout, stderr) => {
+        if (error) reject(error);
+        else resolve(stdout + stderr);
+      });
+    });
+    _drawtextSupported = output.includes('drawtext');
+  } catch {
+    _drawtextSupported = false;
+  }
+  return _drawtextSupported;
+}
+
+/** Reset cached drawtext support check (for testing) */
+export function resetDrawtextCache(): void {
+  _drawtextSupported = null;
 }
 
 function buildBarFilter(position: 'top' | 'bottom'): string {

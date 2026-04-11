@@ -3,13 +3,18 @@ import type { FrameAnalysis } from '../src/pipeline/annotator.js';
 
 // Mock execFile before importing post-processor
 vi.mock('node:child_process', () => ({
-  execFile: vi.fn((_cmd: string, _args: string[], _opts: unknown, cb: (err: Error | null) => void) => {
-    cb(null);
+  execFile: vi.fn((_cmd: string, args: string[], _opts: unknown, cb: (err: Error | null, stdout?: string, stderr?: string) => void) => {
+    // Simulate drawtext support for -filters check
+    if (Array.isArray(args) && args.includes('-filters')) {
+      cb(null, 'T. drawtext V->V Draw text', '');
+    } else {
+      cb(null);
+    }
     return { stderr: { on: vi.fn() } };
   }),
 }));
 
-const { postProcess } = await import('../src/pipeline/post-processor.js');
+const { postProcess, resetDrawtextCache } = await import('../src/pipeline/post-processor.js');
 
 describe('postProcess', () => {
   const frames: FrameAnalysis[] = [
@@ -47,6 +52,7 @@ describe('postProcess', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetDrawtextCache();
   });
 
   it('calls ffmpeg for annotation overlay and thumbnail', async () => {
@@ -62,12 +68,14 @@ describe('postProcess', () => {
       extractFps: 1,
     });
 
-    expect(execFile).toHaveBeenCalledTimes(2);
-    // First call: overlay annotations
-    expect(vi.mocked(execFile).mock.calls[0][0]).toBe('ffmpeg');
-    expect(vi.mocked(execFile).mock.calls[0][1]).toContain('-i');
-    // Second call: thumbnail
-    expect(vi.mocked(execFile).mock.calls[1][1]).toContain('-vframes');
+    expect(execFile).toHaveBeenCalledTimes(3);
+    // First call: check drawtext support
+    expect(vi.mocked(execFile).mock.calls[0][1]).toContain('-filters');
+    // Second call: overlay annotations
+    expect(vi.mocked(execFile).mock.calls[1][0]).toBe('ffmpeg');
+    expect(vi.mocked(execFile).mock.calls[1][1]).toContain('-i');
+    // Third call: thumbnail
+    expect(vi.mocked(execFile).mock.calls[2][1]).toContain('-vframes');
   });
 
   it('applies correct timing with extractFps=2', async () => {
@@ -84,7 +92,7 @@ describe('postProcess', () => {
     });
 
     // The vf filter should use fractional seconds for fps=2
-    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+    const vfArg = vi.mocked(execFile).mock.calls[1][1]?.find((a: string) =>
       a.includes('drawtext'),
     );
     expect(vfArg).toBeDefined();
@@ -105,7 +113,7 @@ describe('postProcess', () => {
       extractFps: 1,
     });
 
-    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+    const vfArg = vi.mocked(execFile).mock.calls[1][1]?.find((a: string) =>
       a.includes('drawbox'),
     );
     expect(vfArg).toContain('y=0');
@@ -124,7 +132,7 @@ describe('postProcess', () => {
       extractFps: 1,
     });
 
-    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+    const vfArg = vi.mocked(execFile).mock.calls[1][1]?.find((a: string) =>
       a.includes('\u25cf'),
     );
     expect(vfArg).toBeDefined();
@@ -148,7 +156,7 @@ describe('postProcess', () => {
       extractFps: 1,
     });
 
-    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+    const vfArg = vi.mocked(execFile).mock.calls[1][1]?.find((a: string) =>
       a.includes('\u25cf'),
     );
     expect(vfArg).toContain('fontcolor=red');
@@ -170,7 +178,7 @@ describe('postProcess', () => {
       extractFps: 1,
     });
 
-    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+    const vfArg = vi.mocked(execFile).mock.calls[1][1]?.find((a: string) =>
       a.includes('\u25cf'),
     );
     expect(vfArg).toContain('fontcolor=yellow');
@@ -193,7 +201,7 @@ describe('postProcess', () => {
       extractFps: 1,
     });
 
-    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+    const vfArg = vi.mocked(execFile).mock.calls[1][1]?.find((a: string) =>
       a.includes('color=red@0.5'),
     );
     expect(vfArg).toBeDefined();
@@ -213,7 +221,7 @@ describe('postProcess', () => {
       extractFps: 1,
     });
 
-    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+    const vfArg = vi.mocked(execFile).mock.calls[1][1]?.find((a: string) =>
       a.includes('color=red@0.5'),
     );
     expect(vfArg).toBeUndefined();
@@ -232,7 +240,7 @@ describe('postProcess', () => {
       extractFps: 1,
     });
 
-    const vfArg = vi.mocked(execFile).mock.calls[0][1]?.find((a: string) =>
+    const vfArg = vi.mocked(execFile).mock.calls[1][1]?.find((a: string) =>
       a.includes('alpha='),
     );
     expect(vfArg).toBeDefined();

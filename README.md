@@ -37,8 +37,11 @@ npm install -g auto-demo-recorder
 ### Initialize a project
 
 ```bash
-demo-recorder init   # generates demo-recorder.yaml template
+demo-recorder init                 # generates demo-recorder.yaml template
+demo-recorder init --from-existing # auto-detect project type and generate config
 ```
+
+Supported auto-detection: Node.js (package.json), Rust (Cargo.toml), Go (go.mod), Python (pyproject.toml/setup.py), Make (Makefile).
 
 ### Record with config
 
