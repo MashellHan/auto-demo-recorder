@@ -44,6 +44,7 @@ export function buildAdhocConfig(opts: AdhocOptions): Config {
       keep_raw: true,
       keep_frames: false,
       record_mode: 'always',
+      player: false,
     },
     annotation: {
       enabled: opts.annotate !== false,

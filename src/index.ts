@@ -10,6 +10,7 @@ import { runBrowser } from './pipeline/browser-runner.js';
 import { extractFrames } from './pipeline/frame-extractor.js';
 import { annotateFrames, type Logger } from './pipeline/annotator.js';
 import { postProcess } from './pipeline/post-processor.js';
+import { generatePlayer } from './pipeline/player-generator.js';
 import { compareReports, writeSessionReport, type Report } from './pipeline/regression.js';
 
 /** Load and validate a demo-recorder.yaml config file. */
@@ -30,6 +31,9 @@ export { executeStep, executeAllSteps, parsePause, mapKeyName } from './pipeline
 /** Theme gallery utilities. */
 export { VHS_THEMES, findTheme, getThemeNames } from './config/themes.js';
 export type { ThemeInfo } from './config/themes.js';
+/** HTML player generator. */
+export { generatePlayer } from './pipeline/player-generator.js';
+export type { PlayerOptions } from './pipeline/player-generator.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
@@ -62,6 +66,8 @@ export interface RecordResult {
   retained?: boolean;
   /** Extra video paths when multi-format output is used. */
   extraVideoPaths?: string[];
+  /** Path to the HTML player file (when player output is enabled). */
+  playerPath?: string;
 }
 
 /** Options for the {@link record} function (VHS terminal backend). */
@@ -153,6 +159,20 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
     result.extraVideoPaths = extraOutputPaths;
   }
 
+  // Generate HTML player if enabled
+  if (config.output.player) {
+    const playerPath = join(outputBase, 'player.html');
+    await generatePlayer({
+      videoPath: result.videoPath,
+      reportPath: paths.report,
+      outputPath: playerPath,
+      projectName: config.project.name,
+      scenarioName: scenario.name,
+    });
+    result.playerPath = playerPath;
+    log.log('  ✓ HTML player generated');
+  }
+
   // Retain-on-failure: prune clean recordings to save disk space
   if (config.output.record_mode === 'retain-on-failure') {
     const hasBugs = (annotationResult?.bugs_found ?? 0) > 0;
@@ -218,6 +238,20 @@ export async function recordBrowser(options: BrowserRecordOptions): Promise<Reco
 
   const hasAnnotatedVideo = config.annotation.enabled;
   const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult, regressionInfo);
+
+  // Generate HTML player if enabled
+  if (config.output.player) {
+    const playerPath = join(outputBase, 'player.html');
+    await generatePlayer({
+      videoPath: result.videoPath,
+      reportPath: paths.report,
+      outputPath: playerPath,
+      projectName: config.project.name,
+      scenarioName: scenario.name,
+    });
+    result.playerPath = playerPath;
+    log.log('  ✓ HTML player generated');
+  }
 
   // Retain-on-failure: prune clean recordings to save disk space
   if (config.output.record_mode === 'retain-on-failure') {

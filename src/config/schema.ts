@@ -108,6 +108,8 @@ const OutputSchema = z.object({
   keep_frames: z.boolean().default(false),
   /** Recording retention mode: 'always' keeps all recordings, 'retain-on-failure' deletes clean recordings. */
   record_mode: z.enum(['always', 'retain-on-failure']).default('always'),
+  /** Generate an HTML player file alongside recordings. */
+  player: z.boolean().default(false),
 });
 
 const AnnotationSchema = z.object({
