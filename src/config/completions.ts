@@ -68,6 +68,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'sla', description: 'Check SLA compliance', options: ['--config', '--min-success', '--max-duration', '--max-bugs', '--min-recordings'] },
   { name: 'config-compare', description: 'Compare two config files' },
   { name: 'retention', description: 'Evaluate retention policy', options: ['--config', '--max-age', '--max-count', '--max-per-scenario', '--no-keep-failed'] },
+  { name: 'session-diff-summary', description: 'Compare two sessions', options: ['--config'] },
 ];
 
 /**

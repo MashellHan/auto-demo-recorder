@@ -261,3 +261,7 @@ export type { ConfigChange, ComparisonReport as ConfigComparisonReport } from '.
 /** Recording retention policy. */
 export { evaluateRetention, formatRetention } from './analytics/retention.js';
 export type { RetentionPolicy, RetentionCandidate, RetentionResult, ScenarioRetention } from './analytics/retention.js';
+
+/** Session diff summary. */
+export { diffSessionEntries, formatSessionDiffSummary } from './analytics/session-diff-summary.js';
+export type { StatusTransition, ScenarioDiffEntry, SessionDiffSummary } from './analytics/session-diff-summary.js';

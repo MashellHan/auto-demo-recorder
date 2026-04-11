@@ -14,6 +14,7 @@ import { groupRecordings, formatGrouping } from './analytics/grouping.js';
 import { generateAlerts, formatAlerts } from './analytics/alerts.js';
 import { checkSla, formatSla } from './analytics/sla.js';
 import { evaluateRetention, formatRetention } from './analytics/retention.js';
+import { diffSessionEntries, formatSessionDiffSummary } from './analytics/session-diff-summary.js';
 import type { GroupBy } from './analytics/grouping.js';
 
 /**
@@ -35,6 +36,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerAlertsCommand(program);
   registerSlaCommand(program);
   registerRetentionCommand(program);
+  registerSessionDiffSummaryCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -305,6 +307,39 @@ function registerRetentionCommand(program: Command): void {
         };
         const result = evaluateRetention(entries, policy);
         console.log(formatRetention(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerSessionDiffSummaryCommand(program: Command): void {
+  program
+    .command('session-diff-summary')
+    .description('Concise summary of differences between two recording sessions')
+    .argument('<sessionA>', 'First session ID')
+    .argument('<sessionB>', 'Second session ID')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (sessionA: string, sessionB: string, opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const allEntries = await readHistory(outputDir);
+        const entriesA = allEntries.filter((e) => e.sessionId === sessionA);
+        const entriesB = allEntries.filter((e) => e.sessionId === sessionB);
+
+        if (entriesA.length === 0) {
+          console.error(`No recordings found for session "${sessionA}".`);
+          process.exit(1);
+        }
+        if (entriesB.length === 0) {
+          console.error(`No recordings found for session "${sessionB}".`);
+          process.exit(1);
+        }
+
+        const result = diffSessionEntries(entriesA, entriesB, sessionA, sessionB);
+        console.log(formatSessionDiffSummary(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
