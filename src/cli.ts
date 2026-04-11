@@ -401,6 +401,7 @@ async function handleAdhocRecord(opts: {
   format: string;
   annotate: boolean;
   backend?: string;
+  theme?: string;
 }, logger?: Logger): Promise<void> {
   if (opts.backend === 'browser') {
     await handleAdhocBrowserRecord(opts, logger);
@@ -419,6 +420,7 @@ async function handleAdhocRecord(opts: {
     height: parseInt(opts.height, 10),
     format: opts.format === 'gif' ? 'gif' : 'mp4',
     annotate: opts.annotate,
+    theme: opts.theme,
   });
   const scenario = buildAdhocScenario(opts.command, parsedSteps);
 
@@ -431,6 +433,7 @@ async function handleAdhocBrowserRecord(opts: {
   width: string;
   height: string;
   annotate: boolean;
+  theme?: string;
 }, logger?: Logger): Promise<void> {
   if (!opts.url) {
     throw new Error('--url is required with --adhoc --backend browser mode');
@@ -443,6 +446,7 @@ async function handleAdhocBrowserRecord(opts: {
     format: 'mp4',
     annotate: opts.annotate,
     backend: 'browser',
+    theme: opts.theme,
   });
 
   const browserSteps = opts.steps

@@ -9,6 +9,8 @@ export interface AdhocOptions {
   annotate?: boolean;
   /** Recording backend: 'vhs' for terminal (default), 'browser' for web UI. */
   backend?: 'vhs' | 'browser';
+  /** Override recording theme (e.g., "Dracula", "Nord"). */
+  theme?: string;
 }
 
 export function buildAdhocConfig(opts: AdhocOptions): Config {
@@ -23,7 +25,7 @@ export function buildAdhocConfig(opts: AdhocOptions): Config {
       width: opts.width ?? 1200,
       height: opts.height ?? 800,
       font_size: 16,
-      theme: 'Catppuccin Mocha',
+      theme: opts.theme ?? 'Catppuccin Mocha',
       fps: 25,
       max_duration: 60,
       format: opts.format === 'gif' ? 'gif' : 'mp4',

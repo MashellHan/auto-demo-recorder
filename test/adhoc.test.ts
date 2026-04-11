@@ -33,6 +33,18 @@ describe('buildAdhocConfig', () => {
 
     expect(config.annotation.enabled).toBe(false);
   });
+
+  it('uses default theme when not specified', () => {
+    const config = buildAdhocConfig({ command: 'ls' });
+
+    expect(config.recording.theme).toBe('Catppuccin Mocha');
+  });
+
+  it('applies custom theme override', () => {
+    const config = buildAdhocConfig({ command: 'ls', theme: 'Dracula' });
+
+    expect(config.recording.theme).toBe('Dracula');
+  });
 });
 
 describe('buildAdhocScenario', () => {
