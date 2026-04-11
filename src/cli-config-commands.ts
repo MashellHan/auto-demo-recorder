@@ -17,6 +17,7 @@ import { runPreflightChecks, formatPreflightReport } from './config/preflight.js
 import { mergeConfigs, formatMergeReport } from './config/config-merge.js';
 import { formatDependencyGraph } from './config/dependencies.js';
 import { listScaffolds, findScaffold, listScaffoldsByCategory, formatScaffoldList } from './config/scaffold.js';
+import { diagnoseConfig, formatDoctorResult } from './config/config-doctor.js';
 
 /**
  * Register config-related CLI commands onto the given program.
@@ -39,6 +40,7 @@ export function registerConfigCommands(program: Command): void {
   registerMergeCommand(program);
   registerGraphCommand(program);
   registerScaffoldCommand(program);
+  registerDiagnoseCommand(program);
 }
 
 function registerEnvCommand(program: Command): void {
@@ -455,6 +457,24 @@ function registerScaffoldCommand(program: Command): void {
         console.log(`✓ Created ${outputPath} from scaffold "${scaffold.name}"`);
         console.log(`  Category: ${scaffold.category}`);
         console.log(`  Description: ${scaffold.description}`);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerDiagnoseCommand(program: Command): void {
+  program
+    .command('diagnose')
+    .description('Diagnose common config problems (dependencies, performance, best practices)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const result = diagnoseConfig(config);
+        console.log(formatDoctorResult(result));
+        if (!result.passed) process.exit(1);
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
