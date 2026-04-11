@@ -265,3 +265,7 @@ export type { RetentionPolicy, RetentionCandidate, RetentionResult, ScenarioRete
 /** Session diff summary. */
 export { diffSessionEntries, formatSessionDiffSummary } from './analytics/session-diff-summary.js';
 export type { StatusTransition, ScenarioDiffEntry, SessionDiffSummary } from './analytics/session-diff-summary.js';
+
+/** Template preview. */
+export { previewTemplate, formatTemplatePreview, formatCompactPreview } from './config/template-preview.js';
+export type { TemplatePreview } from './config/template-preview.js';

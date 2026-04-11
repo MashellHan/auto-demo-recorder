@@ -9,6 +9,7 @@ import { runPreflightChecks, formatPreflightReport } from './config/preflight.js
 import { mergeConfigs, formatMergeReport } from './config/config-merge.js';
 import { formatDependencyGraph } from './config/dependencies.js';
 import { listScaffolds, findScaffold, listScaffoldsByCategory, formatScaffoldList } from './config/scaffold.js';
+import { previewTemplate, formatTemplatePreview } from './config/template-preview.js';
 import { diagnoseConfig, formatDoctorResult } from './config/config-doctor.js';
 import { exportConfig, formatExportSummary } from './config/config-export.js';
 import { cloneScenario, cloneBrowserScenario, formatCloneSummary } from './config/scenario-clone.js';
@@ -150,7 +151,8 @@ function registerScaffoldCommand(program: Command): void {
     .argument('[id]', 'Scaffold ID (e.g., cli-basic, web-app)')
     .option('--category <category>', 'Filter scaffolds by category')
     .option('-o, --output <path>', 'Output file path (default: demo-recorder.yaml)')
-    .action(async (id: string | undefined, opts: { category?: string; output?: string }) => {
+    .option('--preview', 'Preview the template without writing to disk')
+    .action(async (id: string | undefined, opts: { category?: string; output?: string; preview?: boolean }) => {
       try {
         // If no ID given, list available scaffolds
         if (!id) {
@@ -165,6 +167,13 @@ function registerScaffoldCommand(program: Command): void {
         if (!scaffold) {
           console.error(`Unknown scaffold: "${id}". Use "demo-recorder scaffold" to see available options.`);
           process.exit(1);
+        }
+
+        // Preview mode: show template details without writing
+        if (opts.preview) {
+          const preview = previewTemplate(scaffold);
+          console.log(formatTemplatePreview(preview));
+          return;
         }
 
         const outputPath = opts.output ?? 'demo-recorder.yaml';
