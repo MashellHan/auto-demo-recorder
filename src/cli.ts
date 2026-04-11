@@ -147,17 +147,13 @@ export function createCli(): Command {
 
   program
     .command('validate')
-    .description('Validate config file')
+    .description('Validate config file and report warnings')
     .option('-c, --config <path>', 'Path to demo-recorder.yaml')
     .action(async (opts) => {
       try {
         const config = await loadConfig(opts.config);
-        console.log('✓ Config valid');
-        console.log(`  Project: ${config.project.name}`);
-        console.log(`  Terminal Scenarios: ${config.scenarios.length}`);
-        console.log(`  Browser Scenarios: ${config.browser_scenarios.length}`);
-        console.log(`  Recording: ${config.recording.width}x${config.recording.height} (${config.recording.backend})`);
-        console.log(`  Annotation: ${config.annotation.enabled ? 'enabled' : 'disabled'}`);
+        const output = validateConfig(config);
+        console.log(output);
       } catch (error) {
         console.error(`✗ Config invalid: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
@@ -596,6 +592,77 @@ function parseAdhocBrowserSteps(stepsStr: string): BrowserScenario['steps'] {
     // Default: type the text
     return { action: 'type' as const, value: trimmed, pause: '500ms' };
   });
+}
+
+/**
+ * Validate a config and produce a detailed summary with warnings.
+ * Exported for testing.
+ */
+export function validateConfig(config: any): string {
+  const lines: string[] = [];
+  const warnings: string[] = [];
+
+  lines.push('✓ Config valid');
+  lines.push(`  Project: ${config.project.name}`);
+  if (config.project.description) {
+    lines.push(`  Description: ${config.project.description}`);
+  }
+
+  // Scenarios
+  const termCount = config.scenarios?.length ?? 0;
+  const browserCount = config.browser_scenarios?.length ?? 0;
+  lines.push(`  Terminal Scenarios: ${termCount}`);
+  lines.push(`  Browser Scenarios: ${browserCount}`);
+
+  // Recording settings
+  const rec = config.recording;
+  lines.push(`  Recording: ${rec.width}x${rec.height} (${rec.backend})`);
+  lines.push(`  Theme: ${rec.theme}`);
+  lines.push(`  Format: ${rec.formats?.join(', ') ?? rec.format ?? 'mp4'}`);
+
+  if (rec.backend === 'browser') {
+    const b = rec.browser ?? {};
+    lines.push(`  Browser: ${b.browser ?? 'chromium'}, viewport ${b.viewport_width ?? 1280}x${b.viewport_height ?? 720}`);
+  }
+
+  // Annotation
+  lines.push(`  Annotation: ${config.annotation.enabled ? `enabled (${config.annotation.model})` : 'disabled'}`);
+
+  // Output
+  lines.push(`  Output: ${config.output.dir}`);
+
+  // Hooks summary
+  const allScenarios = [...(config.scenarios ?? []), ...(config.browser_scenarios ?? [])];
+  const scenariosWithHooks = allScenarios.filter((s: any) => s.hooks?.before || s.hooks?.after);
+  if (scenariosWithHooks.length > 0) {
+    lines.push(`  Hooks: ${scenariosWithHooks.length} scenario(s) with lifecycle hooks`);
+  }
+
+  // Warnings
+  for (const s of allScenarios) {
+    const tags = (s as any).tags ?? [];
+    if (tags.length === 0) {
+      warnings.push(`Scenario "${s.name}" has no tags`);
+    }
+  }
+
+  if (!rec.idle_time_limit) {
+    warnings.push('idle_time_limit not set (default: unlimited)');
+  }
+
+  if (config.annotation.enabled && !config.annotation.model) {
+    warnings.push('Annotation enabled but no model specified');
+  }
+
+  if (warnings.length > 0) {
+    lines.push('');
+    lines.push('Warnings:');
+    for (const w of warnings) {
+      lines.push(`  ⚠ ${w}`);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 /**
