@@ -208,4 +208,16 @@ describe('formatPareto', () => {
     const text = formatPareto(result);
     expect(text).toContain('(none)');
   });
+
+  it('formats duration values without floating-point artifacts', () => {
+    const entries = [
+      makeEntry({ scenario: 'a', durationSeconds: 1.005 }),
+      makeEntry({ scenario: 'a', durationSeconds: 2.315 }),
+    ];
+    const result = analyzePareto(entries);
+    const text = formatPareto(result);
+    // Should display rounded total and values, no raw floats like 3.3200000000000003
+    expect(text).toContain('3.32');
+    expect(text).not.toMatch(/\d+\.\d{3,}/);
+  });
 });

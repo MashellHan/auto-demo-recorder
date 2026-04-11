@@ -5,6 +5,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Category for Pareto analysis. */
 export type ParetoCategory = 'failures' | 'bugs' | 'duration';
@@ -154,8 +155,9 @@ function buildPareto(
   };
 }
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
+/** Format a numeric value, rounding floats to 2 decimal places. */
+function formatValue(n: number): string {
+  return Number.isInteger(n) ? n.toString() : round2(n).toString();
 }
 
 /**
@@ -186,7 +188,7 @@ export function formatPareto(result: ParetoResult): string {
       continue;
     }
 
-    lines.push(`    Total: ${analysis.total}`);
+    lines.push(`    Total: ${formatValue(analysis.total)}`);
     lines.push(`    Vital few: ${analysis.vitalFewCount}/${analysis.items.length} scenarios (${analysis.vitalFewPercentage}%)`);
     lines.push('');
     lines.push('    Scenario          Value    %   Cumul  Status');
@@ -194,7 +196,7 @@ export function formatPareto(result: ParetoResult): string {
 
     for (const item of analysis.items) {
       const name = item.scenario.padEnd(16).slice(0, 16);
-      const value = item.value.toString().padStart(7);
+      const value = formatValue(item.value).padStart(7);
       const pct = `${item.percentage}%`.padStart(5);
       const cum = `${item.cumulative}%`.padStart(6);
       const status = item.isVitalFew ? '🔴 vital' : '🟢 trivial';
