@@ -333,3 +333,7 @@ export type { ScenarioThroughput, TargetEstimate, CapacityResult } from './analy
 /** Recording quality trend analyzer. */
 export { analyzeQualityTrends, formatQualityTrends } from './analytics/quality-trends.js';
 export type { QualityDirection, QualitySnapshot, DimensionTrend, QualityTrendResult } from './analytics/quality-trends.js';
+
+/** Dependency health checker. */
+export { checkDependencyHealth, formatDepHealth } from './config/dep-health.js';
+export type { DepHealthSeverity, DepHealthIssue, DepHealthResult } from './config/dep-health.js';

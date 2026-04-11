@@ -17,6 +17,7 @@ import { interpolateConfig, listConfigVariables, formatInterpolationResult } fro
 import { compareConfigs, formatComparisonReport } from './config/config-comparison.js';
 import { analyzeDependencyDepth, formatDepthAnalysis } from './config/dependency-depth.js';
 import { scoreComplexity, formatComplexity } from './analytics/complexity.js';
+import { checkDependencyHealth, formatDepHealth } from './config/dep-health.js';
 
 /**
  * Register config tool CLI commands onto the given program.
@@ -37,6 +38,7 @@ export function registerConfigToolCommands(program: Command): void {
   registerConfigCompareCommand(program);
   registerDepthAnalysisCommand(program);
   registerComplexityCommand(program);
+  registerDepHealthCommand(program);
 }
 
 function registerLintCommand(program: Command): void {
@@ -396,6 +398,28 @@ function registerComplexityCommand(program: Command): void {
         ];
         const result = scoreComplexity(allScenarios);
         console.log(formatComplexity(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerDepHealthCommand(program: Command): void {
+  program
+    .command('dep-health')
+    .description('Check dependency graph health (cycles, depth, fan-out/in)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const allScenarios = [
+          ...config.scenarios,
+          ...config.browser_scenarios,
+        ];
+        const result = checkDependencyHealth(allScenarios);
+        console.log(formatDepHealth(result));
+        if (!result.healthy) process.exit(1);
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

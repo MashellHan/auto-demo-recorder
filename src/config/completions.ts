@@ -84,6 +84,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'velocity', description: 'Recording velocity tracker', options: ['--config'] },
   { name: 'capacity', description: 'Recording capacity planner', options: ['--config', '--work-hours'] },
   { name: 'quality-trends', description: 'Recording quality trends', options: ['--config', '--window-days', '--max-windows'] },
+  { name: 'dep-health', description: 'Dependency health check', options: ['--config'] },
 ];
 
 /**
