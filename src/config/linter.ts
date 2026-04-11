@@ -50,6 +50,10 @@ export function lintConfig(config: Config): LintResult {
   checkAnnotationWithoutModel(config, warnings);
   checkUnknownTheme(config, warnings);
   checkLargeScenarioCount(config, warnings);
+  checkSmallResolution(config, warnings);
+  checkExcessiveSleepSteps(config, warnings);
+  checkMissingDescription(config, warnings);
+  checkRateLimitWithoutParallel(config, warnings);
 
   const errors = warnings.filter((w) => w.severity === 'error').length;
   const warningCount = warnings.filter((w) => w.severity === 'warning').length;
@@ -151,6 +155,54 @@ function checkLargeScenarioCount(config: Config, warnings: LintWarning[]): void 
       severity: 'info',
       rule: 'many-scenarios',
       message: `${total} scenarios defined. Consider using tags and --tag filter for selective recording.`,
+    });
+  }
+}
+
+function checkSmallResolution(config: Config, warnings: LintWarning[]): void {
+  if (config.recording.width < 400 || config.recording.height < 300) {
+    warnings.push({
+      severity: 'warning',
+      rule: 'small-resolution',
+      message: `Resolution ${config.recording.width}×${config.recording.height} is very small. Recordings may be unreadable.`,
+      suggestion: 'Consider setting width to at least 800 and height to at least 600.',
+    });
+  }
+}
+
+function checkExcessiveSleepSteps(config: Config, warnings: LintWarning[]): void {
+  for (const scenario of config.scenarios) {
+    const sleepSteps = scenario.steps.filter((s) => s.action === 'sleep');
+    const totalSteps = scenario.steps.length;
+    if (totalSteps > 3 && sleepSteps.length > totalSteps * 0.5) {
+      warnings.push({
+        severity: 'info',
+        rule: 'excessive-sleep',
+        message: `Scenario "${scenario.name}" has ${sleepSteps.length}/${totalSteps} sleep steps (${Math.round(sleepSteps.length / totalSteps * 100)}%).`,
+        suggestion: 'Consider using step-level "pause" instead of explicit sleep actions for more natural pacing.',
+      });
+    }
+  }
+}
+
+function checkMissingDescription(config: Config, warnings: LintWarning[]): void {
+  if (!config.project.description || config.project.description.trim() === '') {
+    warnings.push({
+      severity: 'info',
+      rule: 'missing-description',
+      message: 'Project description is empty.',
+      suggestion: 'Add a description to the project section for better documentation.',
+    });
+  }
+}
+
+function checkRateLimitWithoutParallel(config: Config, warnings: LintWarning[]): void {
+  if (config.rate_limit.enabled && !config.recording.parallel) {
+    warnings.push({
+      severity: 'info',
+      rule: 'rate-limit-no-parallel',
+      message: 'Rate limiting is enabled but parallel recording is off.',
+      suggestion: 'Rate limiting is most useful with parallel or watch mode. Consider disabling it for sequential workflows.',
     });
   }
 }

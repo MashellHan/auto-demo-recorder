@@ -99,6 +99,62 @@ describe('lintConfig', () => {
     expect(result.errors).toBeGreaterThanOrEqual(1);
     expect(result.warningCount).toBeGreaterThanOrEqual(1);
   });
+
+  it('warns about small resolution', () => {
+    const config = makeConfig();
+    config.recording = { ...config.recording, width: 200, height: 150 };
+    const result = lintConfig(config);
+    const rule = result.warnings.find((w) => w.rule === 'small-resolution');
+    expect(rule).toBeDefined();
+    expect(rule!.severity).toBe('warning');
+  });
+
+  it('does not warn about normal resolution', () => {
+    const config = makeConfig();
+    config.recording = { ...config.recording, width: 1200, height: 800 };
+    const result = lintConfig(config);
+    const rule = result.warnings.find((w) => w.rule === 'small-resolution');
+    expect(rule).toBeUndefined();
+  });
+
+  it('reports info for excessive sleep steps', () => {
+    const config = makeConfig({
+      scenarios: [
+        {
+          name: 'sleepy',
+          description: 'Lots of sleeps',
+          steps: [
+            { action: 'type', value: 'x' },
+            { action: 'sleep', value: '1s' },
+            { action: 'sleep', value: '2s' },
+            { action: 'sleep', value: '3s' },
+            { action: 'sleep', value: '4s' },
+          ],
+        },
+      ],
+    });
+    const result = lintConfig(config);
+    const rule = result.warnings.find((w) => w.rule === 'excessive-sleep');
+    expect(rule).toBeDefined();
+    expect(rule!.severity).toBe('info');
+  });
+
+  it('reports info for missing project description', () => {
+    const config = makeConfig();
+    config.project = { ...config.project, description: '' };
+    const result = lintConfig(config);
+    const rule = result.warnings.find((w) => w.rule === 'missing-description');
+    expect(rule).toBeDefined();
+  });
+
+  it('reports info for rate limit without parallel', () => {
+    const config = makeConfig();
+    config.rate_limit = { enabled: true, max_recordings: 5, window_seconds: 60 };
+    config.recording = { ...config.recording, parallel: false };
+    const result = lintConfig(config);
+    const rule = result.warnings.find((w) => w.rule === 'rate-limit-no-parallel');
+    expect(rule).toBeDefined();
+  });
 });
 
 describe('formatLintReport', () => {
