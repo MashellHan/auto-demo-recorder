@@ -109,6 +109,11 @@ export type { HealthCheckItem, HealthCheckResult } from './pipeline/health-check
 /** Recording baseline management. */
 export { saveBaseline, checkBaseline, listBaselines, formatBaselineComparison } from './analytics/baseline.js';
 export type { BaselineComparison, BaselineChange, BaselineData } from './analytics/baseline.js';
+/** JSON Schema export for IDE autocomplete. */
+export { exportJsonSchema } from './config/schema-export.js';
+/** Multi-language annotation presets. */
+export { ANNOTATION_LANGUAGES, findLanguage, getLanguageInstruction, listLanguages } from './config/languages.js';
+export type { AnnotationLanguage } from './config/languages.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
