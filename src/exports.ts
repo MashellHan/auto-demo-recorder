@@ -301,3 +301,7 @@ export type { PeriodRate, RateAnalysis } from './analytics/rate-analysis.js';
 /** Recording health dashboard. */
 export { computeHealthDashboard, formatHealthDashboard } from './analytics/health-dashboard.js';
 export type { HealthGrade, HealthDashboard, ScenarioHealth } from './analytics/health-dashboard.js';
+
+/** Recording streak tracker. */
+export { analyzeStreaks, formatStreaks } from './analytics/streaks.js';
+export type { Streak, StreakResult } from './analytics/streaks.js';

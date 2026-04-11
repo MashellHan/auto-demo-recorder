@@ -13,6 +13,7 @@ import { computeFreshness, formatFreshness } from './analytics/freshness.js';
 import { computeCoverage, formatCoverage } from './analytics/coverage.js';
 import { analyzeRates, formatRateAnalysis } from './analytics/rate-analysis.js';
 import { computeHealthDashboard, formatHealthDashboard } from './analytics/health-dashboard.js';
+import { analyzeStreaks, formatStreaks } from './analytics/streaks.js';
 import type { GroupBy } from './analytics/grouping.js';
 
 /**
@@ -34,6 +35,7 @@ export function registerAnalyticsMonitorCommands(program: Command): void {
   registerCoverageCommand(program);
   registerRatesCommand(program);
   registerDashboardCommand(program);
+  registerStreaksCommand(program);
 }
 
 function registerDuplicatesCommand(program: Command): void {
@@ -293,6 +295,25 @@ function registerDashboardCommand(program: Command): void {
         const entries = await readHistory(outputDir);
         const result = computeHealthDashboard(entries);
         console.log(formatHealthDashboard(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerStreaksCommand(program: Command): void {
+  program
+    .command('streaks')
+    .description('Show recording streak analysis (consecutive days)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const result = analyzeStreaks(entries);
+        console.log(formatStreaks(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
