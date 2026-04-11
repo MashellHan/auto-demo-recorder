@@ -365,3 +365,7 @@ export type { BurndownDay, BurndownResult } from './analytics/burndown.js';
 /** Composite recording health score. */
 export { computeHealthScore, formatHealthScore } from './analytics/health-score.js';
 export type { HealthDimension, HealthScoreGrade, HealthScoreResult } from './analytics/health-score.js';
+
+/** Recording funnel analysis. */
+export { analyzeFunnel, formatFunnel } from './analytics/funnel.js';
+export type { FunnelStage, ScenarioFunnel, FunnelResult } from './analytics/funnel.js';

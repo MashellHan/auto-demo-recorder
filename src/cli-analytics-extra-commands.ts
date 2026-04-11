@@ -13,6 +13,7 @@ import { analyzeImpact, analyzeFailureImpact, formatImpactAnalysis } from './ana
 import { analyzeDistribution, formatDistribution } from './analytics/distribution.js';
 import { detectAnomalies, formatAnomalies } from './analytics/anomaly.js';
 import { fingerprintSessions, formatFingerprints } from './analytics/fingerprint.js';
+import { analyzeFunnel, formatFunnel } from './analytics/funnel.js';
 
 /**
  * Register descriptive analytics CLI commands onto the given program.
@@ -34,6 +35,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerDistributionCommand(program);
   registerAnomalyCommand(program);
   registerFingerprintCommand(program);
+  registerFunnelCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -262,6 +264,25 @@ function registerFingerprintCommand(program: Command): void {
         const threshold = opts.threshold ? parseInt(opts.threshold, 10) : 80;
         const result = fingerprintSessions(entries, threshold);
         console.log(formatFingerprints(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerFunnelCommand(program: Command): void {
+  program
+    .command('funnel')
+    .description('Show recording pipeline funnel analysis with conversion rates')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const result = analyzeFunnel(entries);
+        console.log(formatFunnel(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

@@ -92,6 +92,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'cohorts', description: 'Recording cohort analysis', options: ['--config', '--granularity'] },
   { name: 'burndown', description: 'Recording burndown chart', options: ['--config', '--target', '--start', '--deadline'] },
   { name: 'health-score', description: 'Composite health score', options: ['--config', '--window'] },
+  { name: 'funnel', description: 'Recording funnel analysis', options: ['--config'] },
 ];
 
 /**
