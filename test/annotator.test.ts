@@ -152,6 +152,50 @@ describe('annotateFrames', () => {
     expect(result.frames[2].timestamp).toBe('0:01');
   });
 
+  it('retries on API failure with backoff and eventually succeeds', async () => {
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    const createMock = vi.fn()
+      .mockRejectedValueOnce(new Error('rate_limited'))
+      .mockResolvedValueOnce({
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            status: 'ok',
+            description: 'frame',
+            feature_being_demonstrated: 'test',
+            bugs_detected: [],
+            visual_quality: 'good',
+            annotation_text: 'Retried successfully',
+          }),
+        }],
+      });
+    vi.mocked(Anthropic).mockImplementation(() => ({
+      messages: { create: createMock },
+    }) as any);
+
+    const warnings: string[] = [];
+    const result = await annotateFrames(
+      '/tmp/frames',
+      1,
+      'test',
+      'desc',
+      'scenario',
+      {
+        enabled: true,
+        model: 'claude-sonnet-4-6',
+        extract_fps: 1,
+        language: 'en',
+        overlay_position: 'bottom',
+        overlay_font_size: 14,
+      },
+      { log: () => {}, warn: (msg: string) => warnings.push(msg) },
+    );
+
+    expect(createMock).toHaveBeenCalledTimes(2);
+    expect(warnings.some((w) => w.includes('Retry 1/3'))).toBe(true);
+    expect(result.frames[0].annotation_text).toBe('Retried successfully');
+  }, 10000);
+
   it('includes language instruction in prompt for non-English config', async () => {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     const createMock = vi.fn().mockResolvedValue({

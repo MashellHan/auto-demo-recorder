@@ -347,6 +347,62 @@ describe('record', () => {
     expect(symlink).not.toHaveBeenCalled();
   });
 
+  it('logs no regressions when reports are identical', async () => {
+    const { existsSync } = await import('node:fs');
+    const { readFile } = await import('node:fs/promises');
+
+    vi.mocked(existsSync).mockReturnValue(true);
+
+    const identicalReport = JSON.stringify({
+      project: 'test-project',
+      scenario: 'basic',
+      timestamp: '2026-01-01T00:00:00Z',
+      duration_seconds: 5,
+      total_frames_analyzed: 2,
+      overall_status: 'ok',
+      frames: [
+        { index: 0, timestamp: '0:00', status: 'ok', description: 'Frame 1', feature_being_demonstrated: 'startup', bugs_detected: [], visual_quality: 'good', annotation_text: 'Starting' },
+      ],
+      summary: 'All good.',
+      bugs_found: 0,
+    });
+
+    // Previous and current reports are identical → no regressions
+    vi.mocked(readFile)
+      .mockResolvedValueOnce(identicalReport as never)
+      .mockResolvedValueOnce(identicalReport as never);
+
+    const logs: string[] = [];
+    const result = await record({
+      config: baseConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+      logger: { log: (msg: string) => logs.push(msg), warn: () => {} },
+    });
+
+    expect(result.regression).toBeUndefined();
+    expect(logs.some((l) => l.includes('No regressions'))).toBe(true);
+  });
+
+  it('handles error reading previous report gracefully', async () => {
+    const { existsSync } = await import('node:fs');
+    const { readFile } = await import('node:fs/promises');
+
+    vi.mocked(existsSync).mockReturnValue(true);
+    // readFile throws when trying to read previous report
+    vi.mocked(readFile).mockRejectedValueOnce(new Error('ENOENT: no such file'));
+
+    const result = await record({
+      config: baseConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+    });
+
+    // Should not crash — regression is just undefined
+    expect(result.success).toBe(true);
+    expect(result.regression).toBeUndefined();
+  });
+
   it('exports updateLatestSymlink for external callers', () => {
     expect(typeof updateLatestSymlink).toBe('function');
   });
