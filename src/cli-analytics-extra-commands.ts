@@ -18,6 +18,7 @@ import { diffSessionEntries, formatSessionDiffSummary } from './analytics/sessio
 import { computeBenchmarks, formatBenchmarks } from './analytics/benchmarks.js';
 import { computeFreshness, formatFreshness } from './analytics/freshness.js';
 import { computeCoverage, formatCoverage } from './analytics/coverage.js';
+import { analyzeRates, formatRateAnalysis } from './analytics/rate-analysis.js';
 import type { GroupBy } from './analytics/grouping.js';
 
 /**
@@ -43,6 +44,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerBenchmarksCommand(program);
   registerFreshnessCommand(program);
   registerCoverageCommand(program);
+  registerRatesCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -409,6 +411,25 @@ function registerCoverageCommand(program: Command): void {
         ];
         const report = computeCoverage(scenarioNames, entries, staleDays);
         console.log(formatCoverage(report));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerRatesCommand(program: Command): void {
+  program
+    .command('rates')
+    .description('Analyze recording frequency rates (daily/weekly, peaks, velocity)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const result = analyzeRates(entries);
+        console.log(formatRateAnalysis(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

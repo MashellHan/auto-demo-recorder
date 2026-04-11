@@ -74,6 +74,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'freshness', description: 'Recording freshness index', options: ['--config'] },
   { name: 'coverage', description: 'Scenario coverage report', options: ['--config', '--stale-days'] },
   { name: 'complexity', description: 'Scenario complexity scoring', options: ['--config'] },
+  { name: 'rates', description: 'Recording rate analysis', options: ['--config'] },
 ];
 
 /**

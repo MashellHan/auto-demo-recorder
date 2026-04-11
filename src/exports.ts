@@ -293,3 +293,7 @@ export type { ConfigSnapshot, DriftResult } from './config/config-snapshot-diff.
 /** Scenario complexity scorer. */
 export { scoreComplexity, formatComplexity } from './analytics/complexity.js';
 export type { ComplexityScore, ComplexityResult, ComplexityScenario } from './analytics/complexity.js';
+
+/** Recording rate analysis. */
+export { analyzeRates, formatRateAnalysis } from './analytics/rate-analysis.js';
+export type { PeriodRate, RateAnalysis } from './analytics/rate-analysis.js';
