@@ -45,6 +45,9 @@ export type { SvgGeneratorOptions, SvgTheme } from './pipeline/svg-generator.js'
 /** HTML report dashboard generator. */
 export { generateReport } from './pipeline/report-generator.js';
 export type { ReportDashboardOptions } from './pipeline/report-generator.js';
+/** AI chapter and table of contents generator. */
+export { generateChapters, generateTableOfContents, renderTocMarkdown, renderChaptersHtml } from './pipeline/chapter-generator.js';
+export type { Chapter, TableOfContents } from './pipeline/chapter-generator.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
