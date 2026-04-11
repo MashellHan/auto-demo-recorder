@@ -94,6 +94,12 @@ export type { StepTiming, TimingAnalysis } from './analytics/timing.js';
 /** Environment snapshot capture. */
 export { captureEnvironmentSnapshot, formatEnvironmentSnapshot } from './pipeline/environment.js';
 export type { EnvironmentSnapshot } from './pipeline/environment.js';
+/** Config migration utilities. */
+export { migrateConfig, formatMigrationReport } from './config/migration.js';
+export type { MigrationStep, MigrationResult } from './config/migration.js';
+/** Recording session pruning. */
+export { pruneRecordings, formatPruneReport } from './pipeline/prune.js';
+export type { PruneOptions, PruneResult } from './pipeline/prune.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {

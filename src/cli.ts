@@ -20,6 +20,8 @@ import { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile } from './
 import { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipeline/replay.js';
 import { analyzeTimingFromReport, formatTimingReport } from './analytics/timing.js';
 import { captureEnvironmentSnapshot, formatEnvironmentSnapshot } from './pipeline/environment.js';
+import { migrateConfig, formatMigrationReport } from './config/migration.js';
+import { pruneRecordings, formatPruneReport } from './pipeline/prune.js';
 import type { BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -605,6 +607,72 @@ export function createCli(): Command {
         } else {
           console.log(formatEnvironmentSnapshot(snapshot));
         }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('migrate')
+    .description('Migrate a demo-recorder.yaml to the latest schema version')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--dry-run', 'Show what would change without modifying the file')
+    .action(async (opts: { config?: string; dryRun?: boolean }) => {
+      try {
+        const configPath = resolve(process.cwd(), opts.config ?? 'demo-recorder.yaml');
+        if (!existsSync(configPath)) {
+          throw new Error(`Config file not found: ${configPath}`);
+        }
+
+        const yaml = await import('yaml');
+        const raw = yaml.parse(await readFile(configPath, 'utf-8'));
+        const result = migrateConfig(raw);
+
+        console.log(formatMigrationReport(result));
+
+        if (result.changed && !opts.dryRun) {
+          const migrated = yaml.stringify(result.config);
+          await writeFile(configPath, migrated, 'utf-8');
+          console.log(`\n✓ Config file updated: ${configPath}`);
+        } else if (result.changed && opts.dryRun) {
+          console.log('\n[DRY RUN] No changes written to disk.');
+        }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('prune')
+    .description('Remove old recording sessions')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--keep <n>', 'Keep the N most recent sessions')
+    .option('--max-age <days>', 'Remove sessions older than N days')
+    .option('--dry-run', 'Preview what would be deleted without deleting')
+    .action(async (opts: { config?: string; keep?: string; maxAge?: string; dryRun?: boolean }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+
+        if (!existsSync(outputDir)) {
+          console.log('No recording directory found.');
+          return;
+        }
+
+        if (!opts.keep && !opts.maxAge) {
+          throw new Error('Specify at least --keep <n> or --max-age <days>');
+        }
+
+        const result = await pruneRecordings({
+          outputDir,
+          keepCount: opts.keep ? parseInt(opts.keep, 10) : undefined,
+          maxAgeDays: opts.maxAge ? parseInt(opts.maxAge, 10) : undefined,
+          dryRun: opts.dryRun,
+        });
+
+        console.log(formatPruneReport(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
