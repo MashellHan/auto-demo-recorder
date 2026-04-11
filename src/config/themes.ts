@@ -38,11 +38,36 @@ export const VHS_THEMES: ReadonlyArray<ThemeInfo> = [
 ];
 
 /**
- * Get a theme by name (case-insensitive). Matches against both display name and VHS ID.
+ * Common theme name aliases that map to the correct VHS identifier.
+ * Handles cases where users use popular names that don't exactly match VHS's naming.
+ */
+const THEME_ALIASES: ReadonlyMap<string, string> = new Map([
+  ['monokai', 'Molokai'],
+  ['gruvbox', 'GruvboxDark'],
+  ['ayu dark', 'ayu'],
+  ['ayu', 'ayu'],
+  ['rose pine', 'rose-pine'],
+]);
+
+/**
+ * Get a theme by name (case-insensitive). Matches against display name, VHS ID,
+ * and common aliases.
  */
 export function findTheme(name: string): ThemeInfo | undefined {
   const lower = name.toLowerCase();
-  return VHS_THEMES.find((t) => t.name.toLowerCase() === lower || t.vhsId.toLowerCase() === lower);
+  const found = VHS_THEMES.find((t) => t.name.toLowerCase() === lower || t.vhsId.toLowerCase() === lower);
+  if (found) return found;
+
+  // Check aliases — return a synthetic ThemeInfo
+  const aliasVhsId = THEME_ALIASES.get(lower);
+  if (aliasVhsId) {
+    const aliased = VHS_THEMES.find((t) => t.vhsId === aliasVhsId);
+    if (aliased) return aliased;
+    // Alias points to a valid VHS ID not in our curated list
+    return { name, vhsId: aliasVhsId, description: `Alias for ${aliasVhsId}`, category: 'dark' };
+  }
+
+  return undefined;
 }
 
 /**

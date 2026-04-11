@@ -70,4 +70,22 @@ describe('themes', () => {
     expect(resolveThemeId('nord')).toBe('nord');
     expect(resolveThemeId('NORD')).toBe('nord');
   });
+
+  it('resolves "Monokai" alias to "Molokai" VHS ID', () => {
+    const theme = findTheme('Monokai');
+    expect(theme).toBeDefined();
+    expect(resolveThemeId('Monokai')).toBe('Molokai');
+  });
+
+  it('resolves "Gruvbox" alias to "GruvboxDark" VHS ID', () => {
+    const theme = findTheme('Gruvbox');
+    expect(theme).toBeDefined();
+    expect(resolveThemeId('Gruvbox')).toBe('GruvboxDark');
+  });
+
+  it('resolves "Ayu Dark" alias to "ayu" VHS ID', () => {
+    const theme = findTheme('Ayu Dark');
+    expect(theme).toBeDefined();
+    expect(resolveThemeId('Ayu Dark')).toBe('ayu');
+  });
 });
