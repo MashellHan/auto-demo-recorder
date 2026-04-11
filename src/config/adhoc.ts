@@ -70,6 +70,11 @@ export function buildAdhocConfig(opts: AdhocOptions): Config {
       ? [{ name: 'adhoc-browser', description: `Ad-hoc browser: ${opts.command}`, url: opts.command, setup: [], steps: [], tags: [], depends_on: [] }]
       : [],
     profiles: [],
+    rate_limit: {
+      enabled: false,
+      max_recordings: 10,
+      window_seconds: 300,
+    },
   };
 }
 

@@ -421,3 +421,58 @@ describe('ConfigSchema — browser backend', () => {
     expect(config.recording.browser.record_video).toBe(false);
   });
 });
+
+describe('ConfigSchema — rate_limit', () => {
+  it('provides rate_limit defaults when not specified', () => {
+    const raw = {
+      project: { name: 'test' },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.rate_limit.enabled).toBe(false);
+    expect(config.rate_limit.max_recordings).toBe(10);
+    expect(config.rate_limit.window_seconds).toBe(300);
+    expect(config.rate_limit.preset).toBeUndefined();
+  });
+
+  it('accepts explicit rate_limit config', () => {
+    const raw = {
+      project: { name: 'test' },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+      rate_limit: {
+        enabled: true,
+        max_recordings: 5,
+        window_seconds: 120,
+      },
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.rate_limit.enabled).toBe(true);
+    expect(config.rate_limit.max_recordings).toBe(5);
+    expect(config.rate_limit.window_seconds).toBe(120);
+  });
+
+  it('accepts a preset', () => {
+    const raw = {
+      project: { name: 'test' },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+      rate_limit: {
+        enabled: true,
+        preset: 'ci',
+      },
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.rate_limit.preset).toBe('ci');
+  });
+
+  it('rejects invalid preset', () => {
+    const raw = {
+      project: { name: 'test' },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+      rate_limit: {
+        enabled: true,
+        preset: 'invalid',
+      },
+    };
+    expect(() => ConfigSchema.parse(raw)).toThrow();
+  });
+});

@@ -166,6 +166,18 @@ const ProfileSchema = z.object({
   output: z.record(z.unknown()).optional(),
 });
 
+/** Rate limiting configuration for recording sessions. */
+const RateLimitSchema = z.object({
+  /** Whether rate limiting is enabled. */
+  enabled: z.boolean().default(false),
+  /** Maximum recordings within the sliding window. */
+  max_recordings: z.number().int().min(1).default(10),
+  /** Sliding window duration in seconds. */
+  window_seconds: z.number().int().min(1).default(300),
+  /** Named preset: ci (10/5m), watch (5/1m), aggressive (2/30s), relaxed (50/1h). Overrides max_recordings and window_seconds. */
+  preset: z.enum(['ci', 'watch', 'aggressive', 'relaxed']).optional(),
+});
+
 export const ConfigSchema = z.object({
   project: ProjectSchema,
   recording: RecordingSchema.default({}),
@@ -177,6 +189,8 @@ export const ConfigSchema = z.object({
   browser_scenarios: z.array(BrowserScenarioSchema).default([]),
   /** Custom recording profiles defined in config. */
   profiles: z.array(ProfileSchema).default([]),
+  /** Rate limiting for recording sessions (prevents excessive runs in CI/watch mode). */
+  rate_limit: RateLimitSchema.default({}),
 }).refine(
   (data) => {
     if (data.recording.backend === 'vhs') {
@@ -198,3 +212,4 @@ export type RecordingConfig = z.infer<typeof RecordingSchema>;
 export type BrowserConfig = z.infer<typeof BrowserConfigSchema>;
 export type AnnotationConfig = z.infer<typeof AnnotationSchema>;
 export type WatchConfig = z.infer<typeof WatchSchema>;
+export type RateLimitConfigSchema = z.infer<typeof RateLimitSchema>;

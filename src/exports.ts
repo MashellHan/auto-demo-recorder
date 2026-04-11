@@ -11,7 +11,7 @@
 export { loadConfig, findScenario, deepMerge } from './config/loader.js';
 /** Zod schema for validating demo-recorder config objects. */
 export { ConfigSchema } from './config/schema.js';
-export type { Config, Scenario, BrowserScenario } from './config/schema.js';
+export type { Config, Scenario, BrowserScenario, RateLimitConfigSchema } from './config/schema.js';
 export type { Logger } from './pipeline/annotator.js';
 /** Regression detection utilities for comparing recording reports. */
 export { detectRegressions, compareReports, loadReport, writeSessionReport } from './pipeline/regression.js';
@@ -155,7 +155,7 @@ export { saveSnapshot, listSnapshots, restoreSnapshot, deleteSnapshot, formatSna
 export type { Snapshot, SaveSnapshotResult } from './pipeline/snapshots.js';
 
 /** Recording rate limiter. */
-export { RateLimiter, createRateLimiter, formatRateLimitResult } from './pipeline/rate-limiter.js';
+export { RateLimiter, createRateLimiter, createRateLimiterFromConfig, formatRateLimitResult } from './pipeline/rate-limiter.js';
 export type { RateLimitConfig, RateLimitResult, RateLimiterSnapshot } from './pipeline/rate-limiter.js';
 
 /** Config diff tool. */

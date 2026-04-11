@@ -150,6 +150,30 @@ export function createRateLimiter(preset: 'ci' | 'watch' | 'aggressive' | 'relax
 }
 
 /**
+ * Create a rate limiter from a config's rate_limit section.
+ * Returns null if rate limiting is disabled.
+ */
+export function createRateLimiterFromConfig(rateLimitConfig: {
+  enabled: boolean;
+  max_recordings: number;
+  window_seconds: number;
+  preset?: 'ci' | 'watch' | 'aggressive' | 'relaxed';
+}): RateLimiter | null {
+  if (!rateLimitConfig.enabled) {
+    return null;
+  }
+
+  if (rateLimitConfig.preset) {
+    return createRateLimiter(rateLimitConfig.preset);
+  }
+
+  return new RateLimiter({
+    maxRecordings: rateLimitConfig.max_recordings,
+    windowSeconds: rateLimitConfig.window_seconds,
+  });
+}
+
+/**
  * Format a rate limit result for display in CLI output.
  */
 export function formatRateLimitResult(result: RateLimitResult): string {

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   RateLimiter,
   createRateLimiter,
+  createRateLimiterFromConfig,
   formatRateLimitResult,
 } from '../src/pipeline/rate-limiter.js';
 
@@ -168,5 +169,54 @@ describe('formatRateLimitResult', () => {
     expect(text).toContain('Rate limit exceeded');
     expect(text).toContain('5/5 recordings');
     expect(text).toContain('Retry after 15s');
+  });
+});
+
+describe('createRateLimiterFromConfig', () => {
+  it('returns null when rate limiting is disabled', () => {
+    const result = createRateLimiterFromConfig({
+      enabled: false,
+      max_recordings: 10,
+      window_seconds: 300,
+    });
+    expect(result).toBeNull();
+  });
+
+  it('creates limiter from explicit config values', () => {
+    const limiter = createRateLimiterFromConfig({
+      enabled: true,
+      max_recordings: 7,
+      window_seconds: 120,
+    });
+    expect(limiter).not.toBeNull();
+    const snap = limiter!.snapshot();
+    expect(snap.config.maxRecordings).toBe(7);
+    expect(snap.config.windowSeconds).toBe(120);
+  });
+
+  it('uses preset when specified, overriding explicit values', () => {
+    const limiter = createRateLimiterFromConfig({
+      enabled: true,
+      max_recordings: 7,
+      window_seconds: 120,
+      preset: 'ci',
+    });
+    expect(limiter).not.toBeNull();
+    const snap = limiter!.snapshot();
+    expect(snap.config.maxRecordings).toBe(10); // ci preset
+    expect(snap.config.windowSeconds).toBe(300);
+  });
+
+  it('uses watch preset correctly', () => {
+    const limiter = createRateLimiterFromConfig({
+      enabled: true,
+      max_recordings: 10,
+      window_seconds: 300,
+      preset: 'watch',
+    });
+    expect(limiter).not.toBeNull();
+    const snap = limiter!.snapshot();
+    expect(snap.config.maxRecordings).toBe(5);
+    expect(snap.config.windowSeconds).toBe(60);
   });
 });
