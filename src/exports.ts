@@ -227,5 +227,5 @@ export { exportConfig, formatExportSummary } from './config/config-export.js';
 export type { ExportFormat, ConfigExport } from './config/config-export.js';
 
 /** Recording outlier detection. */
-export { detectOutliers, formatOutliers } from './analytics/outliers.js';
-export type { Outlier, OutlierResult } from './analytics/outliers.js';
+export { detectOutliers, detectOutliersPerScenario, formatOutliers, formatOutliersPerScenario } from './analytics/outliers.js';
+export type { Outlier, OutlierResult, PerScenarioOutlierResult } from './analytics/outliers.js';

@@ -7,7 +7,7 @@ import { computeScoreCard, formatScoreCard } from './analytics/scorecard.js';
 import { suggestTags, formatTagSuggestions } from './analytics/tag-suggestions.js';
 import { computeStatusOverview, formatStatusOverview } from './analytics/status-overview.js';
 import { analyzeTrends, formatTrendReport } from './analytics/trends.js';
-import { detectOutliers, formatOutliers } from './analytics/outliers.js';
+import { detectOutliers, detectOutliersPerScenario, formatOutliers, formatOutliersPerScenario } from './analytics/outliers.js';
 
 /**
  * Register extra analytics CLI commands onto the given program.
@@ -125,14 +125,21 @@ function registerOutliersCommand(program: Command): void {
     .description('Detect outlier recordings by duration, bugs, or status')
     .option('-c, --config <path>', 'Path to demo-recorder.yaml')
     .option('-t, --threshold <n>', 'Z-score threshold (default: 2.0)')
-    .action(async (opts: { config?: string; threshold?: string }) => {
+    .option('--per-scenario', 'Detect outliers within each scenario independently')
+    .action(async (opts: { config?: string; threshold?: string; perScenario?: boolean }) => {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
         const entries = await readHistory(outputDir);
         const threshold = opts.threshold ? parseFloat(opts.threshold) : 2.0;
-        const result = detectOutliers(entries, threshold);
-        console.log(formatOutliers(result));
+
+        if (opts.perScenario) {
+          const result = detectOutliersPerScenario(entries, threshold);
+          console.log(formatOutliersPerScenario(result));
+        } else {
+          const result = detectOutliers(entries, threshold);
+          console.log(formatOutliers(result));
+        }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

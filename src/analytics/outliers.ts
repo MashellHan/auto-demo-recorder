@@ -106,9 +106,82 @@ export function detectOutliers(
   return { outliers, totalAnalyzed: entries.length, avgDuration, stdDevDuration };
 }
 
+/** Per-scenario outlier detection result. */
+export interface PerScenarioOutlierResult {
+  /** Results keyed by scenario name. */
+  readonly scenarios: ReadonlyMap<string, OutlierResult>;
+  /** Total entries analyzed across all scenarios. */
+  readonly totalAnalyzed: number;
+  /** Total outliers found across all scenarios. */
+  readonly totalOutliers: number;
+}
+
 /**
- * Format outlier detection results.
+ * Detect outliers within each scenario independently.
+ *
+ * This avoids false positives where inherently longer/shorter scenarios
+ * (e.g., "advanced" vs "basic") are flagged as outliers simply because
+ * their durations differ from the global mean.
  */
+export function detectOutliersPerScenario(
+  entries: readonly HistoryEntry[],
+  threshold: number = 2.0,
+): PerScenarioOutlierResult {
+  const grouped = new Map<string, HistoryEntry[]>();
+  for (const entry of entries) {
+    const list = grouped.get(entry.scenario) ?? [];
+    list.push(entry);
+    grouped.set(entry.scenario, list);
+  }
+
+  const scenarios = new Map<string, OutlierResult>();
+  let totalOutliers = 0;
+
+  for (const [name, scenarioEntries] of grouped) {
+    const result = detectOutliers(scenarioEntries, threshold);
+    scenarios.set(name, result);
+    totalOutliers += result.outliers.length;
+  }
+
+  return { scenarios, totalAnalyzed: entries.length, totalOutliers };
+}
+
+/**
+ * Format per-scenario outlier detection results.
+ */
+export function formatOutliersPerScenario(result: PerScenarioOutlierResult): string {
+  const lines: string[] = [];
+  lines.push('Per-Scenario Outlier Detection');
+  lines.push('═'.repeat(60));
+  lines.push('');
+
+  if (result.totalAnalyzed === 0) {
+    lines.push('  No recordings to analyze.');
+    return lines.join('\n');
+  }
+
+  const sortedNames = [...result.scenarios.keys()].sort();
+
+  for (const name of sortedNames) {
+    const sr = result.scenarios.get(name)!;
+    lines.push(`  ${name} (${sr.totalAnalyzed} recordings, avg ${sr.avgDuration.toFixed(1)}s ± ${sr.stdDevDuration.toFixed(1)}s)`);
+
+    if (sr.totalAnalyzed < 3) {
+      lines.push('    Insufficient data (need ≥3)');
+    } else if (sr.outliers.length === 0) {
+      lines.push('    ✓ No outliers');
+    } else {
+      for (const o of sr.outliers) {
+        const icon = o.type === 'duration' ? '⏱' : o.type === 'bugs' ? '🐛' : '✗';
+        lines.push(`    ${icon} ${o.reason} (z=${o.deviation.toFixed(1)})`);
+      }
+    }
+    lines.push('');
+  }
+
+  lines.push(`  Total: ${result.totalOutliers} outlier(s) across ${sortedNames.length} scenario(s)`);
+  return lines.join('\n');
+}
 export function formatOutliers(result: OutlierResult): string {
   const lines: string[] = [];
   lines.push('Outlier Detection');

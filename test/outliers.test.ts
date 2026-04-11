@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectOutliers, formatOutliers } from '../src/analytics/outliers.js';
+import { detectOutliers, detectOutliersPerScenario, formatOutliers, formatOutliersPerScenario } from '../src/analytics/outliers.js';
 import type { HistoryEntry } from '../src/analytics/history.js';
 
 function makeEntry(overrides: Partial<HistoryEntry> = {}): HistoryEntry {
@@ -140,5 +140,101 @@ describe('formatOutliers', () => {
     const text = formatOutliers(result);
     expect(text).toContain('Outlier Detection');
     expect(text).toContain('outlier');
+  });
+});
+
+describe('detectOutliersPerScenario', () => {
+  it('groups entries by scenario', () => {
+    const entries = [
+      ...Array.from({ length: 5 }, () => makeEntry({ scenario: 'basic', durationSeconds: 10 })),
+      ...Array.from({ length: 5 }, () => makeEntry({ scenario: 'advanced', durationSeconds: 50 })),
+    ];
+    const result = detectOutliersPerScenario(entries);
+    expect(result.scenarios.size).toBe(2);
+    expect(result.totalAnalyzed).toBe(10);
+  });
+
+  it('does not flag inherently different scenarios as outliers', () => {
+    // "advanced" consistently runs at 50s and "basic" at 10s — no outliers within either group
+    const entries = [
+      ...Array.from({ length: 10 }, () => makeEntry({ scenario: 'basic', durationSeconds: 10 })),
+      ...Array.from({ length: 10 }, () => makeEntry({ scenario: 'advanced', durationSeconds: 50 })),
+    ];
+    const result = detectOutliersPerScenario(entries);
+    expect(result.totalOutliers).toBe(0);
+  });
+
+  it('detects outlier within a scenario group', () => {
+    const entries = [
+      ...Array.from({ length: 10 }, () => makeEntry({ scenario: 'basic', durationSeconds: 10 })),
+      makeEntry({ scenario: 'basic', durationSeconds: 200 }), // outlier within basic
+      ...Array.from({ length: 5 }, () => makeEntry({ scenario: 'advanced', durationSeconds: 50 })),
+    ];
+    const result = detectOutliersPerScenario(entries);
+    const basicResult = result.scenarios.get('basic')!;
+    expect(basicResult.outliers.length).toBeGreaterThanOrEqual(1);
+    const advancedResult = result.scenarios.get('advanced')!;
+    expect(advancedResult.outliers.length).toBe(0);
+  });
+
+  it('handles single scenario with insufficient data', () => {
+    const entries = [
+      makeEntry({ scenario: 'basic', durationSeconds: 10 }),
+      makeEntry({ scenario: 'basic', durationSeconds: 20 }),
+    ];
+    const result = detectOutliersPerScenario(entries);
+    const basicResult = result.scenarios.get('basic')!;
+    expect(basicResult.outliers.length).toBe(0); // <3 entries
+  });
+
+  it('handles empty input', () => {
+    const result = detectOutliersPerScenario([]);
+    expect(result.totalAnalyzed).toBe(0);
+    expect(result.totalOutliers).toBe(0);
+    expect(result.scenarios.size).toBe(0);
+  });
+
+  it('respects custom threshold per scenario', () => {
+    const entries = [
+      ...Array.from({ length: 10 }, () => makeEntry({ scenario: 'basic', durationSeconds: 10 })),
+      makeEntry({ scenario: 'basic', durationSeconds: 20 }), // mild outlier
+    ];
+    const strict = detectOutliersPerScenario(entries, 1.0);
+    const relaxed = detectOutliersPerScenario(entries, 5.0);
+    const strictOutliers = strict.scenarios.get('basic')!.outliers.length;
+    const relaxedOutliers = relaxed.scenarios.get('basic')!.outliers.length;
+    expect(strictOutliers).toBeGreaterThanOrEqual(relaxedOutliers);
+  });
+});
+
+describe('formatOutliersPerScenario', () => {
+  it('formats empty data', () => {
+    const result = detectOutliersPerScenario([]);
+    const text = formatOutliersPerScenario(result);
+    expect(text).toContain('No recordings');
+  });
+
+  it('formats per-scenario results', () => {
+    const entries = [
+      ...Array.from({ length: 10 }, () => makeEntry({ scenario: 'basic', durationSeconds: 10 })),
+      ...Array.from({ length: 10 }, () => makeEntry({ scenario: 'advanced', durationSeconds: 50 })),
+    ];
+    const result = detectOutliersPerScenario(entries);
+    const text = formatOutliersPerScenario(result);
+    expect(text).toContain('Per-Scenario');
+    expect(text).toContain('basic');
+    expect(text).toContain('advanced');
+    expect(text).toContain('No outliers');
+  });
+
+  it('formats scenario with outliers', () => {
+    const entries = [
+      ...Array.from({ length: 10 }, () => makeEntry({ scenario: 'basic', durationSeconds: 10 })),
+      makeEntry({ scenario: 'basic', durationSeconds: 200 }),
+    ];
+    const result = detectOutliersPerScenario(entries);
+    const text = formatOutliersPerScenario(result);
+    expect(text).toContain('slower');
+    expect(text).toContain('z=');
   });
 });
