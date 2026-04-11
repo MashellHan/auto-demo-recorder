@@ -51,6 +51,9 @@ export type { Chapter, TableOfContents } from './pipeline/chapter-generator.js';
 /** Asciicast v2 interop (import/export). */
 export { parseAsciicast, serializeAsciicast, loadAsciicast, saveAsciicast, reportToAsciicast, asciicastToReport } from './pipeline/asciicast.js';
 export type { Asciicast, AsciicastHeader, AsciicastEvent } from './pipeline/asciicast.js';
+/** Presentation generator. */
+export { generatePresentation } from './pipeline/presentation-generator.js';
+export type { PresentationOptions } from './pipeline/presentation-generator.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
