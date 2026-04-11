@@ -285,3 +285,7 @@ export type { FreshnessGrade, ScenarioFreshness, FreshnessResult } from './analy
 /** Scenario coverage report. */
 export { computeCoverage, formatCoverage } from './analytics/coverage.js';
 export type { CoverageStatus, ScenarioCoverage, CoverageReport } from './analytics/coverage.js';
+
+/** Config snapshot diff. */
+export { createConfigSnapshot, detectDrift, classifyDriftSeverity, formatDrift } from './config/config-snapshot-diff.js';
+export type { ConfigSnapshot, DriftResult } from './config/config-snapshot-diff.js';
