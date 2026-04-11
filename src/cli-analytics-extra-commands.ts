@@ -15,6 +15,7 @@ import { generateAlerts, formatAlerts } from './analytics/alerts.js';
 import { checkSla, formatSla } from './analytics/sla.js';
 import { evaluateRetention, formatRetention } from './analytics/retention.js';
 import { diffSessionEntries, formatSessionDiffSummary } from './analytics/session-diff-summary.js';
+import { computeBenchmarks, formatBenchmarks } from './analytics/benchmarks.js';
 import type { GroupBy } from './analytics/grouping.js';
 
 /**
@@ -37,6 +38,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerSlaCommand(program);
   registerRetentionCommand(program);
   registerSessionDiffSummaryCommand(program);
+  registerBenchmarksCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -340,6 +342,25 @@ function registerSessionDiffSummaryCommand(program: Command): void {
 
         const result = diffSessionEntries(entriesA, entriesB, sessionA, sessionB);
         console.log(formatSessionDiffSummary(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerBenchmarksCommand(program: Command): void {
+  program
+    .command('benchmarks')
+    .description('Show p50/p95/p99 duration benchmarks per scenario')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const result = computeBenchmarks(entries);
+        console.log(formatBenchmarks(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

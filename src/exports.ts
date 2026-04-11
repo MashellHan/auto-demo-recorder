@@ -269,3 +269,7 @@ export type { StatusTransition, ScenarioDiffEntry, SessionDiffSummary } from './
 /** Template preview. */
 export { previewTemplate, formatTemplatePreview, formatCompactPreview } from './config/template-preview.js';
 export type { TemplatePreview } from './config/template-preview.js';
+
+/** Performance benchmarks. */
+export { computeBenchmarks, formatBenchmarks } from './analytics/benchmarks.js';
+export type { ScenarioBenchmark, BenchmarkResult } from './analytics/benchmarks.js';
