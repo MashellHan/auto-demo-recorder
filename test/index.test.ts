@@ -447,4 +447,75 @@ describe('record', () => {
     // Should produce YYYY-MM-DD_HH-MM format (in local time)
     expect(ts).toMatch(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}$/);
   });
+
+  it('prunes recording when retain-on-failure and no issues', async () => {
+    const { rm } = await import('node:fs/promises');
+
+    const config = {
+      ...baseConfig,
+      output: { ...baseConfig.output, record_mode: 'retain-on-failure' as const },
+    };
+
+    const result = await record({
+      config,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+    });
+
+    // rm should be called on the output directory (the scenario dir)
+    expect(rm).toHaveBeenCalledWith(
+      expect.stringContaining('basic'),
+      { recursive: true, force: true },
+    );
+    expect(result.retained).toBe(false);
+  });
+
+  it('keeps recording when retain-on-failure and bugs found', async () => {
+    const { annotateFrames } = await import('../src/pipeline/annotator.js');
+    const { rm } = await import('node:fs/promises');
+
+    vi.mocked(annotateFrames).mockResolvedValueOnce({
+      frames: [
+        { index: 0, timestamp: '0:00', status: 'bug_detected', description: 'Bug', feature_being_demonstrated: 'test', bugs_detected: ['UI glitch'], visual_quality: 'poor', annotation_text: 'Bug found' },
+      ],
+      overall_status: 'bug_detected',
+      summary: 'Bug found',
+      bugs_found: 1,
+    });
+
+    const config = {
+      ...baseConfig,
+      output: { ...baseConfig.output, record_mode: 'retain-on-failure' as const },
+    };
+
+    const result = await record({
+      config,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+    });
+
+    // rm should NOT have been called for the scenario dir (bugs found)
+    const rmCalls = vi.mocked(rm).mock.calls.filter(
+      (call) => (call[0] as string).includes('basic') && !(call[0] as string).includes('frames'),
+    );
+    expect(rmCalls).toHaveLength(0);
+    expect(result.retained).toBeUndefined();
+  });
+
+  it('keeps recording when record_mode is always (default)', async () => {
+    const { rm } = await import('node:fs/promises');
+
+    const result = await record({
+      config: baseConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+    });
+
+    // rm should only be called for frames cleanup, not the scenario dir
+    const rmCalls = vi.mocked(rm).mock.calls.filter(
+      (call) => (call[0] as string).includes('basic') && !(call[0] as string).includes('frames'),
+    );
+    expect(rmCalls).toHaveLength(0);
+    expect(result.retained).toBeUndefined();
+  });
 });

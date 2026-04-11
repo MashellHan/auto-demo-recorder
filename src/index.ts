@@ -55,6 +55,8 @@ export interface RecordResult {
     changes: Array<{ type: string; description: string; severity: string }>;
     summary: string;
   };
+  /** False when recording was pruned by retain-on-failure mode. */
+  retained?: boolean;
 }
 
 /** Options for the {@link record} function (VHS terminal backend). */
@@ -137,6 +139,18 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
 
   const hasAnnotatedVideo = config.annotation.enabled && config.recording.format !== 'gif';
   const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult, regressionInfo);
+
+  // Retain-on-failure: prune clean recordings to save disk space
+  if (config.output.record_mode === 'retain-on-failure') {
+    const hasBugs = (annotationResult?.bugs_found ?? 0) > 0;
+    const hasErrors = annotationResult?.overall_status === 'error' || annotationResult?.overall_status === 'warning';
+    if (!hasBugs && !hasErrors) {
+      await rm(outputBase, { recursive: true, force: true });
+      log.log(`  ✓ Clean recording pruned (retain-on-failure mode)`);
+      return { ...result, retained: false };
+    }
+  }
+
   printSummary(result, log);
   return result;
 }
@@ -191,6 +205,18 @@ export async function recordBrowser(options: BrowserRecordOptions): Promise<Reco
 
   const hasAnnotatedVideo = config.annotation.enabled;
   const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult, regressionInfo);
+
+  // Retain-on-failure: prune clean recordings to save disk space
+  if (config.output.record_mode === 'retain-on-failure') {
+    const hasBugs = (annotationResult?.bugs_found ?? 0) > 0;
+    const hasErrors = annotationResult?.overall_status === 'error' || annotationResult?.overall_status === 'warning';
+    if (!hasBugs && !hasErrors) {
+      await rm(outputBase, { recursive: true, force: true });
+      log.log(`  ✓ Clean recording pruned (retain-on-failure mode)`);
+      return { ...result, retained: false };
+    }
+  }
+
   printSummary(result, log);
   return result;
 }

@@ -78,12 +78,16 @@ const RecordingSchema = z.object({
   backend: z.enum(['vhs', 'browser']).default('vhs'),
   /** Browser-specific configuration (required when backend is 'browser'). */
   browser: BrowserConfigSchema.default({}),
+  /** Max idle time in seconds — pauses exceeding this are capped. */
+  idle_time_limit: z.number().positive().optional(),
 });
 
 const OutputSchema = z.object({
   dir: z.string().default('.demo-recordings'),
   keep_raw: z.boolean().default(true),
   keep_frames: z.boolean().default(false),
+  /** Recording retention mode: 'always' keeps all recordings, 'retain-on-failure' deletes clean recordings. */
+  record_mode: z.enum(['always', 'retain-on-failure']).default('always'),
 });
 
 const AnnotationSchema = z.object({

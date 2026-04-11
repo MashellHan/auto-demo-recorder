@@ -42,6 +42,7 @@ export function buildAdhocConfig(opts: AdhocOptions): Config {
       dir: '.demo-recordings',
       keep_raw: true,
       keep_frames: false,
+      record_mode: 'always',
     },
     annotation: {
       enabled: opts.annotate !== false,

@@ -145,6 +145,44 @@ describe('ConfigSchema', () => {
     const config = ConfigSchema.parse(raw);
     expect(config.scenarios[0].steps[0].action).toBe('screenshot');
   });
+
+  it('defaults record_mode to always', () => {
+    const raw = {
+      project: { name: 'test' },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.output.record_mode).toBe('always');
+  });
+
+  it('accepts retain-on-failure record_mode', () => {
+    const raw = {
+      project: { name: 'test' },
+      output: { record_mode: 'retain-on-failure' },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.output.record_mode).toBe('retain-on-failure');
+  });
+
+  it('accepts idle_time_limit in recording config', () => {
+    const raw = {
+      project: { name: 'test' },
+      recording: { idle_time_limit: 3 },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.recording.idle_time_limit).toBe(3);
+  });
+
+  it('defaults idle_time_limit to undefined', () => {
+    const raw = {
+      project: { name: 'test' },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.recording.idle_time_limit).toBeUndefined();
+  });
 });
 
 describe('ConfigSchema — browser backend', () => {
