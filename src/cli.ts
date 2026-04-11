@@ -1,12 +1,11 @@
 import { Command } from 'commander';
 import { readdir, readFile, realpath } from 'node:fs/promises';
-import { resolve, join, dirname } from 'node:path';
+import { resolve, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { loadConfig, findScenario } from './config/loader.js';
-import { buildAdhocConfig, buildAdhocScenario } from './config/adhoc.js';
 import { scanProject, generateConfig } from './config/scanner.js';
-import { record, recordBrowser, writeSessionReport, formatTimestamp } from './index.js';
+import { formatTimestamp } from './index.js';
 import { startMcpServer } from './mcp/server.js';
 import { detectRegressions } from './pipeline/regression.js';
 import { startWatcher } from './pipeline/watcher.js';
@@ -15,14 +14,15 @@ import { computeStats, formatStats } from './analytics/stats.js';
 import { diffSessions, formatSessionDiff } from './analytics/diff.js';
 import { generateChangelog, formatChangelog, type SessionData } from './analytics/changelog.js';
 import { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate } from './cli-utils.js';
-import { pLimit } from './pipeline/concurrency.js';
+import { filterByTag, handleVhsRecord, handleBrowserRecord, handleAdhocRecord } from './cli-handlers.js';
 import { createArchive, listSessionArtifacts } from './pipeline/exporter.js';
-import { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipeline/replay.js';
 import { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile } from './config/profiles.js';
-import type { Step, BrowserScenario } from './config/schema.js';
+import { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipeline/replay.js';
+import type { BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
 export { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate } from './cli-utils.js';
+export { filterByTag } from './cli-handlers.js';
 
 const noopLogger: Logger = { log: () => {}, warn: () => {} };
 
@@ -55,6 +55,7 @@ export function createCli(): Command {
     .option('--parallel', 'Record scenarios in parallel')
     .option('--workers <n>', 'Max concurrent recordings (default: 3)', '3')
     .option('--profile <name>', 'Apply a recording profile (ci, demo, quick, presentation)')
+    .option('--retry <n>', 'Retry failed recordings N times (default: 0)', '0')
     .action(async (opts) => {
       try {
         const logger = opts.quiet ? noopLogger : undefined;
@@ -115,11 +116,12 @@ export function createCli(): Command {
 
         const isParallel = opts.parallel || config.recording.parallel;
         const maxWorkers = parseInt(opts.workers, 10) || config.recording.max_workers || 3;
+        const maxRetries = parseInt(opts.retry ?? '0', 10);
 
         if (backend === 'browser') {
-          await handleBrowserRecord(config, opts.scenario, projectDir, logger, opts.quiet, opts.tag, isParallel, maxWorkers);
+          await handleBrowserRecord(config, opts.scenario, projectDir, logger, opts.quiet, opts.tag, isParallel, maxWorkers, maxRetries);
         } else {
-          await handleVhsRecord(config, opts.scenario, projectDir, logger, opts.quiet, opts.tag, isParallel, maxWorkers);
+          await handleVhsRecord(config, opts.scenario, projectDir, logger, opts.quiet, opts.tag, isParallel, maxWorkers, maxRetries);
         }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
@@ -558,284 +560,5 @@ export function createCli(): Command {
     });
 
   return program;
-}
-
-async function handleVhsRecord(
-  config: ReturnType<typeof Object>,
-  scenarioName: string | undefined,
-  projectDir: string,
-  logger: Logger | undefined,
-  quiet: boolean | undefined,
-  tag?: string,
-  parallel?: boolean,
-  maxWorkers?: number,
-) {
-  let scenarios = scenarioName
-    ? [findScenario(config as any, scenarioName)]
-    : (config as any).scenarios;
-
-  if (tag) {
-    scenarios = filterByTag(scenarios, tag);
-    if (scenarios.length === 0) {
-      throw new Error(`No scenarios match tag "${tag}"`);
-    }
-  }
-
-  const timestamp = formatTimestamp(new Date());
-
-  if (parallel && scenarios.length > 1) {
-    const limit = pLimit(maxWorkers ?? 3);
-    if (!quiet) console.log(`Recording ${scenarios.length} scenarios in parallel (max ${maxWorkers ?? 3} workers)...`);
-    const settled = await Promise.allSettled(
-      scenarios.map((scenario: any) =>
-        limit(() => record({ config: config as any, scenario, projectDir, logger, timestamp, skipSymlinkUpdate: true })),
-      ),
-    );
-    const results = [];
-    for (let i = 0; i < settled.length; i++) {
-      const s = settled[i];
-      if (s.status === 'fulfilled') {
-        results.push(s.value);
-        if (!quiet) console.log(`  ✓ ${scenarios[i].name} complete`);
-      } else {
-        if (!quiet) console.error(`  ✗ ${scenarios[i].name} failed: ${s.reason instanceof Error ? s.reason.message : s.reason}`);
-      }
-    }
-    if (results.length > 1) {
-      const sessionDir = dirname(dirname(results[0].reportPath));
-      const sessionPath = join(sessionDir, 'session-report.json');
-      const reports = await Promise.all(
-        results.map(async (r) => JSON.parse(await readFile(r.reportPath, 'utf-8'))),
-      );
-      await writeSessionReport(sessionPath, (config as any).project.name, reports);
-      if (!quiet) console.log(`Session report: ${sessionPath}`);
-    }
-    if (!quiet) console.log(`\n${results.length}/${scenarios.length} scenarios recorded successfully.`);
-    return;
-  }
-
-  const results = [];
-  for (const scenario of scenarios) {
-    const result = await record({ config: config as any, scenario, projectDir, logger, timestamp });
-    results.push(result);
-    if (!quiet) console.log('');
-  }
-
-  if (results.length > 1) {
-    const sessionDir = dirname(dirname(results[0].reportPath));
-    const sessionPath = join(sessionDir, 'session-report.json');
-    const reports = await Promise.all(
-      results.map(async (r) => JSON.parse(await readFile(r.reportPath, 'utf-8'))),
-    );
-    await writeSessionReport(sessionPath, (config as any).project.name, reports);
-    if (!quiet) console.log(`Session report: ${sessionPath}`);
-  }
-}
-
-async function handleBrowserRecord(
-  config: ReturnType<typeof Object>,
-  scenarioName: string | undefined,
-  projectDir: string,
-  logger: Logger | undefined,
-  quiet: boolean | undefined,
-  tag?: string,
-  parallel?: boolean,
-  maxWorkers?: number,
-) {
-  let browserScenarios: BrowserScenario[] = scenarioName
-    ? [(config as any).browser_scenarios.find((s: BrowserScenario) => s.name === scenarioName)]
-    : (config as any).browser_scenarios;
-
-  if (scenarioName && !browserScenarios[0]) {
-    throw new Error(`Browser scenario "${scenarioName}" not found`);
-  }
-
-  if (tag) {
-    browserScenarios = filterByTag(browserScenarios, tag);
-    if (browserScenarios.length === 0) {
-      throw new Error(`No browser scenarios match tag "${tag}"`);
-    }
-  }
-
-  const timestamp = formatTimestamp(new Date());
-
-  if (parallel && browserScenarios.length > 1) {
-    const limit = pLimit(maxWorkers ?? 3);
-    if (!quiet) console.log(`Recording ${browserScenarios.length} browser scenarios in parallel (max ${maxWorkers ?? 3} workers)...`);
-    const settled = await Promise.allSettled(
-      browserScenarios.map((scenario) =>
-        limit(() => recordBrowser({ config: config as any, scenario, projectDir, logger, timestamp, skipSymlinkUpdate: true })),
-      ),
-    );
-    const results = [];
-    for (let i = 0; i < settled.length; i++) {
-      const s = settled[i];
-      if (s.status === 'fulfilled') {
-        results.push(s.value);
-        if (!quiet) console.log(`  ✓ ${browserScenarios[i].name} complete`);
-      } else {
-        if (!quiet) console.error(`  ✗ ${browserScenarios[i].name} failed: ${s.reason instanceof Error ? s.reason.message : s.reason}`);
-      }
-    }
-    if (results.length > 1) {
-      const sessionDir = dirname(dirname(results[0].reportPath));
-      const sessionPath = join(sessionDir, 'session-report.json');
-      const reports = await Promise.all(
-        results.map(async (r) => JSON.parse(await readFile(r.reportPath, 'utf-8'))),
-      );
-      await writeSessionReport(sessionPath, (config as any).project.name, reports);
-      if (!quiet) console.log(`Session report: ${sessionPath}`);
-    }
-    if (!quiet) console.log(`\n${results.length}/${browserScenarios.length} browser scenarios recorded successfully.`);
-    return;
-  }
-
-  const results = [];
-  for (const scenario of browserScenarios) {
-    const result = await recordBrowser({ config: config as any, scenario, projectDir, logger, timestamp });
-    results.push(result);
-    if (!quiet) console.log('');
-  }
-
-  if (results.length > 1) {
-    const sessionDir = dirname(dirname(results[0].reportPath));
-    const sessionPath = join(sessionDir, 'session-report.json');
-    const reports = await Promise.all(
-      results.map(async (r) => JSON.parse(await readFile(r.reportPath, 'utf-8'))),
-    );
-    await writeSessionReport(sessionPath, (config as any).project.name, reports);
-    if (!quiet) console.log(`Session report: ${sessionPath}`);
-  }
-}
-
-/**
- * Filter scenarios by tag. Supports negation with "!" prefix.
- * @param scenarios - Array of scenarios with optional `tags` field.
- * @param tag - Tag to filter by. Prefix with "!" to exclude.
- * @returns Filtered scenarios.
- */
-export function filterByTag<T extends { tags?: string[] }>(scenarios: T[], tag: string): T[] {
-  if (tag.startsWith('!')) {
-    const excludeTag = tag.slice(1).toLowerCase();
-    return scenarios.filter((s) => !(s.tags ?? []).some((t) => t.toLowerCase() === excludeTag));
-  }
-  const includeTag = tag.toLowerCase();
-  return scenarios.filter((s) => (s.tags ?? []).some((t) => t.toLowerCase() === includeTag));
-}
-
-function parseAdhocSteps(stepsStr: string): Step[] {
-  return stepsStr.split(',').map((token) => {
-    const trimmed = token.trim();
-    if (trimmed.startsWith('sleep:')) {
-      return { action: 'sleep' as const, value: trimmed.slice(6), pause: '0ms' };
-    }
-    if (['enter', 'tab', 'escape', 'esc', 'backspace', 'up', 'down', 'left', 'right', 'space'].includes(trimmed.toLowerCase())) {
-      return { action: 'key' as const, value: trimmed, pause: '500ms' };
-    }
-    if (trimmed.length === 1) {
-      return { action: 'key' as const, value: trimmed, pause: '500ms' };
-    }
-    return { action: 'type' as const, value: trimmed, pause: '500ms' };
-  });
-}
-
-async function handleAdhocRecord(opts: {
-  command?: string;
-  url?: string;
-  steps?: string;
-  width: string;
-  height: string;
-  format: string;
-  annotate: boolean;
-  backend?: string;
-  theme?: string;
-}, logger?: Logger): Promise<void> {
-  if (opts.backend === 'browser') {
-    await handleAdhocBrowserRecord(opts, logger);
-    return;
-  }
-
-  if (!opts.command) {
-    throw new Error('--command is required with --adhoc mode');
-  }
-
-  const parsedSteps = opts.steps ? parseAdhocSteps(opts.steps) : undefined;
-  const config = buildAdhocConfig({
-    command: opts.command,
-    steps: parsedSteps,
-    width: parseInt(opts.width, 10),
-    height: parseInt(opts.height, 10),
-    format: opts.format === 'gif' ? 'gif' : 'mp4',
-    annotate: opts.annotate,
-    theme: opts.theme,
-  });
-  const scenario = buildAdhocScenario(opts.command, parsedSteps);
-
-  await record({ config, scenario, projectDir: process.cwd(), logger });
-}
-
-async function handleAdhocBrowserRecord(opts: {
-  url?: string;
-  steps?: string;
-  width: string;
-  height: string;
-  annotate: boolean;
-  theme?: string;
-}, logger?: Logger): Promise<void> {
-  if (!opts.url) {
-    throw new Error('--url is required with --adhoc --backend browser mode');
-  }
-
-  const config = buildAdhocConfig({
-    command: opts.url,
-    width: parseInt(opts.width, 10),
-    height: parseInt(opts.height, 10),
-    format: 'mp4',
-    annotate: opts.annotate,
-    backend: 'browser',
-    theme: opts.theme,
-  });
-
-  const browserSteps = opts.steps
-    ? parseAdhocBrowserSteps(opts.steps)
-    : [];
-
-  const scenario: BrowserScenario = {
-    name: 'adhoc-browser',
-    description: `Ad-hoc browser recording: ${opts.url}`,
-    url: opts.url,
-    setup: [],
-    steps: browserSteps,
-    tags: [],
-  };
-
-  await recordBrowser({ config, scenario, projectDir: process.cwd(), logger });
-}
-
-function parseAdhocBrowserSteps(stepsStr: string): BrowserScenario['steps'] {
-  return stepsStr.split(',').map((token) => {
-    const trimmed = token.trim();
-    if (trimmed.startsWith('sleep:')) {
-      return { action: 'sleep' as const, value: trimmed.slice(6), pause: '0ms' };
-    }
-    if (trimmed.startsWith('click:')) {
-      return { action: 'click' as const, value: trimmed.slice(6), pause: '500ms' };
-    }
-    if (trimmed.startsWith('fill:')) {
-      const parts = trimmed.slice(5).split('=');
-      return { action: 'fill' as const, value: parts[0], text: parts.slice(1).join('='), pause: '500ms' };
-    }
-    if (trimmed.startsWith('nav:')) {
-      return { action: 'navigate' as const, value: trimmed.slice(4), pause: '1000ms' };
-    }
-    if (trimmed.startsWith('scroll:')) {
-      return { action: 'scroll' as const, value: trimmed.slice(7), pause: '500ms' };
-    }
-    if (trimmed.startsWith('wait:')) {
-      return { action: 'wait' as const, value: trimmed.slice(5), pause: '500ms' };
-    }
-    // Default: type the text
-    return { action: 'type' as const, value: trimmed, pause: '500ms' };
-  });
 }
 

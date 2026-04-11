@@ -77,6 +77,9 @@ export type { ReplayPlan, ReplayStep } from './pipeline/replay.js';
 /** Recording profiles. */
 export { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile } from './config/profiles.js';
 export type { RecordingProfile } from './config/profiles.js';
+/** Retry utility for recording resilience. */
+export { withRetry } from './pipeline/retry.js';
+export type { RetryOptions } from './pipeline/retry.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
