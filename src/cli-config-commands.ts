@@ -16,6 +16,7 @@ import { lintConfig, formatLintReport } from './config/linter.js';
 import { runPreflightChecks, formatPreflightReport } from './config/preflight.js';
 import { mergeConfigs, formatMergeReport } from './config/config-merge.js';
 import { formatDependencyGraph } from './config/dependencies.js';
+import { listScaffolds, findScaffold, listScaffoldsByCategory, formatScaffoldList } from './config/scaffold.js';
 
 /**
  * Register config-related CLI commands onto the given program.
@@ -37,6 +38,7 @@ export function registerConfigCommands(program: Command): void {
   registerCheckCommand(program);
   registerMergeCommand(program);
   registerGraphCommand(program);
+  registerScaffoldCommand(program);
 }
 
 function registerEnvCommand(program: Command): void {
@@ -412,6 +414,47 @@ function registerGraphCommand(program: Command): void {
           ...config.browser_scenarios.map((s) => ({ name: s.name, depends_on: s.depends_on })),
         ];
         console.log(formatDependencyGraph(allScenarios));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerScaffoldCommand(program: Command): void {
+  program
+    .command('scaffold')
+    .description('Generate a starter config file from a template')
+    .argument('[id]', 'Scaffold ID (e.g., cli-basic, web-app)')
+    .option('--category <category>', 'Filter scaffolds by category')
+    .option('-o, --output <path>', 'Output file path (default: demo-recorder.yaml)')
+    .action(async (id: string | undefined, opts: { category?: string; output?: string }) => {
+      try {
+        // If no ID given, list available scaffolds
+        if (!id) {
+          const scaffolds = opts.category
+            ? listScaffoldsByCategory(opts.category)
+            : listScaffolds();
+          console.log(formatScaffoldList(scaffolds));
+          return;
+        }
+
+        const scaffold = findScaffold(id);
+        if (!scaffold) {
+          console.error(`Unknown scaffold: "${id}". Use "demo-recorder scaffold" to see available options.`);
+          process.exit(1);
+        }
+
+        const outputPath = opts.output ?? 'demo-recorder.yaml';
+        if (existsSync(outputPath)) {
+          console.error(`File already exists: ${outputPath}. Use -o to specify a different path.`);
+          process.exit(1);
+        }
+
+        await writeFile(outputPath, scaffold.yaml, 'utf-8');
+        console.log(`✓ Created ${outputPath} from scaffold "${scaffold.name}"`);
+        console.log(`  Category: ${scaffold.category}`);
+        console.log(`  Description: ${scaffold.description}`);
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
