@@ -57,6 +57,9 @@ export type { PresentationOptions } from './pipeline/presentation-generator.js';
 /** Bundle manifest generator for shareable recording packages. */
 export { createBundleManifest, writeBundleManifest, formatManifestSummary } from './pipeline/bundler.js';
 export type { BundleOptions, BundleManifest, BundleFile } from './pipeline/bundler.js';
+/** Recording analytics and statistics. */
+export { computeStats, formatStats } from './analytics/stats.js';
+export type { RecordingStats, QualityDataPoint } from './analytics/stats.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {

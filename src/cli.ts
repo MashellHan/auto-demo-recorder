@@ -11,6 +11,7 @@ import { startMcpServer } from './mcp/server.js';
 import { detectRegressions } from './pipeline/regression.js';
 import { startWatcher } from './pipeline/watcher.js';
 import { VHS_THEMES, findTheme, resolveThemeId } from './config/themes.js';
+import { computeStats, formatStats } from './analytics/stats.js';
 import type { Step, BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -320,6 +321,22 @@ export function createCli(): Command {
       console.log('');
       console.log(`Total: ${filtered.length} themes`);
       console.log('Usage: demo-recorder record --theme "Dracula"');
+    });
+
+  program
+    .command('stats')
+    .description('Show recording statistics and quality trends')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const stats = await computeStats(outputDir);
+        console.log(formatStats(stats));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
     });
 
   return program;
