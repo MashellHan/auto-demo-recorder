@@ -18,6 +18,8 @@ import { filterByTag, handleVhsRecord, handleBrowserRecord, handleAdhocRecord } 
 import { createArchive, listSessionArtifacts } from './pipeline/exporter.js';
 import { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile } from './config/profiles.js';
 import { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipeline/replay.js';
+import { analyzeTimingFromReport, formatTimingReport } from './analytics/timing.js';
+import { captureEnvironmentSnapshot, formatEnvironmentSnapshot } from './pipeline/environment.js';
 import type { BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -561,6 +563,52 @@ export function createCli(): Command {
         console.log('');
       }
       console.log('Usage: demo-recorder record --profile ci');
+    });
+
+  program
+    .command('analyze')
+    .description('Analyze step timing of a recorded scenario')
+    .argument('<path>', 'Path to scenario directory (e.g., 2026-04-11_08-00/basic)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (analyzePath: string, opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const resolvedPath = resolveSessionPath(outputDir, analyzePath);
+        const reportPath = join(outputDir, resolvedPath, 'report.json');
+
+        if (!existsSync(reportPath)) {
+          throw new Error(`Report not found: ${reportPath}`);
+        }
+
+        const analysis = await analyzeTimingFromReport(reportPath);
+        console.log(formatTimingReport(analysis));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('env')
+    .description('Show environment snapshot (system, tools, project info)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--json', 'Output as JSON')
+    .action(async (opts: { config?: string; json?: boolean }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const projectDir = process.cwd();
+        const snapshot = await captureEnvironmentSnapshot(projectDir, config.project.name);
+
+        if (opts.json) {
+          console.log(JSON.stringify(snapshot, null, 2));
+        } else {
+          console.log(formatEnvironmentSnapshot(snapshot));
+        }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
     });
 
   return program;

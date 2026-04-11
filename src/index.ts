@@ -88,6 +88,12 @@ export { buildDependencyOrder, validateDependencies } from './config/dependencie
 export type { DependencyScenario } from './config/dependencies.js';
 /** Utility to resolve user-supplied session paths, stripping output dir prefix. */
 export { resolveSessionPath } from './cli-utils.js';
+/** Step timing analysis for recorded scenarios. */
+export { analyzeTimingFromReport, analyzeTimingFromData, renderTimingChart, formatTimingReport } from './analytics/timing.js';
+export type { StepTiming, TimingAnalysis } from './analytics/timing.js';
+/** Environment snapshot capture. */
+export { captureEnvironmentSnapshot, formatEnvironmentSnapshot } from './pipeline/environment.js';
+export type { EnvironmentSnapshot } from './pipeline/environment.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
