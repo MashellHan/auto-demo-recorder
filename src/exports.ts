@@ -353,3 +353,7 @@ export type { DigestPeriod, DigestItem, DigestResult } from './analytics/digest.
 /** Recording forecast. */
 export { buildDailyObservations, generateForecast, formatForecast } from './analytics/forecast.js';
 export type { ForecastMethod, ForecastPoint, DailyObservation, ForecastResult } from './analytics/forecast.js';
+
+/** Recording cohort analysis. */
+export { analyzeCohorts, formatCohorts } from './analytics/cohort.js';
+export type { CohortGranularity, CohortPeriodData, Cohort, CohortResult } from './analytics/cohort.js';

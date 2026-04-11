@@ -16,6 +16,8 @@ import { generateDigest, formatDigest } from './analytics/digest.js';
 import type { DigestPeriod } from './analytics/digest.js';
 import { generateForecast, formatForecast } from './analytics/forecast.js';
 import type { ForecastMethod } from './analytics/forecast.js';
+import { analyzeCohorts, formatCohorts } from './analytics/cohort.js';
+import type { CohortGranularity } from './analytics/cohort.js';
 
 /**
  * Register measurement/metrics analytics CLI commands onto the given program.
@@ -36,6 +38,7 @@ export function registerAnalyticsMetricsCommands(program: Command): void {
   registerQualityTrendsCommand(program);
   registerDigestCommand(program);
   registerForecastCommand(program);
+  registerCohortsCommand(program);
 }
 
 function registerBenchmarksCommand(program: Command): void {
@@ -277,6 +280,27 @@ function registerForecastCommand(program: Command): void {
         const lookback = opts.lookback ? parseInt(opts.lookback, 10) : 30;
         const result = generateForecast(entries, days, method, windowSize, alpha, new Date(), lookback);
         console.log(formatForecast(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerCohortsCommand(program: Command): void {
+  program
+    .command('cohorts')
+    .description('Analyze recording cohorts by scenario first-appearance period')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--granularity <g>', 'Cohort granularity: weekly or monthly (default: weekly)')
+    .action(async (opts: { config?: string; granularity?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const granularity: CohortGranularity = opts.granularity === 'monthly' ? 'monthly' : 'weekly';
+        const result = analyzeCohorts(entries, granularity);
+        console.log(formatCohorts(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

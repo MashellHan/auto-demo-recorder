@@ -89,6 +89,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'fingerprints', description: 'Session fingerprinting', options: ['--config', '--threshold'] },
   { name: 'digest', description: 'Recording summary digest', options: ['--config', '--period'] },
   { name: 'forecast', description: 'Recording volume forecast', options: ['--config', '--days', '--method', '--window', '--alpha', '--lookback'] },
+  { name: 'cohorts', description: 'Recording cohort analysis', options: ['--config', '--granularity'] },
 ];
 
 /**
