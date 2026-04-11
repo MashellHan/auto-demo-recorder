@@ -91,6 +91,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'forecast', description: 'Recording volume forecast', options: ['--config', '--days', '--method', '--window', '--alpha', '--lookback'] },
   { name: 'cohorts', description: 'Recording cohort analysis', options: ['--config', '--granularity'] },
   { name: 'burndown', description: 'Recording burndown chart', options: ['--config', '--target', '--start', '--deadline'] },
+  { name: 'health-score', description: 'Composite health score', options: ['--config', '--window'] },
 ];
 
 /**

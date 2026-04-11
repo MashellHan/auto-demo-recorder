@@ -19,6 +19,7 @@ import type { ForecastMethod } from './analytics/forecast.js';
 import { analyzeCohorts, formatCohorts } from './analytics/cohort.js';
 import type { CohortGranularity } from './analytics/cohort.js';
 import { computeBurndown, formatBurndown } from './analytics/burndown.js';
+import { computeHealthScore, formatHealthScore } from './analytics/health-score.js';
 
 /**
  * Register measurement/metrics analytics CLI commands onto the given program.
@@ -41,6 +42,7 @@ export function registerAnalyticsMetricsCommands(program: Command): void {
   registerForecastCommand(program);
   registerCohortsCommand(program);
   registerBurndownCommand(program);
+  registerHealthScoreCommand(program);
 }
 
 function registerBenchmarksCommand(program: Command): void {
@@ -329,6 +331,27 @@ function registerBurndownCommand(program: Command): void {
         const deadline = opts.deadline ? new Date(opts.deadline) : now;
         const result = computeBurndown(entries, target, startDate, deadline, now);
         console.log(formatBurndown(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerHealthScoreCommand(program: Command): void {
+  program
+    .command('health-score')
+    .description('Show composite recording health score (0-100) with dimension breakdown')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--window <days>', 'Analysis window in days (default: 30)')
+    .action(async (opts: { config?: string; window?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const windowDays = opts.window ? parseInt(opts.window, 10) : 30;
+        const result = computeHealthScore(entries, windowDays);
+        console.log(formatHealthScore(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
