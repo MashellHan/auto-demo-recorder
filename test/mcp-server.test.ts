@@ -19,6 +19,15 @@ vi.mock('../src/index.js', () => ({
     },
   }),
   updateLatestSymlink: vi.fn().mockResolvedValue(undefined),
+  writeSessionReport: vi.fn().mockResolvedValue({
+    project: 'test',
+    timestamp: '2026-04-11T00:00:00Z',
+    scenarios_recorded: 2,
+    overall_status: 'ok',
+    total_bugs: 0,
+    total_duration_seconds: 10,
+    scenarios: [],
+  }),
 }));
 
 vi.mock('../src/config/loader.js', () => ({
@@ -59,6 +68,24 @@ vi.mock('@modelcontextprotocol/sdk/types.js', () => ({
   CallToolRequestSchema: { method: 'tools/call' },
   ListToolsRequestSchema: { method: 'tools/list' },
 }));
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const original = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...original,
+    readFile: vi.fn().mockResolvedValue(JSON.stringify({
+      project: 'test',
+      scenario: 'basic',
+      timestamp: '2026-04-11T00:00:00Z',
+      duration_seconds: 5,
+      total_frames_analyzed: 3,
+      overall_status: 'ok',
+      frames: [],
+      summary: 'Recording complete.',
+      bugs_found: 0,
+    })),
+  };
+});
 
 const { startMcpServer } = await import('../src/mcp/server.js');
 
@@ -204,8 +231,7 @@ describe('MCP Server', () => {
 
   it('passes skipSymlinkUpdate for parallel multi-scenario recording', async () => {
     const { loadConfig } = await import('../src/config/loader.js');
-    const { record } = await import('../src/index.js');
-    const { updateLatestSymlink } = await import('../src/index.js');
+    const { record, updateLatestSymlink, writeSessionReport } = await import('../src/index.js');
 
     // Mock config with 2 scenarios to trigger parallel mode
     vi.mocked(loadConfig).mockResolvedValueOnce({
@@ -221,12 +247,12 @@ describe('MCP Server', () => {
 
     await startMcpServer();
     const callHandler = handlers.get('tools/call')!;
-    await callHandler({
+    const result = await callHandler({
       params: {
         name: 'demo_recorder_record',
         arguments: { project_dir: '/tmp/project' },
       },
-    });
+    }) as { content: Array<{ type: string; text: string }> };
 
     // With 2 scenarios, record should be called with skipSymlinkUpdate: true
     expect(vi.mocked(record).mock.calls.length).toBe(2);
@@ -235,12 +261,28 @@ describe('MCP Server', () => {
 
     // updateLatestSymlink should be called once after Promise.all with the correct timestamp
     expect(vi.mocked(updateLatestSymlink)).toHaveBeenCalledTimes(1);
-    // Timestamp should be extracted from result path, matching formatTimestamp format
     expect(vi.mocked(updateLatestSymlink)).toHaveBeenCalledWith(
       '/tmp/project',
       '.demo-recordings',
       '2026-04-11_07-30',
     );
+
+    // writeSessionReport should be called for multi-scenario
+    expect(vi.mocked(writeSessionReport)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(writeSessionReport)).toHaveBeenCalledWith(
+      expect.stringContaining('session-report.json'),
+      'test',
+      expect.any(Array),
+    );
+
+    // Response should have multi-scenario format with session_report_path
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(parsed.session_report_path).toContain('session-report.json');
+    expect(parsed.recordings).toHaveLength(2);
+    expect(parsed.recordings[0].video_path).toContain('annotated.mp4');
+    expect(parsed.recordings[0].report_path).toContain('report.json');
+    expect(parsed.recordings[0].summary).toBeDefined();
   });
 
   it('returns error response when record throws', async () => {
@@ -260,5 +302,27 @@ describe('MCP Server', () => {
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.success).toBe(false);
     expect(parsed.error).toBe('VHS not installed');
+  });
+
+  it('returns single-scenario response format for one scenario', async () => {
+    await startMcpServer();
+    const callHandler = handlers.get('tools/call')!;
+    const result = await callHandler({
+      params: {
+        name: 'demo_recorder_record',
+        arguments: { project_dir: '/tmp/project' },
+      },
+    }) as { content: Array<{ type: string; text: string }> };
+
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(parsed.video_path).toContain('annotated.mp4');
+    expect(parsed.raw_video_path).toContain('raw.mp4');
+    expect(parsed.report_path).toContain('report.json');
+    expect(parsed.thumbnail_path).toContain('thumb.png');
+    expect(parsed.summary.status).toBe('ok');
+    // Should NOT have multi-scenario fields
+    expect(parsed.session_report_path).toBeUndefined();
+    expect(parsed.recordings).toBeUndefined();
   });
 });
