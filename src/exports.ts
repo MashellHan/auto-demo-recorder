@@ -161,3 +161,11 @@ export type { RateLimitConfig, RateLimitResult, RateLimiterSnapshot } from './pi
 /** Config diff tool. */
 export { diffConfigs, formatConfigDiff } from './config/config-diff.js';
 export type { ConfigDifference, ConfigDiffResult } from './config/config-diff.js';
+
+/** Annotation cost estimator. */
+export { estimateCost, getEstimateModels, formatCostEstimate } from './analytics/cost-estimator.js';
+export type { ModelPricing, ScenarioCostEstimate, CostEstimate, EstimateScenarioInput } from './analytics/cost-estimator.js';
+
+/** Config linter with best-practice rules. */
+export { lintConfig, formatLintReport } from './config/linter.js';
+export type { LintSeverity, LintWarning, LintResult } from './config/linter.js';

@@ -17,6 +17,8 @@ import { generateCompletion, detectShell } from './config/completions.js';
 import { PluginRegistry, formatPluginList } from './pipeline/plugin-system.js';
 import { listSnapshots, saveSnapshot, restoreSnapshot, formatSnapshotList } from './pipeline/snapshots.js';
 import { diffConfigs, formatConfigDiff } from './config/config-diff.js';
+import { estimateCost, getEstimateModels, formatCostEstimate } from './analytics/cost-estimator.js';
+import { lintConfig, formatLintReport } from './config/linter.js';
 import { registerAnalyticsCommands } from './cli-analytics-commands.js';
 
 /**
@@ -42,6 +44,8 @@ export function registerCommands(program: Command): void {
   registerPluginsCommand(program);
   registerSnapshotCommand(program);
   registerDiffCommand(program);
+  registerEstimateCommand(program);
+  registerLintCommand(program);
 }
 
 function registerEnvCommand(program: Command): void {
@@ -473,6 +477,64 @@ function registerDiffCommand(program: Command): void {
         }
 
         if (!result.identical) {
+          process.exit(1);
+        }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerEstimateCommand(program: Command): void {
+  program
+    .command('estimate')
+    .description('Estimate AI annotation cost for scenarios')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--model <model>', 'AI model for estimation', 'gpt-4o')
+    .option('--fps <fps>', 'Frames per second for extraction', '2')
+    .action(async (opts: { config?: string; model: string; fps: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const allScenarios = [
+          ...config.scenarios.map((s) => ({
+            name: s.name,
+            steps: s.steps,
+          })),
+          ...config.browser_scenarios.map((s) => ({
+            name: s.name,
+            steps: s.steps,
+          })),
+        ];
+
+        if (allScenarios.length === 0) {
+          console.log('No scenarios found to estimate.');
+          return;
+        }
+
+        const models = getEstimateModels();
+        const estimate = estimateCost(opts.model, allScenarios, parseInt(opts.fps, 10));
+        console.log(formatCostEstimate(estimate));
+        console.log('');
+        console.log(`Available models: ${models.join(', ')}`);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerLintCommand(program: Command): void {
+  program
+    .command('lint')
+    .description('Run best-practice checks on config')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const result = lintConfig(config);
+        console.log(formatLintReport(result));
+        if (!result.passed) {
           process.exit(1);
         }
       } catch (error) {
