@@ -12,6 +12,7 @@ import { listScaffolds, findScaffold, listScaffoldsByCategory, formatScaffoldLis
 import { diagnoseConfig, formatDoctorResult } from './config/config-doctor.js';
 import { exportConfig, formatExportSummary } from './config/config-export.js';
 import { cloneScenario, cloneBrowserScenario, formatCloneSummary } from './config/scenario-clone.js';
+import { interpolateConfig, listConfigVariables, formatInterpolationResult } from './config/interpolation.js';
 
 /**
  * Register config tool CLI commands onto the given program.
@@ -28,6 +29,7 @@ export function registerConfigToolCommands(program: Command): void {
   registerDiagnoseCommand(program);
   registerConfigExportCommand(program);
   registerCloneCommand(program);
+  registerInterpolateCommand(program);
 }
 
 function registerLintCommand(program: Command): void {
@@ -263,6 +265,47 @@ function registerCloneCommand(program: Command): void {
         console.log('');
         const yaml = await import('yaml');
         console.log(yaml.stringify({ scenarios: [cloned] }));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerInterpolateCommand(program: Command): void {
+  program
+    .command('interpolate')
+    .description('Show config variable interpolation (${VAR} substitution)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--list', 'List all variable references without resolving')
+    .action(async (opts: { config?: string; list?: boolean }) => {
+      try {
+        const configPath = resolve(process.cwd(), opts.config ?? 'demo-recorder.yaml');
+        if (!existsSync(configPath)) {
+          throw new Error(`Config file not found: ${configPath}`);
+        }
+
+        const yaml = await import('yaml');
+        const raw = yaml.parse(await readFile(configPath, 'utf-8')) as Record<string, unknown>;
+
+        if (opts.list) {
+          const vars = listConfigVariables(raw);
+          if (vars.length === 0) {
+            console.log('No variable references found in config.');
+          } else {
+            console.log('Variable references in config:\n');
+            for (const v of vars) {
+              const envVal = process.env[v];
+              const status = envVal !== undefined ? `= "${envVal}"` : '(not set)';
+              console.log(`  \${${v}} ${status}`);
+            }
+            console.log(`\nTotal: ${vars.length} variable(s)`);
+          }
+          return;
+        }
+
+        const result = interpolateConfig(raw, process.env, false);
+        console.log(formatInterpolationResult(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
