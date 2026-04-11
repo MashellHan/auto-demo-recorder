@@ -75,6 +75,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'coverage', description: 'Scenario coverage report', options: ['--config', '--stale-days'] },
   { name: 'complexity', description: 'Scenario complexity scoring', options: ['--config'] },
   { name: 'rates', description: 'Recording rate analysis', options: ['--config'] },
+  { name: 'dashboard', description: 'Recording health dashboard', options: ['--config'] },
 ];
 
 /**

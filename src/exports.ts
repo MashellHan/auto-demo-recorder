@@ -297,3 +297,7 @@ export type { ComplexityScore, ComplexityResult, ComplexityScenario } from './an
 /** Recording rate analysis. */
 export { analyzeRates, formatRateAnalysis } from './analytics/rate-analysis.js';
 export type { PeriodRate, RateAnalysis } from './analytics/rate-analysis.js';
+
+/** Recording health dashboard. */
+export { computeHealthDashboard, formatHealthDashboard } from './analytics/health-dashboard.js';
+export type { HealthGrade, HealthDashboard, ScenarioHealth } from './analytics/health-dashboard.js';
