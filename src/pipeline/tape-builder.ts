@@ -61,6 +61,10 @@ export function buildTape(options: TapeBuildOptions): string {
   for (const step of scenario.steps) {
     const repeatCount = step.repeat ?? 1;
     for (let i = 0; i < repeatCount; i++) {
+      // Add VHS comment for steps with a human-readable label
+      if (step.comment) {
+        lines.push(`# ${step.comment}`);
+      }
       switch (step.action) {
         case 'type':
           lines.push(`Type "${escapeQuotes(step.value)}"`);

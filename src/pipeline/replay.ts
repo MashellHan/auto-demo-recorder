@@ -12,6 +12,8 @@ export interface ReplayStep {
   bugDescription?: string;
   /** Delay in milliseconds before showing this step (based on original timing). */
   delayMs: number;
+  /** Human-readable comment label for this step, if provided. */
+  comment?: string;
 }
 
 /** A complete replay plan for a recorded session. */
@@ -37,6 +39,7 @@ interface ReportFrame {
   description: string;
   bugs_detected?: boolean;
   bug_description?: string;
+  comment?: string;
 }
 
 /** Minimal report structure for replay. */
@@ -65,6 +68,7 @@ export function buildReplayPlan(report: Report): ReplayPlan {
       hasBug: frame.bugs_detected ?? false,
       bugDescription: frame.bug_description,
       delayMs: Math.max(0, delayMs),
+      comment: frame.comment,
     };
   });
 
@@ -87,6 +91,9 @@ export function formatReplayStep(step: ReplayStep, totalSteps: number): string {
   const timeLabel = `${step.timestampSeconds.toFixed(1)}s`;
 
   lines.push(`[${stepLabel}] (${timeLabel})`);
+  if (step.comment) {
+    lines.push(`  [${step.comment}]`);
+  }
   lines.push(`  ${step.description}`);
 
   if (step.hasBug) {

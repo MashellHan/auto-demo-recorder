@@ -7,6 +7,8 @@ const StepSchema = z.object({
   repeat: z.number().optional(),
   /** Timeout for wait/assert actions (e.g., "10s"). */
   timeout: z.string().optional(),
+  /** Human-readable label for this step, shown in reports and replays. */
+  comment: z.string().optional(),
 });
 
 /** Browser-specific step schema with extended actions (navigate, click, fill, scroll, hover, select, screenshot). */
@@ -23,6 +25,8 @@ const BrowserStepSchema = z.object({
   pause: z.string().default('500ms'),
   /** Repeat this step N times. */
   repeat: z.number().optional(),
+  /** Human-readable label for this step, shown in reports and replays. */
+  comment: z.string().optional(),
 });
 
 /** Lifecycle hooks that run shell commands before/after recording. */
