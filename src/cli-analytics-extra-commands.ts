@@ -277,12 +277,11 @@ function registerSlaCommand(program: Command): void {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
         const entries = await readHistory(outputDir);
-        const targets = {
-          minSuccessRate: opts.minSuccess ? parseFloat(opts.minSuccess) : undefined,
-          maxAvgDuration: opts.maxDuration ? parseFloat(opts.maxDuration) : undefined,
-          maxBugsPerRun: opts.maxBugs ? parseFloat(opts.maxBugs) : undefined,
-          minRecordings: opts.minRecordings ? parseInt(opts.minRecordings, 10) : undefined,
-        };
+        const targets: Record<string, number> = {};
+        if (opts.minSuccess) targets.minSuccessRate = parseFloat(opts.minSuccess);
+        if (opts.maxDuration) targets.maxAvgDuration = parseFloat(opts.maxDuration);
+        if (opts.maxBugs) targets.maxBugsPerRun = parseFloat(opts.maxBugs);
+        if (opts.minRecordings) targets.minRecordings = parseInt(opts.minRecordings, 10);
         const result = checkSla(entries, targets);
         console.log(formatSla(result));
         if (!result.compliant) process.exit(1);

@@ -93,7 +93,7 @@ export function checkSla(
 
   // Bugs per run
   const avgBugs = entries.length > 0
-    ? entries.reduce((sum, e) => sum + e.bugsFound, 0) / entries.length
+    ? entries.reduce((sum, e) => sum + (e.bugsFound ?? 0), 0) / entries.length
     : 0;
   checks.push({
     metric: 'Bugs/Run',
