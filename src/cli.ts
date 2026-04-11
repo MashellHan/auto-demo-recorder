@@ -13,6 +13,7 @@ import { startWatcher } from './pipeline/watcher.js';
 import { VHS_THEMES, findTheme, resolveThemeId } from './config/themes.js';
 import { computeStats, formatStats } from './analytics/stats.js';
 import { diffSessions, formatSessionDiff } from './analytics/diff.js';
+import { generateChangelog, formatChangelog, type SessionData } from './analytics/changelog.js';
 import { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate } from './cli-utils.js';
 import { pLimit } from './pipeline/concurrency.js';
 import { createArchive, listSessionArtifacts } from './pipeline/exporter.js';
@@ -417,6 +418,60 @@ export function createCli(): Command {
 
         const result = await createArchive(sessionDir, archiveOutputDir, archiveFormat);
         console.log(`\n✓ Archive created: ${result.outputPath}`);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('changelog')
+    .description('Generate a changelog from recording history')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+
+        if (!existsSync(outputDir)) {
+          console.log('No recording history found.');
+          return;
+        }
+
+        const entries = await readdir(outputDir);
+        const sessionDirs = entries
+          .filter((e) => /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}$/.test(e))
+          .sort();
+
+        if (sessionDirs.length === 0) {
+          console.log('No recording sessions found.');
+          return;
+        }
+
+        const sessions: SessionData[] = [];
+        for (const dir of sessionDirs) {
+          const sessionPath = join(outputDir, dir);
+          const scenarioEntries = await readdir(sessionPath);
+          const scenarios: SessionData['scenarios'] = [];
+
+          for (const entry of scenarioEntries) {
+            const reportPath = join(sessionPath, entry, 'report.json');
+            if (existsSync(reportPath)) {
+              const report = JSON.parse(await readFile(reportPath, 'utf-8'));
+              scenarios.push({
+                name: report.scenario ?? entry,
+                status: report.overall_status ?? 'unknown',
+                bugs: report.bugs_found ?? 0,
+                duration: report.duration_seconds ?? 0,
+              });
+            }
+          }
+
+          sessions.push({ timestamp: dir, scenarios });
+        }
+
+        const changelogEntries = generateChangelog(sessions);
+        console.log(formatChangelog(changelogEntries));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

@@ -63,6 +63,9 @@ export type { RecordingStats, QualityDataPoint } from './analytics/stats.js';
 /** Recording session comparison. */
 export { diffSessions, formatSessionDiff } from './analytics/diff.js';
 export type { SessionDiffResult, ScenarioDiff } from './analytics/diff.js';
+/** Changelog generation from recording history. */
+export { generateChangelog, formatChangelog } from './analytics/changelog.js';
+export type { ChangelogEntry, SessionData } from './analytics/changelog.js';
 /** Concurrency limiter for parallel recording. */
 export { pLimit } from './pipeline/concurrency.js';
 /** Recording session export/archive utilities. */
