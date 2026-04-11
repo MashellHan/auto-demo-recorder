@@ -368,7 +368,9 @@ function printSummary(result: RecordResult, log: Logger) {
   log.log('Result:');
   log.log(`  Video:     ${result.videoPath}`);
   log.log(`  Report:    ${result.reportPath}`);
-  log.log(`  Thumbnail: ${result.thumbnailPath}`);
+  if (result.summary.framesAnalyzed > 0) {
+    log.log(`  Thumbnail: ${result.thumbnailPath}`);
+  }
   log.log('');
   log.log(`Summary: ${result.summary.description}`);
 }
