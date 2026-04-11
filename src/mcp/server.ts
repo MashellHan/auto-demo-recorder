@@ -22,7 +22,7 @@ const mcpLogger: Logger = {
 
 export async function startMcpServer(): Promise<void> {
   const server = new Server(
-    { name: 'demo-recorder', version: '0.1.0' },
+    { name: 'demo-recorder', version: '1.0.0' },
     { capabilities: { tools: {} } },
   );
 

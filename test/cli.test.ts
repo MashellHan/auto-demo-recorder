@@ -95,7 +95,7 @@ describe('createCli', () => {
 
   it('has correct version', () => {
     const cli = createCli();
-    expect(cli.version()).toBe('0.1.0');
+    expect(cli.version()).toBe('1.0.0');
   });
 });
 

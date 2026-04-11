@@ -34,7 +34,7 @@ export function createCli(): Command {
   program
     .name('demo-recorder')
     .description('On-demand terminal & browser demo recording + AI annotation CLI tool')
-    .version('0.1.0');
+    .version('1.0.0');
 
   program
     .command('record')

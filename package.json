@@ -1,6 +1,6 @@
 {
   "name": "auto-demo-recorder",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "On-demand terminal & browser demo recording + AI annotation CLI tool",
   "type": "module",
   "bin": {
