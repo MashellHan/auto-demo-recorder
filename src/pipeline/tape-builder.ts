@@ -8,6 +8,7 @@ export interface TapeBuildOptions {
 
 export function buildTape(options: TapeBuildOptions): string {
   const { scenario, recording, outputPath } = options;
+  const idleLimit = recording.idle_time_limit;
   const lines: string[] = [];
 
   lines.push(`# Auto-generated from scenario: ${scenario.name}`);
@@ -45,13 +46,13 @@ export function buildTape(options: TapeBuildOptions): string {
           lines.push(mapKey(step.value));
           break;
         case 'sleep':
-          lines.push(`Sleep ${step.value}`);
+          lines.push(`Sleep ${capDuration(step.value, idleLimit)}`);
           continue; // sleep action uses value as duration, skip the default pause
         case 'screenshot':
           lines.push(`Screenshot "${escapeQuotes(step.value)}"`);
           continue; // screenshot doesn't need a trailing pause
       }
-      lines.push(`Sleep ${step.pause}`);
+      lines.push(`Sleep ${capDuration(step.pause, idleLimit)}`);
     }
   }
 
@@ -60,6 +61,18 @@ export function buildTape(options: TapeBuildOptions): string {
 
 function escapeQuotes(s: string): string {
   return s.replace(/"/g, '\\"');
+}
+
+/** Cap a duration string (e.g. "10s", "3000ms") to a maximum number of seconds. */
+function capDuration(duration: string, limitSeconds?: number): string {
+  if (!limitSeconds) return duration;
+  const match = duration.match(/^(\d+(?:\.\d+)?)(ms|s)$/);
+  if (!match) return duration;
+  const value = parseFloat(match[1]);
+  const unit = match[2];
+  const seconds = unit === 'ms' ? value / 1000 : value;
+  if (seconds <= limitSeconds) return duration;
+  return `${limitSeconds}s`;
 }
 
 function mapKey(key: string): string {

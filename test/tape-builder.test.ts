@@ -224,4 +224,66 @@ describe('buildTape', () => {
 
     expect(tape).toContain('Screenshot "my \\"file\\".png"');
   });
+
+  it('caps pause duration when idle_time_limit is set', () => {
+    const scenario: Scenario = {
+      name: 'idle-limit',
+      description: 'Idle limit test',
+      setup: [],
+      steps: [{ action: 'type', value: 'hello', pause: '10s' }],
+    };
+    const recording = { ...defaultRecording, idle_time_limit: 3 };
+    const tape = buildTape({ scenario, recording, outputPath: '/tmp/test.mp4' });
+    expect(tape).toContain('Sleep 3s');
+    expect(tape).not.toContain('Sleep 10s');
+  });
+
+  it('caps sleep action duration when idle_time_limit is set', () => {
+    const scenario: Scenario = {
+      name: 'idle-limit-sleep',
+      description: 'Idle limit sleep test',
+      setup: [],
+      steps: [{ action: 'sleep', value: '15s', pause: '0ms' }],
+    };
+    const recording = { ...defaultRecording, idle_time_limit: 5 };
+    const tape = buildTape({ scenario, recording, outputPath: '/tmp/test.mp4' });
+    expect(tape).toContain('Sleep 5s');
+    expect(tape).not.toContain('Sleep 15s');
+  });
+
+  it('does not cap pause when within idle_time_limit', () => {
+    const scenario: Scenario = {
+      name: 'idle-within-limit',
+      description: 'Within limit test',
+      setup: [],
+      steps: [{ action: 'type', value: 'hello', pause: '2s' }],
+    };
+    const recording = { ...defaultRecording, idle_time_limit: 5 };
+    const tape = buildTape({ scenario, recording, outputPath: '/tmp/test.mp4' });
+    expect(tape).toContain('Sleep 2s');
+  });
+
+  it('does not cap when idle_time_limit is not set', () => {
+    const scenario: Scenario = {
+      name: 'no-limit',
+      description: 'No limit test',
+      setup: [],
+      steps: [{ action: 'type', value: 'hello', pause: '10s' }],
+    };
+    const tape = buildTape({ scenario, recording: defaultRecording, outputPath: '/tmp/test.mp4' });
+    expect(tape).toContain('Sleep 10s');
+  });
+
+  it('caps millisecond pauses when idle_time_limit is set', () => {
+    const scenario: Scenario = {
+      name: 'idle-ms',
+      description: 'Millisecond cap test',
+      setup: [],
+      steps: [{ action: 'type', value: 'hello', pause: '5000ms' }],
+    };
+    const recording = { ...defaultRecording, idle_time_limit: 2 };
+    const tape = buildTape({ scenario, recording, outputPath: '/tmp/test.mp4' });
+    expect(tape).toContain('Sleep 2s');
+    expect(tape).not.toContain('Sleep 5000ms');
+  });
 });
