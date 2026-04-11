@@ -11,6 +11,7 @@ import { formatDependencyGraph } from './config/dependencies.js';
 import { listScaffolds, findScaffold, listScaffoldsByCategory, formatScaffoldList } from './config/scaffold.js';
 import { diagnoseConfig, formatDoctorResult } from './config/config-doctor.js';
 import { exportConfig, formatExportSummary } from './config/config-export.js';
+import { cloneScenario, cloneBrowserScenario, formatCloneSummary } from './config/scenario-clone.js';
 
 /**
  * Register config tool CLI commands onto the given program.
@@ -26,6 +27,7 @@ export function registerConfigToolCommands(program: Command): void {
   registerScaffoldCommand(program);
   registerDiagnoseCommand(program);
   registerConfigExportCommand(program);
+  registerCloneCommand(program);
 }
 
 function registerLintCommand(program: Command): void {
@@ -216,6 +218,51 @@ function registerConfigExportCommand(program: Command): void {
         } else {
           console.log(result.content);
         }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerCloneCommand(program: Command): void {
+  program
+    .command('clone')
+    .description('Clone a scenario with optional overrides')
+    .argument('<scenario>', 'Source scenario name to clone')
+    .argument('<newName>', 'Name for the cloned scenario')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--description <desc>', 'Description for the clone')
+    .option('--tags <tags>', 'Comma-separated tags for the clone')
+    .option('--url <url>', 'Override URL (browser scenarios only)')
+    .action(async (scenario: string, newName: string, opts: { config?: string; description?: string; tags?: string; url?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+
+        const terminalSource = config.scenarios.find((s) => s.name === scenario);
+        const browserSource = config.browser_scenarios.find((s) => s.name === scenario);
+        const source = terminalSource ?? browserSource;
+
+        if (!source) {
+          throw new Error(`Scenario "${scenario}" not found. Use "demo-recorder list" to see available scenarios.`);
+        }
+
+        const cloneOpts = {
+          name: newName,
+          description: opts.description,
+          tags: opts.tags ? opts.tags.split(',').map((t) => t.trim()) : undefined,
+        };
+
+        const cloned = browserSource
+          ? cloneBrowserScenario(browserSource, { ...cloneOpts, url: opts.url })
+          : cloneScenario(terminalSource!, cloneOpts);
+
+        console.log(formatCloneSummary(scenario, [cloned]));
+        console.log('');
+        console.log('Note: Clone is generated in memory. Add it to your config file to persist.');
+        console.log('');
+        const yaml = await import('yaml');
+        console.log(yaml.stringify({ scenarios: [cloned] }));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

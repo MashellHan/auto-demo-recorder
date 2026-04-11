@@ -59,6 +59,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'trends', description: 'Recording quality trends', options: ['--config'] },
   { name: 'outliers', description: 'Detect recording outliers', options: ['--config', '--threshold'] },
   { name: 'config-export', description: 'Export config as JSON/TOML', options: ['--config', '--format', '--output'] },
+  { name: 'clone', description: 'Clone a scenario with overrides', options: ['--config', '--description', '--tags', '--url'] },
 ];
 
 /**
