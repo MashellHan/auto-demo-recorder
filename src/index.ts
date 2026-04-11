@@ -83,6 +83,9 @@ export type { RetryOptions } from './pipeline/retry.js';
 /** Post-recording notification utilities. */
 export { buildNotification, formatNotificationSummary, sendWebhook, runNotificationCommand } from './pipeline/notifier.js';
 export type { NotificationPayload } from './pipeline/notifier.js';
+/** Scenario dependency resolution. */
+export { buildDependencyOrder, validateDependencies } from './config/dependencies.js';
+export type { DependencyScenario } from './config/dependencies.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
@@ -318,7 +321,7 @@ export async function recordBrowser(options: BrowserRecordOptions): Promise<Reco
     const durationSeconds = browserResult.durationMs / 1000;
 
     const annotationResult = config.annotation.enabled
-      ? await runAnnotationPipeline(config, { name: scenario.name, description: scenario.description, setup: [], steps: [], tags: [] }, paths, log, false)
+      ? await runAnnotationPipeline(config, { name: scenario.name, description: scenario.description, setup: [], steps: [], tags: [], depends_on: [] }, paths, log, false)
       : null;
 
     await writeReport(paths.report, config.project.name, scenario.name, durationSeconds, annotationResult);

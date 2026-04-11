@@ -42,6 +42,8 @@ const ScenarioSchema = z.object({
   tags: z.array(z.string()).default([]),
   /** Lifecycle hooks for setup/teardown commands. */
   hooks: HooksSchema,
+  /** Names of scenarios that must be recorded before this one. */
+  depends_on: z.array(z.string()).default([]),
 });
 
 /** Browser scenario with URL and browser-specific steps. */
@@ -57,6 +59,8 @@ const BrowserScenarioSchema = z.object({
   tags: z.array(z.string()).default([]),
   /** Lifecycle hooks for setup/teardown commands. */
   hooks: HooksSchema,
+  /** Names of scenarios that must be recorded before this one. */
+  depends_on: z.array(z.string()).default([]),
 });
 
 const ProjectSchema = z.object({

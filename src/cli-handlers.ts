@@ -270,6 +270,7 @@ export async function handleAdhocBrowserRecord(opts: {
     setup: [],
     steps: browserSteps,
     tags: [],
+    depends_on: [],
   };
 
   await recordBrowser({ config, scenario, projectDir: process.cwd(), logger });
