@@ -15,6 +15,7 @@ import { diffConfigs, formatConfigDiff } from './config/config-diff.js';
 import { lintConfig, formatLintReport } from './config/linter.js';
 import { runPreflightChecks, formatPreflightReport } from './config/preflight.js';
 import { mergeConfigs, formatMergeReport } from './config/config-merge.js';
+import { formatDependencyGraph } from './config/dependencies.js';
 
 /**
  * Register config-related CLI commands onto the given program.
@@ -35,6 +36,7 @@ export function registerConfigCommands(program: Command): void {
   registerLintCommand(program);
   registerCheckCommand(program);
   registerMergeCommand(program);
+  registerGraphCommand(program);
 }
 
 function registerEnvCommand(program: Command): void {
@@ -390,6 +392,26 @@ function registerMergeCommand(program: Command): void {
             console.log(yaml.stringify(result.merged));
           }
         }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerGraphCommand(program: Command): void {
+  program
+    .command('graph')
+    .description('Show scenario dependency graph')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const allScenarios = [
+          ...config.scenarios.map((s) => ({ name: s.name, depends_on: s.depends_on })),
+          ...config.browser_scenarios.map((s) => ({ name: s.name, depends_on: s.depends_on })),
+        ];
+        console.log(formatDependencyGraph(allScenarios));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

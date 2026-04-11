@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { buildDependencyOrder, validateDependencies, type DependencyScenario } from '../src/config/dependencies.js';
+import {
+  buildDependencyOrder,
+  validateDependencies,
+  buildDependencyGraph,
+  formatDependencyGraph,
+  type DependencyScenario,
+} from '../src/config/dependencies.js';
 
 describe('buildDependencyOrder', () => {
   it('returns scenarios in dependency order', () => {
@@ -105,5 +111,99 @@ describe('validateDependencies', () => {
 
   it('returns empty for no scenarios', () => {
     expect(validateDependencies([])).toHaveLength(0);
+  });
+});
+
+describe('buildDependencyGraph', () => {
+  it('identifies roots and leaves', () => {
+    const scenarios: DependencyScenario[] = [
+      { name: 'setup' },
+      { name: 'build', depends_on: ['setup'] },
+      { name: 'test', depends_on: ['build'] },
+    ];
+    const graph = buildDependencyGraph(scenarios);
+    expect(graph.roots).toEqual(['setup']);
+    expect(graph.leaves).toEqual(['test']);
+    expect(graph.maxDepth).toBe(2);
+    expect(graph.edges).toHaveLength(2);
+  });
+
+  it('handles independent scenarios', () => {
+    const scenarios: DependencyScenario[] = [
+      { name: 'a' },
+      { name: 'b' },
+      { name: 'c' },
+    ];
+    const graph = buildDependencyGraph(scenarios);
+    expect(graph.roots).toEqual(['a', 'b', 'c']);
+    expect(graph.leaves).toEqual(['a', 'b', 'c']);
+    expect(graph.maxDepth).toBe(0);
+    expect(graph.edges).toHaveLength(0);
+  });
+
+  it('handles diamond dependency', () => {
+    const scenarios: DependencyScenario[] = [
+      { name: 'setup' },
+      { name: 'build', depends_on: ['setup'] },
+      { name: 'lint', depends_on: ['setup'] },
+      { name: 'deploy', depends_on: ['build', 'lint'] },
+    ];
+    const graph = buildDependencyGraph(scenarios);
+    expect(graph.roots).toEqual(['setup']);
+    expect(graph.leaves).toEqual(['deploy']);
+    expect(graph.maxDepth).toBe(2);
+    expect(graph.edges).toHaveLength(4);
+  });
+
+  it('handles empty scenarios', () => {
+    const graph = buildDependencyGraph([]);
+    expect(graph.nodes).toHaveLength(0);
+    expect(graph.edges).toHaveLength(0);
+    expect(graph.maxDepth).toBe(0);
+  });
+});
+
+describe('formatDependencyGraph', () => {
+  it('formats independent scenarios', () => {
+    const scenarios: DependencyScenario[] = [
+      { name: 'a' },
+      { name: 'b' },
+    ];
+    const text = formatDependencyGraph(scenarios);
+    expect(text).toContain('Dependency Graph');
+    expect(text).toContain('No dependencies');
+    expect(text).toContain('○ a');
+    expect(text).toContain('○ b');
+  });
+
+  it('formats scenarios with dependencies', () => {
+    const scenarios: DependencyScenario[] = [
+      { name: 'setup' },
+      { name: 'build', depends_on: ['setup'] },
+      { name: 'test', depends_on: ['build'] },
+    ];
+    const text = formatDependencyGraph(scenarios);
+    expect(text).toContain('Dependency Graph');
+    expect(text).toContain('setup (root)');
+    expect(text).toContain('build → setup');
+    expect(text).toContain('test → build');
+    expect(text).toContain('Roots: setup');
+    expect(text).toContain('Leaves: test');
+    expect(text).toContain('Depth: 2');
+  });
+
+  it('returns message for empty scenarios', () => {
+    const text = formatDependencyGraph([]);
+    expect(text).toContain('No scenarios defined');
+  });
+
+  it('shows multiple dependencies', () => {
+    const scenarios: DependencyScenario[] = [
+      { name: 'setup' },
+      { name: 'lint', depends_on: ['setup'] },
+      { name: 'deploy', depends_on: ['setup', 'lint'] },
+    ];
+    const text = formatDependencyGraph(scenarios);
+    expect(text).toContain('deploy → setup, lint');
   });
 });

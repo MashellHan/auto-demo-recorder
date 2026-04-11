@@ -76,8 +76,8 @@ export type { RetryOptions } from './pipeline/retry.js';
 export { buildNotification, formatNotificationSummary, sendWebhook, runNotificationCommand } from './pipeline/notifier.js';
 export type { NotificationPayload } from './pipeline/notifier.js';
 /** Scenario dependency resolution. */
-export { buildDependencyOrder, validateDependencies } from './config/dependencies.js';
-export type { DependencyScenario } from './config/dependencies.js';
+export { buildDependencyOrder, validateDependencies, buildDependencyGraph, formatDependencyGraph } from './config/dependencies.js';
+export type { DependencyScenario, DependencyEdge, DependencyGraph } from './config/dependencies.js';
 /** Utility to resolve user-supplied session paths, stripping output dir prefix. */
 export { resolveSessionPath } from './cli-utils.js';
 /** Step timing analysis for recorded scenarios. */
