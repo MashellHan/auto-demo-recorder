@@ -249,3 +249,11 @@ export type { GroupBy, RecordingGroup, GroupingResult } from './analytics/groupi
 /** Scenario health alerts. */
 export { generateAlerts, formatAlerts } from './analytics/alerts.js';
 export type { AlertSeverity, HealthAlert, AlertThresholds, AlertResult } from './analytics/alerts.js';
+
+/** SLA compliance monitoring. */
+export { checkSla, formatSla } from './analytics/sla.js';
+export type { SlaTarget, SlaCheck, SlaResult } from './analytics/sla.js';
+
+/** Structured config comparison. */
+export { compareConfigs, formatComparisonReport as formatConfigComparisonReport } from './config/config-comparison.js';
+export type { ConfigChange, ComparisonReport as ConfigComparisonReport } from './config/config-comparison.js';

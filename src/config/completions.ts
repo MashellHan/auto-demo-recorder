@@ -65,6 +65,8 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'interpolate', description: 'Show config variable interpolation', options: ['--config', '--list'] },
   { name: 'group', description: 'Group recordings by criteria', options: ['--config', '--by'] },
   { name: 'alerts', description: 'Show scenario health alerts', options: ['--config', '--max-failure', '--max-duration'] },
+  { name: 'sla', description: 'Check SLA compliance', options: ['--config', '--min-success', '--max-duration', '--max-bugs', '--min-recordings'] },
+  { name: 'config-compare', description: 'Compare two config files' },
 ];
 
 /**

@@ -12,6 +12,7 @@ import { computeCorrelations, formatCorrelations } from './analytics/correlation
 import { detectDuplicates, formatDuplicates } from './analytics/duplicates.js';
 import { groupRecordings, formatGrouping } from './analytics/grouping.js';
 import { generateAlerts, formatAlerts } from './analytics/alerts.js';
+import { checkSla, formatSla } from './analytics/sla.js';
 import type { GroupBy } from './analytics/grouping.js';
 
 /**
@@ -31,6 +32,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerDuplicatesCommand(program);
   registerGroupCommand(program);
   registerAlertsCommand(program);
+  registerSlaCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -242,6 +244,36 @@ function registerAlertsCommand(program: Command): void {
         const result = generateAlerts(entries, thresholds);
         console.log(formatAlerts(result));
         if (result.alerts.some((a) => a.severity === 'critical')) process.exit(1);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerSlaCommand(program: Command): void {
+  program
+    .command('sla')
+    .description('Check SLA compliance against recording history')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--min-success <rate>', 'Minimum success rate percentage (default: 95)')
+    .option('--max-duration <seconds>', 'Maximum average duration in seconds (default: 30)')
+    .option('--max-bugs <count>', 'Maximum bugs per recording (default: 0)')
+    .option('--min-recordings <count>', 'Minimum total recordings required (default: 1)')
+    .action(async (opts: { config?: string; minSuccess?: string; maxDuration?: string; maxBugs?: string; minRecordings?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const targets = {
+          minSuccessRate: opts.minSuccess ? parseFloat(opts.minSuccess) : undefined,
+          maxAvgDuration: opts.maxDuration ? parseFloat(opts.maxDuration) : undefined,
+          maxBugsPerRun: opts.maxBugs ? parseFloat(opts.maxBugs) : undefined,
+          minRecordings: opts.minRecordings ? parseInt(opts.minRecordings, 10) : undefined,
+        };
+        const result = checkSla(entries, targets);
+        console.log(formatSla(result));
+        if (!result.compliant) process.exit(1);
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
