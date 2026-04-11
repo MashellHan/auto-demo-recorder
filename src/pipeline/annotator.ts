@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { AnnotationConfig } from '../config/schema.js';
+import { getLanguageInstruction } from '../config/languages.js';
 
 /** AI analysis result for a single video frame. */
 export interface FrameAnalysis {
@@ -133,7 +134,7 @@ function buildFramePrompt(
   language: string,
 ): string {
   const languageInstruction = language !== 'en'
-    ? `\nRespond in ${language}. All text fields including description and annotation_text should be in ${language}.`
+    ? `\n${getLanguageInstruction(language)}`
     : '';
 
   return `You are analyzing a screenshot from a terminal TUI application called "${projectName}".

@@ -275,7 +275,7 @@ describe('annotateFrames', () => {
     // Verify the prompt sent to Claude includes the language instruction
     const callArgs = createMock.mock.calls[0][0];
     const promptText = callArgs.messages[0].content[1].text;
-    expect(promptText).toContain('Respond in zh');
-    expect(promptText).toContain('annotation_text should be in zh');
+    expect(promptText).toContain('中文');
+    expect(promptText).toContain('annotation_text');
   });
 });
