@@ -21,6 +21,9 @@ import { generateSessionSummary, summarizeSession, formatSessionSummary } from '
 import { generateComparisonMatrix, formatComparisonMatrix } from './analytics/comparison-matrix.js';
 import { computeTagStats, formatTagStats } from './analytics/tag-stats.js';
 import { resolveExtendsChain, formatExtendsChain } from './config/extends-resolver.js';
+import { generateComparisonReport, formatComparisonReport } from './analytics/comparison-report.js';
+import { generateValidationHints, formatValidationHints } from './config/validation-hints.js';
+import { readHistory, formatHistoryTable } from './analytics/history.js';
 import { findScenario } from './config/loader.js';
 
 /**
@@ -45,6 +48,8 @@ export function registerCommands(program: Command): void {
   registerTagStatsCommand(program);
   registerExtendsCommand(program);
   registerShowCommand(program);
+  registerCompareCommand(program);
+  registerHistoryCommand(program);
 }
 
 function registerAnalyzeCommand(program: Command): void {
@@ -556,6 +561,57 @@ function registerShowCommand(program: Command): void {
         }
 
         console.log(lines.join('\n'));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerCompareCommand(program: Command): void {
+  program
+    .command('compare')
+    .description('Compare two recording sessions side-by-side')
+    .argument('<sessionA>', 'First session timestamp')
+    .argument('<sessionB>', 'Second session timestamp')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (sessionA: string, sessionB: string, opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const resolvedA = resolveSessionPath(outputDir, sessionA);
+        const resolvedB = resolveSessionPath(outputDir, sessionB);
+        const report = await generateComparisonReport(outputDir, resolvedA, resolvedB);
+        console.log(formatComparisonReport(report));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerHistoryCommand(program: Command): void {
+  program
+    .command('history')
+    .description('Show recording history log')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--since <date>', 'Show entries after this date (e.g., 2026-04-01)')
+    .option('--scenario <name>', 'Filter by scenario name')
+    .option('--status <status>', 'Filter by status (ok, warning, error)')
+    .option('-n, --limit <n>', 'Limit number of entries')
+    .action(async (opts: { config?: string; since?: string; scenario?: string; status?: string; limit?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+
+        const entries = await readHistory(outputDir, {
+          since: opts.since ? new Date(opts.since) : undefined,
+          scenario: opts.scenario,
+          status: opts.status,
+          limit: opts.limit ? parseInt(opts.limit, 10) : undefined,
+        });
+
+        console.log(formatHistoryTable(entries));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

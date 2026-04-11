@@ -139,6 +139,18 @@ export type { ExtendsResolution } from './config/extends-resolver.js';
 export { evaluateCleanupPolicy, formatCleanupEvaluation, CleanupPolicySchema } from './config/cleanup-policy.js';
 export type { CleanupPolicy, CleanupEvaluation, SessionInfo } from './config/cleanup-policy.js';
 
+/** Session comparison reports. */
+export { generateComparisonReport, formatComparisonReport } from './analytics/comparison-report.js';
+export type { ComparisonReport, ScenarioComparison } from './analytics/comparison-report.js';
+
+/** Config validation hints with typo detection. */
+export { generateValidationHints, formatValidationHints } from './config/validation-hints.js';
+export type { ValidationHint } from './config/validation-hints.js';
+
+/** Recording history log. */
+export { appendHistoryEntry, readHistory, historyStats, formatHistoryTable } from './analytics/history.js';
+export type { HistoryEntry, HistoryFilter } from './analytics/history.js';
+
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
   /** Whether the recording completed successfully. */
