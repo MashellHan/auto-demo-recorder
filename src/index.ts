@@ -11,19 +11,29 @@ import { annotateFrames, type Logger } from './pipeline/annotator.js';
 import { postProcess } from './pipeline/post-processor.js';
 import { compareReports, type Report } from './pipeline/regression.js';
 
+/** Load and validate a demo-recorder.yaml config file. */
 export { loadConfig, findScenario } from './config/loader.js';
+/** Zod schema for validating demo-recorder config objects. */
 export { ConfigSchema } from './config/schema.js';
 export type { Config, Scenario } from './config/schema.js';
 export type { Logger } from './pipeline/annotator.js';
+/** Regression detection utilities for comparing recording reports. */
 export { detectRegressions, compareReports, loadReport } from './pipeline/regression.js';
 export type { RegressionResult, RegressionChange, Report } from './pipeline/regression.js';
 
+/** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
+  /** Whether the recording completed successfully. */
   success: boolean;
+  /** Path to the annotated video (or raw if annotation disabled). */
   videoPath: string;
+  /** Path to the raw (unannotated) video. */
   rawVideoPath: string;
+  /** Path to the JSON analysis report. */
   reportPath: string;
+  /** Path to the thumbnail image (first frame). */
   thumbnailPath: string;
+  /** Summary of the recording analysis. */
   summary: {
     status: string;
     durationSeconds: number;
@@ -32,6 +42,7 @@ export interface RecordResult {
     featuresDemo: string[];
     description: string;
   };
+  /** Regression info when a previous recording exists for comparison. */
   regression?: {
     has_regressions: boolean;
     changes: Array<{ type: string; description: string; severity: string }>;
@@ -39,11 +50,17 @@ export interface RecordResult {
   };
 }
 
+/** Options for the {@link record} function. */
 export interface RecordOptions {
+  /** Validated project configuration. */
   config: Config;
+  /** Scenario to record. */
   scenario: Scenario;
+  /** Absolute path to the project directory. */
   projectDir: string;
+  /** Custom logger for pipeline progress output. */
   logger?: Logger;
+  /** Skip updating the `latest` symlink (used for parallel recording). */
   skipSymlinkUpdate?: boolean;
 }
 
@@ -52,6 +69,14 @@ const defaultLogger: Logger = {
   warn: (msg) => console.warn(msg),
 };
 
+/**
+ * Record a terminal demo scenario: builds the project, runs VHS to capture video,
+ * optionally extracts frames for AI annotation, writes a JSON report, and checks
+ * for regressions against the previous recording.
+ *
+ * @param options - Recording configuration including scenario, project dir, and logger.
+ * @returns Result object with paths to video, report, thumbnail, and analysis summary.
+ */
 export async function record(options: RecordOptions): Promise<RecordResult> {
   const { config, scenario, projectDir, logger: log = defaultLogger, skipSymlinkUpdate = false } = options;
 
@@ -176,6 +201,10 @@ async function writeReport(
   await writeFile(reportPath, JSON.stringify(report, null, 2));
 }
 
+/**
+ * Create or update the `latest` symlink in the output directory to point to the given timestamp folder.
+ * Exported for use in parallel recording workflows where symlink updates are deferred.
+ */
 export async function updateLatestSymlink(projectDir: string, outputDir: string, timestamp: string) {
   const latestLink = resolve(projectDir, outputDir, 'latest');
   try {
