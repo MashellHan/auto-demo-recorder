@@ -42,6 +42,7 @@ export function createCli(): Command {
     .option('--url <url>', 'Starting URL for browser recording (used with --adhoc --backend browser)')
     .option('--theme <theme>', 'Override recording theme (use "demo-recorder themes" to list)')
     .option('--tag <tag>', 'Filter scenarios by tag (prefix with "!" to exclude)')
+    .option('--dry-run', 'Preview recording plan without executing')
     .action(async (opts) => {
       try {
         const logger = opts.quiet ? noopLogger : undefined;
@@ -68,6 +69,27 @@ export function createCli(): Command {
 
         const backend = config.recording.backend;
         const projectDir = process.cwd();
+
+        if (opts.dryRun) {
+          if (backend === 'browser') {
+            let scenarios: BrowserScenario[] = opts.scenario
+              ? [(config as any).browser_scenarios.find((s: BrowserScenario) => s.name === opts.scenario)]
+              : (config as any).browser_scenarios;
+            if (opts.tag) scenarios = filterByTag(scenarios, opts.tag);
+            for (const s of scenarios) {
+              console.log(formatDryRun(s, config, 'browser'));
+            }
+          } else {
+            let scenarios = opts.scenario
+              ? [findScenario(config as any, opts.scenario)]
+              : (config as any).scenarios;
+            if (opts.tag) scenarios = filterByTag(scenarios, opts.tag);
+            for (const s of scenarios) {
+              console.log(formatDryRun(s, config, 'vhs'));
+            }
+          }
+          return;
+        }
 
         if (backend === 'browser') {
           await handleBrowserRecord(config, opts.scenario, projectDir, logger, opts.quiet, opts.tag);
@@ -551,6 +573,52 @@ function parseAdhocBrowserSteps(stepsStr: string): BrowserScenario['steps'] {
     // Default: type the text
     return { action: 'type' as const, value: trimmed, pause: '500ms' };
   });
+}
+
+/**
+ * Format a dry-run plan summary for a scenario.
+ * Exported for testing.
+ */
+export function formatDryRun(
+  scenario: { name: string; description: string; steps: { action: string }[]; hooks?: { before?: string; after?: string }; url?: string },
+  config: any,
+  backend: 'vhs' | 'browser',
+): string {
+  const lines: string[] = [];
+  const timestamp = formatTimestamp(new Date());
+  const outputDir = resolve(process.cwd(), config.output.dir, timestamp, scenario.name);
+
+  lines.push(`[DRY RUN] Would record scenario "${scenario.name}":`);
+  lines.push(`  Backend: ${backend}`);
+
+  if (backend === 'browser' && scenario.url) {
+    lines.push(`  URL: ${scenario.url}`);
+  }
+
+  lines.push(`  Format: ${config.recording.formats?.join(', ') ?? config.recording.format ?? 'mp4'}`);
+  lines.push(`  Theme: ${config.recording.theme}`);
+
+  // Summarize steps by action type
+  const actionCounts = new Map<string, number>();
+  for (const step of scenario.steps) {
+    actionCounts.set(step.action, (actionCounts.get(step.action) ?? 0) + 1);
+  }
+  const stepSummary = [...actionCounts.entries()]
+    .map(([action, count]) => `${action} x${count}`)
+    .join(', ');
+  lines.push(`  Steps: ${scenario.steps.length} (${stepSummary})`);
+
+  lines.push(`  Output: ${outputDir}/`);
+  lines.push(`  Annotation: ${config.annotation.enabled ? `enabled (${config.annotation.model})` : 'disabled'}`);
+
+  if (scenario.hooks?.before || scenario.hooks?.after) {
+    const hookParts: string[] = [];
+    if (scenario.hooks.before) hookParts.push(`before: "${scenario.hooks.before}"`);
+    if (scenario.hooks.after) hookParts.push(`after: "${scenario.hooks.after}"`);
+    lines.push(`  Hooks: ${hookParts.join(', ')}`);
+  }
+
+  return lines.join('\n');
 }
 
 function getTerminalTemplate(): string {
