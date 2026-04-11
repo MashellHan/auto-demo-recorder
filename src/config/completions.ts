@@ -55,6 +55,8 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'diagnose', description: 'Diagnose config problems', options: ['--config'] },
   { name: 'scorecard', description: 'Recording quality score', options: ['--config'] },
   { name: 'suggest-tags', description: 'Suggest scenario tags', options: ['--config'] },
+  { name: 'status', description: 'Scenario health overview', options: ['--config'] },
+  { name: 'trends', description: 'Recording quality trends', options: ['--config'] },
 ];
 
 /**

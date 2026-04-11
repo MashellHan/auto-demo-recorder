@@ -18,6 +18,8 @@ import { searchHistory, formatSearchResults } from './analytics/search.js';
 import { generateHeatMap, formatHeatMap } from './analytics/heatmap.js';
 import { computeScoreCard, formatScoreCard } from './analytics/scorecard.js';
 import { suggestTags, formatTagSuggestions } from './analytics/tag-suggestions.js';
+import { computeStatusOverview, formatStatusOverview } from './analytics/status-overview.js';
+import { analyzeTrends, formatTrendReport } from './analytics/trends.js';
 
 /**
  * Register analytics CLI commands onto the given program.
@@ -39,6 +41,8 @@ export function registerAnalyticsCommands(program: Command): void {
   registerHeatMapCommand(program);
   registerScoreCardCommand(program);
   registerTagSuggestCommand(program);
+  registerStatusOverviewCommand(program);
+  registerTrendsCommand(program);
 }
 
 function registerAnalyzeCommand(program: Command): void {
@@ -415,6 +419,44 @@ function registerTagSuggestCommand(program: Command): void {
         const config = await loadConfig(opts.config);
         const result = suggestTags(config);
         console.log(formatTagSuggestions(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerStatusOverviewCommand(program: Command): void {
+  program
+    .command('status')
+    .description('Show per-scenario health status overview')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const overview = computeStatusOverview(entries);
+        console.log(formatStatusOverview(overview));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerTrendsCommand(program: Command): void {
+  program
+    .command('trends')
+    .description('Show recording quality trends over time')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const result = analyzeTrends(entries);
+        console.log(formatTrendReport(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

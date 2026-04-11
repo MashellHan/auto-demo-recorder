@@ -213,3 +213,11 @@ export type { ScoreDimension, ScoreCard } from './analytics/scorecard.js';
 /** Tag suggestion engine. */
 export { suggestTags, formatTagSuggestions } from './analytics/tag-suggestions.js';
 export type { TagSuggestion, TagSuggestionResult } from './analytics/tag-suggestions.js';
+
+/** Scenario status overview. */
+export { computeStatusOverview, formatStatusOverview } from './analytics/status-overview.js';
+export type { ScenarioStatus, StatusOverview } from './analytics/status-overview.js';
+
+/** Recording trend analysis. */
+export { analyzeTrends, formatTrendReport } from './analytics/trends.js';
+export type { TrendWindow, TrendDirection, TrendResult } from './analytics/trends.js';
