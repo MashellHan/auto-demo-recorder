@@ -75,7 +75,7 @@ export type { ArchiveResult, SessionArtifacts } from './pipeline/exporter.js';
 export { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipeline/replay.js';
 export type { ReplayPlan, ReplayStep } from './pipeline/replay.js';
 /** Recording profiles. */
-export { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile } from './config/profiles.js';
+export { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile, getAllProfiles, parseCustomProfiles } from './config/profiles.js';
 export type { RecordingProfile } from './config/profiles.js';
 /** Retry utility for recording resilience. */
 export { withRetry } from './pipeline/retry.js';
@@ -114,6 +114,18 @@ export { exportJsonSchema } from './config/schema-export.js';
 /** Multi-language annotation presets. */
 export { ANNOTATION_LANGUAGES, findLanguage, getLanguageInstruction, listLanguages } from './config/languages.js';
 export type { AnnotationLanguage } from './config/languages.js';
+/** Scenario templates library. */
+export { SCENARIO_TEMPLATES, findTemplate, listTemplates, listTemplatesByCategory, getTemplateCategories } from './config/templates.js';
+export type { ScenarioTemplate } from './config/templates.js';
+/** Visual diff for frame descriptions. */
+export { visualDiff, compareFrameDescriptions, formatVisualDiff } from './analytics/visual-diff.js';
+export type { FrameDiff, VisualDiffResult } from './analytics/visual-diff.js';
+/** Recording quality metrics. */
+export { computeMetrics, formatMetrics } from './analytics/metrics.js';
+export type { ScenarioMetric, QualityMetrics } from './analytics/metrics.js';
+/** Recording session summary dashboard. */
+export { generateSessionSummary, summarizeSession, formatSessionSummary } from './pipeline/summary.js';
+export type { ScenarioSummary, SessionSummary } from './pipeline/summary.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
