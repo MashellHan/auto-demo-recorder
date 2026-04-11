@@ -267,6 +267,61 @@ describe('generateForecast', () => {
     expect(result.forecast[0]!.predictedSuccessRate).toBe(100);
   });
 
+  it('exposes activeDays count in result', () => {
+    const now = new Date('2026-04-11T23:00:00.000Z');
+    const entries = makeEntriesForDays(5, 2, now);
+    const result = generateForecast(entries, 3, 'ema', 7, 0.3, now, 30);
+    expect(result.activeDays).toBe(5);
+  });
+
+  it('reports insufficient data quality with 1 active day', () => {
+    const now = new Date('2026-04-11T23:00:00.000Z');
+    const entries = [makeEntry({ timestamp: '2026-04-11T10:00:00.000Z' })];
+    const result = generateForecast(entries, 3, 'ema', 7, 0.3, now, 30);
+    expect(result.activeDays).toBe(1);
+    expect(result.dataQuality).toBe('insufficient');
+  });
+
+  it('reports insufficient data quality with 2 active days', () => {
+    const now = new Date('2026-04-11T23:00:00.000Z');
+    const entries = makeEntriesForDays(2, 3, now);
+    const result = generateForecast(entries, 3, 'ema', 7, 0.3, now, 30);
+    expect(result.activeDays).toBe(2);
+    expect(result.dataQuality).toBe('insufficient');
+  });
+
+  it('reports limited data quality with 3 active days', () => {
+    const now = new Date('2026-04-11T23:00:00.000Z');
+    const entries = makeEntriesForDays(3, 2, now);
+    const result = generateForecast(entries, 3, 'ema', 7, 0.3, now, 30);
+    expect(result.activeDays).toBe(3);
+    expect(result.dataQuality).toBe('limited');
+  });
+
+  it('reports limited data quality with 6 active days', () => {
+    const now = new Date('2026-04-11T23:00:00.000Z');
+    const entries = makeEntriesForDays(6, 2, now);
+    const result = generateForecast(entries, 3, 'ema', 7, 0.3, now, 30);
+    expect(result.activeDays).toBe(6);
+    expect(result.dataQuality).toBe('limited');
+  });
+
+  it('reports good data quality with 7+ active days', () => {
+    const now = new Date('2026-04-11T23:00:00.000Z');
+    const entries = makeEntriesForDays(10, 2, now);
+    const result = generateForecast(entries, 3, 'ema', 7, 0.3, now, 30);
+    expect(result.activeDays).toBe(10);
+    expect(result.dataQuality).toBe('good');
+  });
+
+  it('reports insufficient quality and zero activeDays for no data', () => {
+    const now = new Date('2026-04-11T12:00:00.000Z');
+    const result = generateForecast([], 7, 'ema', 7, 0.3, now, 30);
+    expect(result.activeDays).toBe(0);
+    expect(result.dataQuality).toBe('insufficient');
+    expect(result.hasEnoughData).toBe(false);
+  });
+
   it('handles mixed success and error entries', () => {
     const now = new Date('2026-04-11T12:00:00.000Z');
     const ok = makeEntriesForDays(5, 3, now, 'ok');
@@ -325,5 +380,33 @@ describe('formatForecast', () => {
     const result = generateForecast(entries, 3, 'ema', 7, 0.3, now, 14);
     const text = formatForecast(result);
     expect(text).toContain('stable');
+  });
+
+  it('shows insufficient data warning with 1 active day', () => {
+    const now = new Date('2026-04-11T23:00:00.000Z');
+    const entries = [makeEntry({ timestamp: '2026-04-11T10:00:00.000Z' })];
+    const result = generateForecast(entries, 3, 'ema', 7, 0.3, now, 30);
+    const text = formatForecast(result);
+    expect(text).toContain('Insufficient historical data');
+    expect(text).toContain('1 active day');
+    expect(text).toContain('At least 3 days');
+  });
+
+  it('shows limited data warning with 4 active days', () => {
+    const now = new Date('2026-04-11T23:00:00.000Z');
+    const entries = makeEntriesForDays(4, 2, now);
+    const result = generateForecast(entries, 3, 'ema', 7, 0.3, now, 30);
+    const text = formatForecast(result);
+    expect(text).toContain('Limited historical data');
+    expect(text).toContain('4 active days');
+  });
+
+  it('shows no warning with 7+ active days', () => {
+    const now = new Date('2026-04-11T23:00:00.000Z');
+    const entries = makeEntriesForDays(10, 3, now);
+    const result = generateForecast(entries, 3, 'ema', 7, 0.3, now, 10);
+    const text = formatForecast(result);
+    expect(text).not.toContain('Insufficient');
+    expect(text).not.toContain('Limited');
   });
 });

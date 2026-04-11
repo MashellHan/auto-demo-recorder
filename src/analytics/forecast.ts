@@ -9,6 +9,9 @@ import { round2 } from './utils.js';
 /** Forecast method. */
 export type ForecastMethod = 'sma' | 'ema';
 
+/** Data quality indicator based on number of active recording days. */
+export type DataQuality = 'good' | 'limited' | 'insufficient';
+
 /** A single forecast data point. */
 export interface ForecastPoint {
   /** Date label (ISO date string). */
@@ -53,6 +56,17 @@ export interface ForecastResult {
   readonly trend: 'increasing' | 'decreasing' | 'stable';
   /** Whether there's enough data to forecast. */
   readonly hasEnoughData: boolean;
+  /** Number of days with at least one recording in the lookback window. */
+  readonly activeDays: number;
+  /** Data quality indicator: 'good' (>=7 days), 'limited' (3-6), 'insufficient' (<3). */
+  readonly dataQuality: DataQuality;
+}
+
+/** Classify data quality based on number of active recording days. */
+function classifyDataQuality(activeDayCount: number): DataQuality {
+  if (activeDayCount >= 7) return 'good';
+  if (activeDayCount >= 3) return 'limited';
+  return 'insufficient';
 }
 
 /**
@@ -149,6 +163,8 @@ export function generateForecast(
       avgSuccessRate: 0,
       trend: 'stable',
       hasEnoughData: false,
+      activeDays: 0,
+      dataQuality: 'insufficient',
     };
   }
 
@@ -225,6 +241,8 @@ export function generateForecast(
     avgSuccessRate,
     trend,
     hasEnoughData: true,
+    activeDays,
+    dataQuality: classifyDataQuality(activeDays),
   };
 }
 
@@ -253,6 +271,16 @@ export function formatForecast(result: ForecastResult): string {
     return lines.join('\n');
   }
 
+  // Show data quality warning for insufficient or limited data
+  if (result.dataQuality === 'insufficient') {
+    lines.push(`  ⚠️  Insufficient historical data (${result.activeDays} active day${result.activeDays === 1 ? '' : 's'}). Forecasts may be unreliable.`);
+    lines.push('      At least 3 days of recordings recommended for meaningful predictions.');
+    lines.push('');
+  } else if (result.dataQuality === 'limited') {
+    lines.push(`  ⚠️  Limited historical data (${result.activeDays} active days). Forecast accuracy may be reduced.`);
+    lines.push('');
+  }
+
   if (result.forecast.length > 0) {
     lines.push('  Forecast:');
     lines.push('    Date         Count   Success  Confidence');
@@ -267,9 +295,9 @@ export function formatForecast(result: ForecastResult): string {
   }
 
   // Show recent history summary
-  const activeDays = result.observations.filter((o) => o.count > 0);
-  if (activeDays.length > 0) {
-    const last5 = activeDays.slice(-5);
+  const activeDaysObs = result.observations.filter((o) => o.count > 0);
+  if (activeDaysObs.length > 0) {
+    const last5 = activeDaysObs.slice(-5);
     lines.push('  Recent activity:');
     for (const day of last5) {
       lines.push(`    ${day.date}  ${day.count} recordings  ${day.successRate}% success`);
