@@ -20,6 +20,9 @@ export type { Logger } from './pipeline/annotator.js';
 /** Regression detection utilities for comparing recording reports. */
 export { detectRegressions, compareReports, loadReport } from './pipeline/regression.js';
 export type { RegressionResult, RegressionChange, Report } from './pipeline/regression.js';
+/** File watcher for auto-recording on source changes. */
+export { startWatcher, matchesGlobs } from './pipeline/watcher.js';
+export type { WatchOptions, WatchHandle } from './pipeline/watcher.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {

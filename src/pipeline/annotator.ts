@@ -3,24 +3,39 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { AnnotationConfig } from '../config/schema.js';
 
+/** AI analysis result for a single video frame. */
 export interface FrameAnalysis {
+  /** Zero-based frame index. */
   index: number;
+  /** Human-readable timestamp (e.g. "0:05"). */
   timestamp: string;
+  /** Overall status detected by AI. */
   status: 'ok' | 'warning' | 'error';
+  /** AI-generated description of what the frame shows. */
   description: string;
+  /** Feature being demonstrated in this frame. */
   feature_being_demonstrated: string;
+  /** List of bugs detected by AI in this frame. */
   bugs_detected: string[];
+  /** Visual quality assessment. */
   visual_quality: 'good' | 'degraded' | 'broken';
+  /** Short overlay text (< 50 chars) for video annotation. */
   annotation_text: string;
 }
 
+/** Result of annotating all extracted frames with AI. */
 export interface AnnotationResult {
+  /** Per-frame analysis results. */
   frames: FrameAnalysis[];
+  /** Worst status across all frames. */
   overall_status: 'ok' | 'warning' | 'error';
+  /** Total number of bugs detected across all frames. */
   bugs_found: number;
+  /** Human-readable summary of the annotation. */
   summary: string;
 }
 
+/** Logger interface for pipeline progress output. */
 export interface Logger {
   log: (message: string) => void;
   warn: (message: string) => void;

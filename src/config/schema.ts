@@ -46,11 +46,18 @@ const AnnotationSchema = z.object({
   overlay_font_size: z.number().default(14),
 });
 
+const WatchSchema = z.object({
+  include: z.array(z.string()).default(['src/**/*']),
+  exclude: z.array(z.string()).default(['node_modules/**', 'dist/**', '.demo-recordings/**']),
+  debounce_ms: z.number().default(500),
+});
+
 export const ConfigSchema = z.object({
   project: ProjectSchema,
   recording: RecordingSchema.default({}),
   output: OutputSchema.default({}),
   annotation: AnnotationSchema.default({}),
+  watch: WatchSchema.default({}),
   scenarios: z.array(ScenarioSchema).min(1),
 });
 
@@ -59,3 +66,4 @@ export type Scenario = z.infer<typeof ScenarioSchema>;
 export type Step = z.infer<typeof StepSchema>;
 export type RecordingConfig = z.infer<typeof RecordingSchema>;
 export type AnnotationConfig = z.infer<typeof AnnotationSchema>;
+export type WatchConfig = z.infer<typeof WatchSchema>;

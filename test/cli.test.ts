@@ -30,6 +30,7 @@ vi.mock('../src/config/loader.js', () => ({
     recording: { width: 1200, height: 800, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60 },
     output: { dir: '.demo-recordings', keep_raw: true, keep_frames: false },
     annotation: { enabled: true, model: 'claude-sonnet-4-6', extract_fps: 1, language: 'en', overlay_position: 'bottom', overlay_font_size: 14 },
+    watch: { include: ['src/**/*'], exclude: ['node_modules/**', 'dist/**', '.demo-recordings/**'], debounce_ms: 500 },
     scenarios: [
       { name: 'basic', description: 'Basic', setup: [], steps: [{ action: 'key', value: 'q', pause: '500ms' }] },
     ],
@@ -39,6 +40,10 @@ vi.mock('../src/config/loader.js', () => ({
 
 vi.mock('../src/mcp/server.js', () => ({
   startMcpServer: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../src/pipeline/watcher.js', () => ({
+  startWatcher: vi.fn().mockReturnValue({ close: vi.fn() }),
 }));
 
 const { createCli } = await import('../src/cli.js');
@@ -59,6 +64,7 @@ describe('createCli', () => {
     expect(commandNames).toContain('last');
     expect(commandNames).toContain('init');
     expect(commandNames).toContain('serve');
+    expect(commandNames).toContain('watch');
   });
 
   it('has correct version', () => {
@@ -608,5 +614,43 @@ describe('diff command', () => {
     exitSpy.mockRestore();
     process.chdir(origCwd);
     await rm(tempDir, { recursive: true, force: true });
+  });
+});
+
+describe('watch command', () => {
+  it('calls startWatcher with config', async () => {
+    const { startWatcher } = await import('../src/pipeline/watcher.js');
+    const cli = createCli();
+    cli.exitOverride();
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'watch']);
+    } catch {
+      // may throw
+    }
+
+    expect(startWatcher).toHaveBeenCalledTimes(1);
+    expect(startWatcher).toHaveBeenCalledWith(expect.objectContaining({
+      config: expect.objectContaining({ project: { name: 'test', description: 'Test' } }),
+      projectDir: expect.any(String),
+    }));
+  });
+
+  it('passes scenario filter when --scenario is provided', async () => {
+    const { startWatcher } = await import('../src/pipeline/watcher.js');
+    const { findScenario } = await import('../src/config/loader.js');
+    const cli = createCli();
+    cli.exitOverride();
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'watch', '--scenario', 'basic']);
+    } catch {
+      // may throw
+    }
+
+    expect(findScenario).toHaveBeenCalledWith(expect.anything(), 'basic');
+    expect(startWatcher).toHaveBeenCalledWith(expect.objectContaining({
+      scenario: expect.objectContaining({ name: 'basic' }),
+    }));
   });
 });

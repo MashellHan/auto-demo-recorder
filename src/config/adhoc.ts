@@ -37,6 +37,11 @@ export function buildAdhocConfig(opts: AdhocOptions): Config {
       overlay_position: 'bottom',
       overlay_font_size: 14,
     },
+    watch: {
+      include: ['src/**/*'],
+      exclude: ['node_modules/**', 'dist/**', '.demo-recordings/**'],
+      debounce_ms: 500,
+    },
     scenarios: [],
   };
 }

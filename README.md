@@ -11,6 +11,7 @@ On-demand terminal demo recording + AI annotation CLI tool, callable by agents o
 - Ad-hoc recording mode (no config needed)
 - Regression detection between recordings
 - Language-aware annotations (configurable via `annotation.language`)
+- Watch mode: auto-record on source file changes
 
 ## Prerequisites
 
@@ -69,6 +70,22 @@ demo-recorder diff path/to/baseline/report.json path/to/current/report.json
 ```
 
 Exit code 1 if regressions detected — suitable for CI pipelines.
+
+### Watch mode
+
+```bash
+demo-recorder watch                        # watch all scenarios
+demo-recorder watch --scenario basic       # watch specific scenario
+```
+
+Monitors source files for changes and auto-records. Configure patterns in `demo-recorder.yaml`:
+
+```yaml
+watch:
+  include: ["src/**/*"]
+  exclude: ["node_modules/**", "dist/**", ".demo-recordings/**"]
+  debounce_ms: 500
+```
 
 ### Other commands
 

@@ -9,6 +9,7 @@ import { scanProject, generateConfig } from './config/scanner.js';
 import { record } from './index.js';
 import { startMcpServer } from './mcp/server.js';
 import { detectRegressions } from './pipeline/regression.js';
+import { startWatcher } from './pipeline/watcher.js';
 import type { Step } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -242,6 +243,29 @@ scenarios:
         if (result.has_regressions) {
           process.exit(1);
         }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('watch')
+    .description('Watch project files and auto-record on change')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('-s, --scenario <name>', 'Limit to a specific scenario')
+    .action(async (opts) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const projectDir = process.cwd();
+        const scenario = opts.scenario ? findScenario(config, opts.scenario) : undefined;
+
+        const handle = startWatcher({ config, projectDir, scenario });
+
+        process.on('SIGINT', () => {
+          handle.close();
+          process.exit(0);
+        });
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
