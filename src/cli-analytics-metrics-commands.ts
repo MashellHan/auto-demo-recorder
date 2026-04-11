@@ -18,6 +18,7 @@ import { generateForecast, formatForecast } from './analytics/forecast.js';
 import type { ForecastMethod } from './analytics/forecast.js';
 import { analyzeCohorts, formatCohorts } from './analytics/cohort.js';
 import type { CohortGranularity } from './analytics/cohort.js';
+import { computeBurndown, formatBurndown } from './analytics/burndown.js';
 
 /**
  * Register measurement/metrics analytics CLI commands onto the given program.
@@ -39,6 +40,7 @@ export function registerAnalyticsMetricsCommands(program: Command): void {
   registerDigestCommand(program);
   registerForecastCommand(program);
   registerCohortsCommand(program);
+  registerBurndownCommand(program);
 }
 
 function registerBenchmarksCommand(program: Command): void {
@@ -301,6 +303,32 @@ function registerCohortsCommand(program: Command): void {
         const granularity: CohortGranularity = opts.granularity === 'monthly' ? 'monthly' : 'weekly';
         const result = analyzeCohorts(entries, granularity);
         console.log(formatCohorts(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerBurndownCommand(program: Command): void {
+  program
+    .command('burndown')
+    .description('Show recording burndown chart toward a target')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--target <n>', 'Target number of recordings (default: 100)')
+    .option('--start <date>', 'Sprint start date (ISO, default: 30 days ago)')
+    .option('--deadline <date>', 'Sprint deadline (ISO, default: today)')
+    .action(async (opts: { config?: string; target?: string; start?: string; deadline?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const target = opts.target ? parseInt(opts.target, 10) : 100;
+        const now = new Date();
+        const startDate = opts.start ? new Date(opts.start) : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const deadline = opts.deadline ? new Date(opts.deadline) : now;
+        const result = computeBurndown(entries, target, startDate, deadline, now);
+        console.log(formatBurndown(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
