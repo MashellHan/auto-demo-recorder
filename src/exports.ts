@@ -205,3 +205,11 @@ export type { HeatMapCell, HeatMapResult } from './analytics/heatmap.js';
 /** Config doctor — deep diagnostics. */
 export { diagnoseConfig, formatDoctorResult } from './config/config-doctor.js';
 export type { Diagnostic, DoctorResult } from './config/config-doctor.js';
+
+/** Recording quality score card. */
+export { computeScoreCard, formatScoreCard } from './analytics/scorecard.js';
+export type { ScoreDimension, ScoreCard } from './analytics/scorecard.js';
+
+/** Tag suggestion engine. */
+export { suggestTags, formatTagSuggestions } from './analytics/tag-suggestions.js';
+export type { TagSuggestion, TagSuggestionResult } from './analytics/tag-suggestions.js';

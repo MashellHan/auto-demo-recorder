@@ -53,6 +53,8 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'scaffold', description: 'Generate starter config', options: ['--category', '--output'] },
   { name: 'heatmap', description: 'Recording frequency heat map', options: ['--config'] },
   { name: 'diagnose', description: 'Diagnose config problems', options: ['--config'] },
+  { name: 'scorecard', description: 'Recording quality score', options: ['--config'] },
+  { name: 'suggest-tags', description: 'Suggest scenario tags', options: ['--config'] },
 ];
 
 /**

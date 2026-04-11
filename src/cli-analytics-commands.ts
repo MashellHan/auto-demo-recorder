@@ -16,6 +16,8 @@ import { generateTimeline, formatTimeline } from './analytics/timeline.js';
 import { analyzeSteps, formatStepAnalysis } from './analytics/step-analysis.js';
 import { searchHistory, formatSearchResults } from './analytics/search.js';
 import { generateHeatMap, formatHeatMap } from './analytics/heatmap.js';
+import { computeScoreCard, formatScoreCard } from './analytics/scorecard.js';
+import { suggestTags, formatTagSuggestions } from './analytics/tag-suggestions.js';
 
 /**
  * Register analytics CLI commands onto the given program.
@@ -35,6 +37,8 @@ export function registerAnalyticsCommands(program: Command): void {
   registerStepAnalysisCommand(program);
   registerSearchCommand(program);
   registerHeatMapCommand(program);
+  registerScoreCardCommand(program);
+  registerTagSuggestCommand(program);
 }
 
 function registerAnalyzeCommand(program: Command): void {
@@ -374,6 +378,43 @@ function registerHeatMapCommand(program: Command): void {
         const entries = await readHistory(outputDir);
         const result = generateHeatMap(entries);
         console.log(formatHeatMap(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerScoreCardCommand(program: Command): void {
+  program
+    .command('scorecard')
+    .description('Show recording quality score card')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+
+        const entries = await readHistory(outputDir);
+        const card = computeScoreCard(entries);
+        console.log(formatScoreCard(card));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerTagSuggestCommand(program: Command): void {
+  program
+    .command('suggest-tags')
+    .description('Suggest tags for scenarios based on step patterns')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const result = suggestTags(config);
+        console.log(formatTagSuggestions(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
