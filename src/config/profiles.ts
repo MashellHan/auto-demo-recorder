@@ -104,17 +104,51 @@ export const BUILT_IN_PROFILES: ReadonlyArray<RecordingProfile> = [
 
 /**
  * Get a profile by name (case-insensitive).
+ * Searches custom profiles first, then built-in profiles.
  */
-export function getProfile(name: string): RecordingProfile | undefined {
+export function getProfile(name: string, customProfiles?: RecordingProfile[]): RecordingProfile | undefined {
   const lower = name.toLowerCase();
+  // Custom profiles take precedence over built-in
+  const custom = customProfiles?.find((p) => p.name.toLowerCase() === lower);
+  if (custom) return custom;
   return BUILT_IN_PROFILES.find((p) => p.name.toLowerCase() === lower);
 }
 
 /**
- * Get all available profile names.
+ * Get all available profile names (built-in + custom).
  */
-export function getProfileNames(): string[] {
-  return BUILT_IN_PROFILES.map((p) => p.name);
+export function getProfileNames(customProfiles?: RecordingProfile[]): string[] {
+  const builtIn = BUILT_IN_PROFILES.map((p) => p.name);
+  const custom = (customProfiles ?? []).map((p) => p.name);
+  // Deduplicate (custom overrides built-in by name)
+  return [...new Set([...custom, ...builtIn])];
+}
+
+/**
+ * Get all available profiles (built-in + custom, custom takes precedence).
+ */
+export function getAllProfiles(customProfiles?: RecordingProfile[]): RecordingProfile[] {
+  const custom = customProfiles ?? [];
+  const customNames = new Set(custom.map((p) => p.name.toLowerCase()));
+  const builtIn = BUILT_IN_PROFILES.filter((p) => !customNames.has(p.name.toLowerCase()));
+  return [...custom, ...builtIn];
+}
+
+/**
+ * Parse custom profiles from a config object's profiles section.
+ */
+export function parseCustomProfiles(profilesConfig: Record<string, unknown>[] | undefined): RecordingProfile[] {
+  if (!profilesConfig || !Array.isArray(profilesConfig)) return [];
+
+  return profilesConfig
+    .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
+    .map((p) => ({
+      name: String(p.name ?? 'custom'),
+      description: String(p.description ?? ''),
+      recording: (p.recording ?? {}) as Record<string, unknown>,
+      annotation: p.annotation as Record<string, unknown> | undefined,
+      output: p.output as Record<string, unknown> | undefined,
+    }));
 }
 
 /**
