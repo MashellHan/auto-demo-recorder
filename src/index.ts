@@ -27,6 +27,9 @@ export type { WatchOptions, WatchHandle } from './pipeline/watcher.js';
 /** Browser recording utilities. */
 export { runBrowser } from './pipeline/browser-runner.js';
 export { executeStep, executeAllSteps, parsePause, mapKeyName } from './pipeline/browser-step-executor.js';
+/** Theme gallery utilities. */
+export { VHS_THEMES, findTheme, getThemeNames } from './config/themes.js';
+export type { ThemeInfo } from './config/themes.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {

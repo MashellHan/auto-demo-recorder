@@ -10,6 +10,7 @@ import { record, recordBrowser, writeSessionReport, formatTimestamp } from './in
 import { startMcpServer } from './mcp/server.js';
 import { detectRegressions } from './pipeline/regression.js';
 import { startWatcher } from './pipeline/watcher.js';
+import { VHS_THEMES, findTheme } from './config/themes.js';
 import type { Step, BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -38,6 +39,7 @@ export function createCli(): Command {
     .option('--width <n>', 'Terminal width (used with --adhoc)', '1200')
     .option('--height <n>', 'Terminal height (used with --adhoc)', '800')
     .option('--url <url>', 'Starting URL for browser recording (used with --adhoc --backend browser)')
+    .option('--theme <theme>', 'Override recording theme (use "demo-recorder themes" to list)')
     .action(async (opts) => {
       try {
         const logger = opts.quiet ? noopLogger : undefined;
@@ -58,6 +60,7 @@ export function createCli(): Command {
             ...loaded.recording,
             ...(opts.format === 'gif' && { format: 'gif' as const }),
             ...(opts.backend && { backend: opts.backend as 'vhs' | 'browser' }),
+            ...(opts.theme && { theme: opts.theme }),
           },
         };
 
@@ -267,6 +270,43 @@ export function createCli(): Command {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
       }
+    });
+
+  program
+    .command('themes')
+    .description('List available VHS recording themes')
+    .option('--category <cat>', 'Filter by category: dark or light')
+    .action((opts: { category?: string }) => {
+      const filtered = opts.category
+        ? VHS_THEMES.filter((t) => t.category === opts.category)
+        : VHS_THEMES;
+
+      if (filtered.length === 0) {
+        console.log(`No themes found for category: ${opts.category}`);
+        return;
+      }
+
+      const darkThemes = filtered.filter((t) => t.category === 'dark');
+      const lightThemes = filtered.filter((t) => t.category === 'light');
+
+      if (darkThemes.length > 0) {
+        console.log('Dark Themes:');
+        for (const t of darkThemes) {
+          console.log(`  ${t.name.padEnd(24)} ${t.description}`);
+        }
+      }
+
+      if (lightThemes.length > 0) {
+        if (darkThemes.length > 0) console.log('');
+        console.log('Light Themes:');
+        for (const t of lightThemes) {
+          console.log(`  ${t.name.padEnd(24)} ${t.description}`);
+        }
+      }
+
+      console.log('');
+      console.log(`Total: ${filtered.length} themes`);
+      console.log('Usage: demo-recorder record --theme "Dracula"');
     });
 
   return program;
