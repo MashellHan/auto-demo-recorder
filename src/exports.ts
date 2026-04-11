@@ -229,3 +229,7 @@ export type { ExportFormat, ConfigExport } from './config/config-export.js';
 /** Recording outlier detection. */
 export { detectOutliers, detectOutliersPerScenario, formatOutliers, formatOutliersPerScenario } from './analytics/outliers.js';
 export type { Outlier, OutlierResult, PerScenarioOutlierResult } from './analytics/outliers.js';
+
+/** Scenario correlation analysis. */
+export { computeCorrelations, formatCorrelations } from './analytics/correlation.js';
+export type { CorrelationPair, CorrelationResult } from './analytics/correlation.js';

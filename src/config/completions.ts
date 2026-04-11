@@ -60,6 +60,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'outliers', description: 'Detect recording outliers', options: ['--config', '--threshold', '--per-scenario'] },
   { name: 'config-export', description: 'Export config as JSON/TOML', options: ['--config', '--format', '--output'] },
   { name: 'clone', description: 'Clone a scenario with overrides', options: ['--config', '--description', '--tags', '--url'] },
+  { name: 'correlations', description: 'Show scenario correlations', options: ['--config', '--min-sessions'] },
 ];
 
 /**

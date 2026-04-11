@@ -8,6 +8,7 @@ import { suggestTags, formatTagSuggestions } from './analytics/tag-suggestions.j
 import { computeStatusOverview, formatStatusOverview } from './analytics/status-overview.js';
 import { analyzeTrends, formatTrendReport } from './analytics/trends.js';
 import { detectOutliers, detectOutliersPerScenario, formatOutliers, formatOutliersPerScenario } from './analytics/outliers.js';
+import { computeCorrelations, formatCorrelations } from './analytics/correlation.js';
 
 /**
  * Register extra analytics CLI commands onto the given program.
@@ -22,6 +23,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerStatusOverviewCommand(program);
   registerTrendsCommand(program);
   registerOutliersCommand(program);
+  registerCorrelationCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -140,6 +142,27 @@ function registerOutliersCommand(program: Command): void {
           const result = detectOutliers(entries, threshold);
           console.log(formatOutliers(result));
         }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerCorrelationCommand(program: Command): void {
+  program
+    .command('correlations')
+    .description('Show scenario outcome correlations (which scenarios fail together)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--min-sessions <n>', 'Minimum shared sessions for analysis (default: 3)')
+    .action(async (opts: { config?: string; minSessions?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const minSessions = opts.minSessions ? parseInt(opts.minSessions, 10) : 3;
+        const result = computeCorrelations(entries, minSessions);
+        console.log(formatCorrelations(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
