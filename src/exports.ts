@@ -317,3 +317,7 @@ export type { ScenarioDistribution, DistributionResult } from './analytics/distr
 /** Scenario risk scoring. */
 export { computeRiskScores, formatRiskScores } from './analytics/risk-score.js';
 export type { RiskLevel, ScenarioRisk, RiskResult } from './analytics/risk-score.js';
+
+/** Recording efficiency metrics. */
+export { computeEfficiency, formatEfficiency } from './analytics/efficiency.js';
+export type { EfficiencyResult, IdleAnalysis, HourlyBucket } from './analytics/efficiency.js';

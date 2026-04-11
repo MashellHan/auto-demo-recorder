@@ -15,6 +15,7 @@ import { analyzeRates, formatRateAnalysis } from './analytics/rate-analysis.js';
 import { computeHealthDashboard, formatHealthDashboard } from './analytics/health-dashboard.js';
 import { analyzeStreaks, formatStreaks } from './analytics/streaks.js';
 import { computeRiskScores, formatRiskScores } from './analytics/risk-score.js';
+import { computeEfficiency, formatEfficiency } from './analytics/efficiency.js';
 import type { GroupBy } from './analytics/grouping.js';
 
 /**
@@ -38,6 +39,7 @@ export function registerAnalyticsMonitorCommands(program: Command): void {
   registerDashboardCommand(program);
   registerStreaksCommand(program);
   registerRiskCommand(program);
+  registerEfficiencyCommand(program);
 }
 
 function registerDuplicatesCommand(program: Command): void {
@@ -335,6 +337,25 @@ function registerRiskCommand(program: Command): void {
         const entries = await readHistory(outputDir);
         const result = computeRiskScores(entries);
         console.log(formatRiskScores(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerEfficiencyCommand(program: Command): void {
+  program
+    .command('efficiency')
+    .description('Show recording efficiency metrics (utilization, throughput, idle time)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const result = computeEfficiency(entries);
+        console.log(formatEfficiency(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
