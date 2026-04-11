@@ -1,4 +1,5 @@
 import type { Config, Scenario, Step } from './schema.js';
+import { resolveThemeId } from './themes.js';
 
 export interface AdhocOptions {
   command: string;
@@ -25,7 +26,7 @@ export function buildAdhocConfig(opts: AdhocOptions): Config {
       width: opts.width ?? 1200,
       height: opts.height ?? 800,
       font_size: 16,
-      theme: opts.theme ?? 'Catppuccin Mocha',
+      theme: opts.theme ? resolveThemeId(opts.theme) : 'Catppuccin Mocha',
       fps: 25,
       max_duration: 60,
       format: opts.format === 'gif' ? 'gif' : 'mp4',

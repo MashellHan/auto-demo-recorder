@@ -10,7 +10,7 @@ import { record, recordBrowser, writeSessionReport, formatTimestamp } from './in
 import { startMcpServer } from './mcp/server.js';
 import { detectRegressions } from './pipeline/regression.js';
 import { startWatcher } from './pipeline/watcher.js';
-import { VHS_THEMES, findTheme } from './config/themes.js';
+import { VHS_THEMES, findTheme, resolveThemeId } from './config/themes.js';
 import type { Step, BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -60,7 +60,7 @@ export function createCli(): Command {
             ...loaded.recording,
             ...(opts.format === 'gif' && { format: 'gif' as const }),
             ...(opts.backend && { backend: opts.backend as 'vhs' | 'browser' }),
-            ...(opts.theme && { theme: opts.theme }),
+            ...(opts.theme && { theme: resolveThemeId(opts.theme) }),
           },
         };
 

@@ -31,7 +31,7 @@ export type { WatchOptions, WatchHandle } from './pipeline/watcher.js';
 export { runBrowser } from './pipeline/browser-runner.js';
 export { executeStep, executeAllSteps, parsePause, mapKeyName } from './pipeline/browser-step-executor.js';
 /** Theme gallery utilities. */
-export { VHS_THEMES, findTheme, getThemeNames } from './config/themes.js';
+export { VHS_THEMES, findTheme, getThemeNames, resolveThemeId } from './config/themes.js';
 export type { ThemeInfo } from './config/themes.js';
 /** HTML player generator. */
 export { generatePlayer } from './pipeline/player-generator.js';
