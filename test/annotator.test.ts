@@ -196,6 +196,47 @@ describe('annotateFrames', () => {
     expect(result.frames[0].annotation_text).toBe('Retried successfully');
   }, 10000);
 
+  it('includes bugs in summary when frames have bugs_detected', async () => {
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    vi.mocked(Anthropic).mockImplementation(() => ({
+      messages: {
+        create: vi.fn().mockResolvedValue({
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              status: 'error',
+              description: 'Bug visible',
+              feature_being_demonstrated: 'startup',
+              bugs_detected: ['layout overflow', 'missing border'],
+              visual_quality: 'broken',
+              annotation_text: 'Bug detected',
+            }),
+          }],
+        }),
+      },
+    }) as any);
+
+    const result = await annotateFrames(
+      '/tmp/frames',
+      1,
+      'test',
+      'desc',
+      'scenario',
+      {
+        enabled: true,
+        model: 'claude-sonnet-4-6',
+        extract_fps: 1,
+        language: 'en',
+        overlay_position: 'bottom',
+        overlay_font_size: 14,
+      },
+    );
+
+    expect(result.bugs_found).toBe(2);
+    expect(result.overall_status).toBe('error');
+    expect(result.summary).toContain('Bugs found: layout overflow; missing border');
+  });
+
   it('includes language instruction in prompt for non-English config', async () => {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     const createMock = vi.fn().mockResolvedValue({

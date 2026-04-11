@@ -176,6 +176,22 @@ describe('record', () => {
     expect(symlink).toHaveBeenCalledTimes(1);
   });
 
+  it('handles unlink failure when latest symlink does not exist', async () => {
+    const { unlink, symlink } = await import('node:fs/promises');
+
+    // Make unlink throw (symlink doesn't exist yet)
+    vi.mocked(unlink).mockRejectedValueOnce(new Error('ENOENT: no such file'));
+
+    await record({
+      config: baseConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+    });
+
+    // Should still create the symlink despite unlink failure
+    expect(symlink).toHaveBeenCalledTimes(1);
+  });
+
   it('writes report JSON', async () => {
     const { writeFile } = await import('node:fs/promises');
 
