@@ -6,11 +6,11 @@ import { writeFile } from 'node:fs/promises';
 import { loadConfig, findScenario } from './config/loader.js';
 import { buildAdhocConfig, buildAdhocScenario } from './config/adhoc.js';
 import { scanProject, generateConfig } from './config/scanner.js';
-import { record, writeSessionReport } from './index.js';
+import { record, recordBrowser, writeSessionReport } from './index.js';
 import { startMcpServer } from './mcp/server.js';
 import { detectRegressions } from './pipeline/regression.js';
 import { startWatcher } from './pipeline/watcher.js';
-import type { Step } from './config/schema.js';
+import type { Step, BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
 const noopLogger: Logger = { log: () => {}, warn: () => {} };
@@ -20,22 +20,24 @@ export function createCli(): Command {
 
   program
     .name('demo-recorder')
-    .description('On-demand terminal demo recording + AI annotation CLI tool')
+    .description('On-demand terminal & browser demo recording + AI annotation CLI tool')
     .version('0.1.0');
 
   program
     .command('record')
-    .description('Record a demo video')
+    .description('Record a demo video (terminal or browser)')
     .option('-c, --config <path>', 'Path to demo-recorder.yaml')
     .option('-s, --scenario <name>', 'Scenario name to record')
     .option('--no-annotate', 'Skip AI annotation')
     .option('--format <format>', 'Output format: mp4 or gif', 'mp4')
     .option('-q, --quiet', 'Suppress progress output')
+    .option('--backend <backend>', 'Recording backend: vhs or browser')
     .option('--adhoc', 'Ad-hoc recording mode (no config file needed)')
     .option('--command <cmd>', 'Command to run (used with --adhoc)')
     .option('--steps <steps>', 'Comma-separated steps: j,k,Enter,sleep:2s,q (used with --adhoc)')
     .option('--width <n>', 'Terminal width (used with --adhoc)', '1200')
     .option('--height <n>', 'Terminal height (used with --adhoc)', '800')
+    .option('--url <url>', 'Starting URL for browser recording (used with --adhoc --backend browser)')
     .action(async (opts) => {
       try {
         const logger = opts.quiet ? noopLogger : undefined;
@@ -55,29 +57,17 @@ export function createCli(): Command {
           recording: {
             ...loaded.recording,
             ...(opts.format === 'gif' && { format: 'gif' as const }),
+            ...(opts.backend && { backend: opts.backend as 'vhs' | 'browser' }),
           },
         };
 
+        const backend = config.recording.backend;
         const projectDir = process.cwd();
-        const scenarios = opts.scenario
-          ? [findScenario(config, opts.scenario)]
-          : config.scenarios;
 
-        const results = [];
-        for (const scenario of scenarios) {
-          const result = await record({ config, scenario, projectDir, logger });
-          results.push(result);
-          if (!opts.quiet) console.log('');
-        }
-
-        if (results.length > 1) {
-          const sessionDir = dirname(dirname(results[0].reportPath));
-          const sessionPath = join(sessionDir, 'session-report.json');
-          const reports = await Promise.all(
-            results.map(async (r) => JSON.parse(await readFile(r.reportPath, 'utf-8'))),
-          );
-          await writeSessionReport(sessionPath, config.project.name, reports);
-          if (!opts.quiet) console.log(`Session report: ${sessionPath}`);
+        if (backend === 'browser') {
+          await handleBrowserRecord(config, opts.scenario, projectDir, logger, opts.quiet);
+        } else {
+          await handleVhsRecord(config, opts.scenario, projectDir, logger, opts.quiet);
         }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
@@ -93,10 +83,21 @@ export function createCli(): Command {
       try {
         const config = await loadConfig(opts.config);
         console.log(`Project: ${config.project.name}`);
-        console.log(`Scenarios:`);
-        for (const s of config.scenarios) {
-          console.log(`  - ${s.name}: ${s.description}`);
-          console.log(`    Steps: ${s.steps.length}, Setup: ${s.setup.length} commands`);
+
+        if (config.scenarios.length > 0) {
+          console.log(`Terminal Scenarios:`);
+          for (const s of config.scenarios) {
+            console.log(`  - ${s.name}: ${s.description}`);
+            console.log(`    Steps: ${s.steps.length}, Setup: ${s.setup.length} commands`);
+          }
+        }
+
+        if (config.browser_scenarios.length > 0) {
+          console.log(`Browser Scenarios:`);
+          for (const s of config.browser_scenarios) {
+            console.log(`  - ${s.name}: ${s.description}`);
+            console.log(`    URL: ${s.url}, Steps: ${s.steps.length}`);
+          }
         }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
@@ -111,13 +112,14 @@ export function createCli(): Command {
     .action(async (opts) => {
       try {
         const config = await loadConfig(opts.config);
-        console.log('\u2713 Config valid');
+        console.log('✓ Config valid');
         console.log(`  Project: ${config.project.name}`);
-        console.log(`  Scenarios: ${config.scenarios.length}`);
-        console.log(`  Recording: ${config.recording.width}x${config.recording.height}`);
+        console.log(`  Terminal Scenarios: ${config.scenarios.length}`);
+        console.log(`  Browser Scenarios: ${config.browser_scenarios.length}`);
+        console.log(`  Recording: ${config.recording.width}x${config.recording.height} (${config.recording.backend})`);
         console.log(`  Annotation: ${config.annotation.enabled ? 'enabled' : 'disabled'}`);
       } catch (error) {
-        console.error(`\u2717 Config invalid: ${error instanceof Error ? error.message : error}`);
+        console.error(`✗ Config invalid: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
       }
     });
@@ -163,7 +165,8 @@ export function createCli(): Command {
     .command('init')
     .description('Generate a demo-recorder.yaml template in the current directory')
     .option('--from-existing', 'Scan project to auto-detect settings')
-    .action(async (opts: { fromExisting?: boolean }) => {
+    .option('--browser', 'Generate a browser recording template')
+    .action(async (opts: { fromExisting?: boolean; browser?: boolean }) => {
       const targetPath = resolve(process.cwd(), 'demo-recorder.yaml');
       if (existsSync(targetPath)) {
         console.error('demo-recorder.yaml already exists in this directory.');
@@ -172,51 +175,21 @@ export function createCli(): Command {
 
       let template: string;
 
-      if (opts.fromExisting) {
+      if (opts.browser) {
+        template = getBrowserTemplate();
+        console.log('✓ Created demo-recorder.yaml (browser recording template)');
+      } else if (opts.fromExisting) {
         const info = await scanProject(process.cwd());
         template = generateConfig(info);
-        console.log(`\u2713 Detected ${info.type} project: ${info.name}`);
+        console.log(`✓ Detected ${info.type} project: ${info.name}`);
       } else {
-        template = `project:
-  name: my-project
-  description: "My CLI/TUI project"
-  # build_command: "make build"
-  # binary: "./my-project"
-
-recording:
-  width: 1200
-  height: 800
-  font_size: 16
-  theme: "Catppuccin Mocha"
-  fps: 25
-  max_duration: 60
-  # format: "mp4"  # or "gif"
-
-output:
-  dir: ".demo-recordings"
-  keep_raw: true
-  keep_frames: false
-
-annotation:
-  enabled: true
-  model: "claude-sonnet-4-6"
-  extract_fps: 1
-  language: "en"
-  overlay_position: "bottom"
-  overlay_font_size: 14
-
-scenarios:
-  - name: "basic"
-    description: "Basic interaction demo"
-    setup: []
-    steps:
-      - { action: "type", value: "./my-project", pause: "2s" }
-      - { action: "key", value: "q", pause: "500ms" }
-`;
+        template = getTerminalTemplate();
       }
 
       await writeFile(targetPath, template, 'utf-8');
-      console.log('\u2713 Created demo-recorder.yaml');
+      if (!opts.browser && !opts.fromExisting) {
+        console.log('✓ Created demo-recorder.yaml');
+      }
       console.log('  Edit the file to configure your project and scenarios.');
     });
 
@@ -243,7 +216,7 @@ scenarios:
             console.log('  No changes detected.');
           } else {
             for (const change of result.changes) {
-              const icon = change.severity === 'critical' ? '\u2717' : change.severity === 'warning' ? '!' : '\u2713';
+              const icon = change.severity === 'critical' ? '✗' : change.severity === 'warning' ? '!' : '✓';
               console.log(`  ${icon} [${change.severity.toUpperCase()}] ${change.description}`);
             }
           }
@@ -299,6 +272,68 @@ scenarios:
   return program;
 }
 
+async function handleVhsRecord(
+  config: ReturnType<typeof Object>,
+  scenarioName: string | undefined,
+  projectDir: string,
+  logger: Logger | undefined,
+  quiet: boolean | undefined,
+) {
+  const scenarios = scenarioName
+    ? [findScenario(config as any, scenarioName)]
+    : (config as any).scenarios;
+
+  const results = [];
+  for (const scenario of scenarios) {
+    const result = await record({ config: config as any, scenario, projectDir, logger });
+    results.push(result);
+    if (!quiet) console.log('');
+  }
+
+  if (results.length > 1) {
+    const sessionDir = dirname(dirname(results[0].reportPath));
+    const sessionPath = join(sessionDir, 'session-report.json');
+    const reports = await Promise.all(
+      results.map(async (r) => JSON.parse(await readFile(r.reportPath, 'utf-8'))),
+    );
+    await writeSessionReport(sessionPath, (config as any).project.name, reports);
+    if (!quiet) console.log(`Session report: ${sessionPath}`);
+  }
+}
+
+async function handleBrowserRecord(
+  config: ReturnType<typeof Object>,
+  scenarioName: string | undefined,
+  projectDir: string,
+  logger: Logger | undefined,
+  quiet: boolean | undefined,
+) {
+  const browserScenarios: BrowserScenario[] = scenarioName
+    ? [(config as any).browser_scenarios.find((s: BrowserScenario) => s.name === scenarioName)]
+    : (config as any).browser_scenarios;
+
+  if (scenarioName && !browserScenarios[0]) {
+    throw new Error(`Browser scenario "${scenarioName}" not found`);
+  }
+
+  const results = [];
+  for (const scenario of browserScenarios) {
+    const result = await recordBrowser({ config: config as any, scenario, projectDir, logger });
+    results.push(result);
+    if (!quiet) console.log('');
+  }
+
+  if (results.length > 1) {
+    const sessionDir = dirname(dirname(results[0].reportPath));
+    const sessionPath = join(sessionDir, 'session-report.json');
+    const reports = await Promise.all(
+      results.map(async (r) => JSON.parse(await readFile(r.reportPath, 'utf-8'))),
+    );
+    await writeSessionReport(sessionPath, (config as any).project.name, reports);
+    if (!quiet) console.log(`Session report: ${sessionPath}`);
+  }
+}
+
 function parseAdhocSteps(stepsStr: string): Step[] {
   return stepsStr.split(',').map((token) => {
     const trimmed = token.trim();
@@ -317,12 +352,19 @@ function parseAdhocSteps(stepsStr: string): Step[] {
 
 async function handleAdhocRecord(opts: {
   command?: string;
+  url?: string;
   steps?: string;
   width: string;
   height: string;
   format: string;
   annotate: boolean;
+  backend?: string;
 }, logger?: Logger): Promise<void> {
+  if (opts.backend === 'browser') {
+    await handleAdhocBrowserRecord(opts, logger);
+    return;
+  }
+
   if (!opts.command) {
     throw new Error('--command is required with --adhoc mode');
   }
@@ -339,4 +381,147 @@ async function handleAdhocRecord(opts: {
   const scenario = buildAdhocScenario(opts.command, parsedSteps);
 
   await record({ config, scenario, projectDir: process.cwd(), logger });
+}
+
+async function handleAdhocBrowserRecord(opts: {
+  url?: string;
+  steps?: string;
+  width: string;
+  height: string;
+  annotate: boolean;
+}, logger?: Logger): Promise<void> {
+  if (!opts.url) {
+    throw new Error('--url is required with --adhoc --backend browser mode');
+  }
+
+  const config = buildAdhocConfig({
+    command: opts.url,
+    width: parseInt(opts.width, 10),
+    height: parseInt(opts.height, 10),
+    format: 'mp4',
+    annotate: opts.annotate,
+    backend: 'browser',
+  });
+
+  const browserSteps = opts.steps
+    ? parseAdhocBrowserSteps(opts.steps)
+    : [];
+
+  const scenario: BrowserScenario = {
+    name: 'adhoc-browser',
+    description: `Ad-hoc browser recording: ${opts.url}`,
+    url: opts.url,
+    setup: [],
+    steps: browserSteps,
+  };
+
+  await recordBrowser({ config, scenario, projectDir: process.cwd(), logger });
+}
+
+function parseAdhocBrowserSteps(stepsStr: string): BrowserScenario['steps'] {
+  return stepsStr.split(',').map((token) => {
+    const trimmed = token.trim();
+    if (trimmed.startsWith('sleep:')) {
+      return { action: 'sleep' as const, value: trimmed.slice(6), pause: '0ms' };
+    }
+    if (trimmed.startsWith('click:')) {
+      return { action: 'click' as const, value: trimmed.slice(6), pause: '500ms' };
+    }
+    if (trimmed.startsWith('fill:')) {
+      const parts = trimmed.slice(5).split('=');
+      return { action: 'fill' as const, value: parts[0], text: parts.slice(1).join('='), pause: '500ms' };
+    }
+    if (trimmed.startsWith('nav:')) {
+      return { action: 'navigate' as const, value: trimmed.slice(4), pause: '1000ms' };
+    }
+    if (trimmed.startsWith('scroll:')) {
+      return { action: 'scroll' as const, value: trimmed.slice(7), pause: '500ms' };
+    }
+    if (trimmed.startsWith('wait:')) {
+      return { action: 'wait' as const, value: trimmed.slice(5), pause: '500ms' };
+    }
+    // Default: type the text
+    return { action: 'type' as const, value: trimmed, pause: '500ms' };
+  });
+}
+
+function getTerminalTemplate(): string {
+  return `project:
+  name: my-project
+  description: "My CLI/TUI project"
+  # build_command: "make build"
+  # binary: "./my-project"
+
+recording:
+  width: 1200
+  height: 800
+  font_size: 16
+  theme: "Catppuccin Mocha"
+  fps: 25
+  max_duration: 60
+  # format: "mp4"  # or "gif"
+
+output:
+  dir: ".demo-recordings"
+  keep_raw: true
+  keep_frames: false
+
+annotation:
+  enabled: true
+  model: "claude-sonnet-4-6"
+  extract_fps: 1
+  language: "en"
+  overlay_position: "bottom"
+  overlay_font_size: 14
+
+scenarios:
+  - name: "basic"
+    description: "Basic interaction demo"
+    setup: []
+    steps:
+      - { action: "type", value: "./my-project", pause: "2s" }
+      - { action: "key", value: "q", pause: "500ms" }
+`;
+}
+
+function getBrowserTemplate(): string {
+  return `project:
+  name: my-web-app
+  description: "My web application"
+  # build_command: "npm run build"
+
+recording:
+  backend: browser
+  browser:
+    headless: true
+    browser: chromium
+    viewport_width: 1280
+    viewport_height: 720
+    timeout_ms: 30000
+    device_scale_factor: 1
+    record_video: true
+
+output:
+  dir: ".demo-recordings"
+  keep_raw: true
+  keep_frames: false
+
+annotation:
+  enabled: true
+  model: "claude-sonnet-4-6"
+  extract_fps: 1
+  language: "en"
+  overlay_position: "bottom"
+  overlay_font_size: 14
+
+browser_scenarios:
+  - name: "homepage"
+    description: "Navigate the homepage"
+    url: "http://localhost:3000"
+    steps:
+      - { action: "sleep", value: "2s" }
+      - { action: "click", value: "nav a:first-child", pause: "1s" }
+      - { action: "scroll", value: "300", pause: "1s" }
+      - { action: "screenshot", value: "homepage.png" }
+`;
 }

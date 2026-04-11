@@ -7,6 +7,22 @@ const StepSchema = z.object({
   repeat: z.number().optional(),
 });
 
+/** Browser-specific step schema with extended actions (navigate, click, fill, scroll, hover, select, screenshot). */
+const BrowserStepSchema = z.object({
+  action: z.enum([
+    'navigate', 'click', 'fill', 'type', 'key', 'sleep',
+    'scroll', 'hover', 'select', 'screenshot', 'wait',
+  ]),
+  /** Target value: URL for navigate, CSS selector for click/fill/hover/select, key name for key, text for type/fill, ms for sleep, px for scroll. */
+  value: z.string(),
+  /** Additional text for fill actions (selector in value, text in text). */
+  text: z.string().optional(),
+  /** Pause after this step (e.g., "500ms", "2s"). */
+  pause: z.string().default('500ms'),
+  /** Repeat this step N times. */
+  repeat: z.number().optional(),
+});
+
 const ScenarioSchema = z.object({
   name: z.string(),
   description: z.string(),
@@ -14,11 +30,40 @@ const ScenarioSchema = z.object({
   steps: z.array(StepSchema),
 });
 
+/** Browser scenario with URL and browser-specific steps. */
+const BrowserScenarioSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  /** Starting URL for the browser (e.g., "http://localhost:3000"). */
+  url: z.string().url(),
+  /** Setup commands to run before recording (e.g., start dev server). */
+  setup: z.array(z.string()).default([]),
+  steps: z.array(BrowserStepSchema),
+});
+
 const ProjectSchema = z.object({
   name: z.string(),
   description: z.string().default(''),
   build_command: z.string().optional(),
   binary: z.string().optional(),
+});
+
+/** Browser-specific configuration options. */
+const BrowserConfigSchema = z.object({
+  /** Run browser in headless mode. */
+  headless: z.boolean().default(true),
+  /** Browser engine to use. */
+  browser: z.enum(['chromium', 'firefox', 'webkit']).default('chromium'),
+  /** Viewport width in pixels. */
+  viewport_width: z.number().default(1280),
+  /** Viewport height in pixels. */
+  viewport_height: z.number().default(720),
+  /** Timeout for each step in milliseconds. */
+  timeout_ms: z.number().default(30_000),
+  /** Device scale factor for HiDPI rendering. */
+  device_scale_factor: z.number().default(1),
+  /** Whether to record video (or use screenshots-only mode). */
+  record_video: z.boolean().default(true),
 });
 
 const RecordingSchema = z.object({
@@ -29,6 +74,10 @@ const RecordingSchema = z.object({
   fps: z.number().default(25),
   max_duration: z.number().default(60),
   format: z.enum(['mp4', 'gif']).default('mp4'),
+  /** Recording backend: 'vhs' for terminal, 'browser' for web UI. */
+  backend: z.enum(['vhs', 'browser']).default('vhs'),
+  /** Browser-specific configuration (required when backend is 'browser'). */
+  browser: BrowserConfigSchema.default({}),
 });
 
 const OutputSchema = z.object({
@@ -58,12 +107,27 @@ export const ConfigSchema = z.object({
   output: OutputSchema.default({}),
   annotation: AnnotationSchema.default({}),
   watch: WatchSchema.default({}),
-  scenarios: z.array(ScenarioSchema).min(1),
-});
+  scenarios: z.array(ScenarioSchema).default([]),
+  /** Browser scenarios — used when recording.backend is 'browser'. */
+  browser_scenarios: z.array(BrowserScenarioSchema).default([]),
+}).refine(
+  (data) => {
+    if (data.recording.backend === 'vhs') {
+      return data.scenarios.length > 0;
+    }
+    return data.browser_scenarios.length > 0;
+  },
+  {
+    message: 'At least one scenario is required (use "scenarios" for vhs backend, "browser_scenarios" for browser backend)',
+  },
+);
 
 export type Config = z.infer<typeof ConfigSchema>;
 export type Scenario = z.infer<typeof ScenarioSchema>;
+export type BrowserScenario = z.infer<typeof BrowserScenarioSchema>;
 export type Step = z.infer<typeof StepSchema>;
+export type BrowserStep = z.infer<typeof BrowserStepSchema>;
 export type RecordingConfig = z.infer<typeof RecordingSchema>;
+export type BrowserConfig = z.infer<typeof BrowserConfigSchema>;
 export type AnnotationConfig = z.infer<typeof AnnotationSchema>;
 export type WatchConfig = z.infer<typeof WatchSchema>;

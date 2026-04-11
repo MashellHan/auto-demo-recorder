@@ -3,9 +3,10 @@ import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { resolve, join } from 'node:path';
 import { existsSync } from 'node:fs';
-import type { Config, Scenario } from './config/schema.js';
+import type { Config, Scenario, BrowserScenario } from './config/schema.js';
 import { buildTape } from './pipeline/tape-builder.js';
 import { runVhs } from './pipeline/vhs-runner.js';
+import { runBrowser } from './pipeline/browser-runner.js';
 import { extractFrames } from './pipeline/frame-extractor.js';
 import { annotateFrames, type Logger } from './pipeline/annotator.js';
 import { postProcess } from './pipeline/post-processor.js';
@@ -15,7 +16,7 @@ import { compareReports, writeSessionReport, type Report } from './pipeline/regr
 export { loadConfig, findScenario } from './config/loader.js';
 /** Zod schema for validating demo-recorder config objects. */
 export { ConfigSchema } from './config/schema.js';
-export type { Config, Scenario } from './config/schema.js';
+export type { Config, Scenario, BrowserScenario } from './config/schema.js';
 export type { Logger } from './pipeline/annotator.js';
 /** Regression detection utilities for comparing recording reports. */
 export { detectRegressions, compareReports, loadReport, writeSessionReport } from './pipeline/regression.js';
@@ -23,6 +24,9 @@ export type { RegressionResult, RegressionChange, Report, SessionReport } from '
 /** File watcher for auto-recording on source changes. */
 export { startWatcher, matchesGlobs } from './pipeline/watcher.js';
 export type { WatchOptions, WatchHandle } from './pipeline/watcher.js';
+/** Browser recording utilities. */
+export { runBrowser } from './pipeline/browser-runner.js';
+export { executeStep, executeAllSteps, parsePause, mapKeyName } from './pipeline/browser-step-executor.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
@@ -53,12 +57,26 @@ export interface RecordResult {
   };
 }
 
-/** Options for the {@link record} function. */
+/** Options for the {@link record} function (VHS terminal backend). */
 export interface RecordOptions {
   /** Validated project configuration. */
   config: Config;
   /** Scenario to record. */
   scenario: Scenario;
+  /** Absolute path to the project directory. */
+  projectDir: string;
+  /** Custom logger for pipeline progress output. */
+  logger?: Logger;
+  /** Skip updating the `latest` symlink (used for parallel recording). */
+  skipSymlinkUpdate?: boolean;
+}
+
+/** Options for the {@link recordBrowser} function. */
+export interface BrowserRecordOptions {
+  /** Validated project configuration. */
+  config: Config;
+  /** Browser scenario to record. */
+  scenario: BrowserScenario;
   /** Absolute path to the project directory. */
   projectDir: string;
   /** Custom logger for pipeline progress output. */
@@ -119,6 +137,60 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
   return result;
 }
 
+/**
+ * Record a browser demo scenario using Playwright: launches browser, executes steps,
+ * captures video, optionally annotates with AI, and generates a report.
+ *
+ * @param options - Browser recording configuration including scenario, project dir, and logger.
+ * @returns Result object with paths to video, report, thumbnail, and analysis summary.
+ */
+export async function recordBrowser(options: BrowserRecordOptions): Promise<RecordResult> {
+  const { config, scenario, projectDir, logger: log = defaultLogger, skipSymlinkUpdate = false } = options;
+
+  const timestamp = formatTimestamp(new Date());
+  const outputBase = resolve(projectDir, config.output.dir, timestamp, scenario.name);
+  await mkdir(outputBase, { recursive: true });
+
+  const paths = {
+    rawVideo: join(outputBase, 'raw.webm'),
+    annotatedVideo: join(outputBase, 'annotated.mp4'),
+    thumbnail: join(outputBase, 'thumbnail.png'),
+    report: join(outputBase, 'report.json'),
+    frames: join(outputBase, 'frames'),
+    tape: join(outputBase, `${scenario.name}.tape`), // unused for browser, kept for interface compat
+  };
+
+  log.log(`Recording browser scenario: ${scenario.name}`);
+
+  if (config.project.build_command) {
+    log.log(`  Building: ${config.project.build_command}`);
+    const execFileAsync = promisify(execFileCb);
+    const [cmd, ...args] = config.project.build_command.split(/\s+/);
+    await execFileAsync(cmd, args, { cwd: projectDir });
+    log.log('  ✓ Build complete');
+  }
+
+  const browserResult = await runBrowser(scenario, config.recording, paths.rawVideo, log);
+  const durationSeconds = browserResult.durationMs / 1000;
+
+  const annotationResult = config.annotation.enabled
+    ? await runAnnotationPipeline(config, { name: scenario.name, description: scenario.description, setup: [], steps: [] }, paths, log, false)
+    : null;
+
+  await writeReport(paths.report, config.project.name, scenario.name, durationSeconds, annotationResult);
+
+  const regressionInfo = await checkPreviousReport(projectDir, config.output.dir, scenario.name, paths.report, log);
+
+  if (!skipSymlinkUpdate) {
+    await updateLatestSymlink(projectDir, config.output.dir, timestamp);
+  }
+
+  const hasAnnotatedVideo = config.annotation.enabled;
+  const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult, regressionInfo);
+  printSummary(result, log);
+  return result;
+}
+
 interface RecordPaths {
   rawVideo: string;
   annotatedVideo: string;
@@ -130,25 +202,25 @@ interface RecordPaths {
 
 async function buildAndRecord(config: Config, scenario: Scenario, paths: RecordPaths, projectDir: string, log: Logger): Promise<number> {
   const tapeContent = buildTape({ scenario, recording: config.recording, outputPath: paths.rawVideo });
-  log.log('  \u2713 Tape generated');
+  log.log('  ✓ Tape generated');
 
   if (config.project.build_command) {
     log.log(`  Building: ${config.project.build_command}`);
     const execFileAsync = promisify(execFileCb);
     const [cmd, ...args] = config.project.build_command.split(/\s+/);
     await execFileAsync(cmd, args, { cwd: projectDir });
-    log.log('  \u2713 Build complete');
+    log.log('  ✓ Build complete');
   }
 
   const vhsResult = await runVhs(paths.tape, tapeContent);
   const durationSeconds = vhsResult.durationMs / 1000;
-  log.log(`  \u2713 VHS recording complete (${durationSeconds.toFixed(1)}s)`);
+  log.log(`  ✓ VHS recording complete (${durationSeconds.toFixed(1)}s)`);
   return durationSeconds;
 }
 
 async function runAnnotationPipeline(config: Config, scenario: Scenario, paths: RecordPaths, log: Logger, skipOverlay: boolean = false) {
   const extraction = await extractFrames(paths.rawVideo, paths.frames, config.annotation.extract_fps);
-  log.log(`  \u2713 Frames extracted (${extraction.frameCount} frames)`);
+  log.log(`  ✓ Frames extracted (${extraction.frameCount} frames)`);
 
   const annotationResult = await annotateFrames(
     paths.frames,
@@ -159,7 +231,7 @@ async function runAnnotationPipeline(config: Config, scenario: Scenario, paths: 
     config.annotation,
     log,
   );
-  log.log('  \u2713 AI annotation complete');
+  log.log('  ✓ AI annotation complete');
 
   if (skipOverlay) {
     log.log('  (GIF format: skipping overlay, annotations in report only)');
@@ -173,7 +245,7 @@ async function runAnnotationPipeline(config: Config, scenario: Scenario, paths: 
       overlayPosition: config.annotation.overlay_position,
       extractFps: config.annotation.extract_fps,
     });
-    log.log('  \u2713 Video annotated');
+    log.log('  ✓ Video annotated');
   }
 
   if (!config.output.keep_frames) {
@@ -270,7 +342,7 @@ async function checkPreviousReport(
 
     const changes = compareReports(previousReport, currentReport);
     if (changes.length === 0) {
-      log.log('  \u2713 No regressions from previous recording');
+      log.log('  ✓ No regressions from previous recording');
       return undefined;
     }
 
@@ -279,7 +351,7 @@ async function checkPreviousReport(
     );
 
     for (const change of changes) {
-      const icon = change.severity === 'critical' ? '\u2717' : change.severity === 'warning' ? '!' : '\u2713';
+      const icon = change.severity === 'critical' ? '✗' : change.severity === 'warning' ? '!' : '✓';
       log.log(`  ${icon} [${change.severity.toUpperCase()}] ${change.description}`);
     }
 

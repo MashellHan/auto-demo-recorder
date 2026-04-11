@@ -1,0 +1,50 @@
+project:
+  name: demo-recorder-showcase
+  description: "Showcasing demo-recorder's own features"
+
+recording:
+  width: 1200
+  height: 600
+  font_size: 16
+  theme: "Catppuccin Mocha"
+  fps: 25
+  max_duration: 30
+
+output:
+  dir: ".demo-recordings"
+  keep_raw: true
+  keep_frames: false
+
+annotation:
+  enabled: false
+
+scenarios:
+  - name: "help-overview"
+    description: "Show all available CLI commands"
+    steps:
+      - { action: "type", value: "node dist/bin/demo-recorder.js --help", pause: "1s" }
+      - { action: "key", value: "Enter", pause: "3s" }
+
+  - name: "record-adhoc"
+    description: "Demo adhoc recording mode"
+    steps:
+      - { action: "type", value: "# Ad-hoc mode: record without config file", pause: "1s" }
+      - { action: "key", value: "Enter", pause: "500ms" }
+      - { action: "type", value: "node dist/bin/demo-recorder.js record --adhoc --command 'echo Hello World' --steps 'sleep:2s' --no-annotate", pause: "1s" }
+      - { action: "key", value: "Enter", pause: "3s" }
+
+  - name: "validate-config"
+    description: "Validate a config file"
+    steps:
+      - { action: "type", value: "# Validate config syntax", pause: "1s" }
+      - { action: "key", value: "Enter", pause: "500ms" }
+      - { action: "type", value: "node dist/bin/demo-recorder.js validate -c examples/demo-recorder.yaml", pause: "1s" }
+      - { action: "key", value: "Enter", pause: "3s" }
+
+  - name: "list-scenarios"
+    description: "List scenarios from config"
+    steps:
+      - { action: "type", value: "# List available scenarios", pause: "1s" }
+      - { action: "key", value: "Enter", pause: "500ms" }
+      - { action: "type", value: "node dist/bin/demo-recorder.js list -c examples/demo-recorder.yaml", pause: "1s" }
+      - { action: "key", value: "Enter", pause: "3s" }

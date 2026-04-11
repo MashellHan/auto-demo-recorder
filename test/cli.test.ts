@@ -20,6 +20,21 @@ vi.mock('../src/index.js', () => ({
       description: 'Recording complete.',
     },
   }),
+  recordBrowser: vi.fn().mockResolvedValue({
+    success: true,
+    videoPath: '/tmp/annotated.mp4',
+    rawVideoPath: '/tmp/raw.webm',
+    reportPath: '/tmp/report.json',
+    thumbnailPath: '/tmp/thumb.png',
+    summary: {
+      status: 'ok',
+      durationSeconds: 5,
+      framesAnalyzed: 3,
+      bugsFound: 0,
+      featuresDemo: ['homepage'],
+      description: 'Recording complete.',
+    },
+  }),
   writeSessionReport: vi.fn().mockResolvedValue({
     project: 'test',
     timestamp: '2026-04-11T00:00:00Z',
@@ -36,13 +51,14 @@ vi.mock('../src/index.js', () => ({
 vi.mock('../src/config/loader.js', () => ({
   loadConfig: vi.fn().mockResolvedValue({
     project: { name: 'test', description: 'Test' },
-    recording: { width: 1200, height: 800, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60 },
+    recording: { width: 1200, height: 800, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60, backend: 'vhs', browser: { headless: true, browser: 'chromium', viewport_width: 1280, viewport_height: 720, timeout_ms: 30000, device_scale_factor: 1, record_video: true } },
     output: { dir: '.demo-recordings', keep_raw: true, keep_frames: false },
     annotation: { enabled: true, model: 'claude-sonnet-4-6', extract_fps: 1, language: 'en', overlay_position: 'bottom', overlay_font_size: 14 },
     watch: { include: ['src/**/*'], exclude: ['node_modules/**', 'dist/**', '.demo-recordings/**'], debounce_ms: 500 },
     scenarios: [
       { name: 'basic', description: 'Basic', setup: [], steps: [{ action: 'key', value: 'q', pause: '500ms' }] },
     ],
+    browser_scenarios: [],
   }),
   findScenario: vi.fn().mockReturnValue({ name: 'basic', description: 'Basic', setup: [], steps: [{ action: 'key', value: 'q', pause: '500ms' }] }),
 }));
@@ -197,6 +213,7 @@ describe('list command', () => {
 
     const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('Project: test');
+    expect(output).toContain('Terminal Scenarios');
     expect(output).toContain('basic');
     consoleSpy.mockRestore();
   });
@@ -217,7 +234,7 @@ describe('validate command', () => {
     const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(output).toContain('Config valid');
     expect(output).toContain('Project: test');
-    expect(output).toContain('Scenarios: 1');
+    expect(output).toContain('Terminal Scenarios: 1');
     consoleSpy.mockRestore();
   });
 });
@@ -485,7 +502,7 @@ describe('record command (multi-scenario session report)', () => {
     // Mock loadConfig to return 2 scenarios
     vi.mocked(loadConfig).mockResolvedValueOnce({
       project: { name: 'test', description: 'Test' },
-      recording: { width: 1200, height: 800, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60 },
+      recording: { width: 1200, height: 800, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60, backend: 'vhs', browser: { headless: true, browser: 'chromium', viewport_width: 1280, viewport_height: 720, timeout_ms: 30000, device_scale_factor: 1, record_video: true } },
       output: { dir: '.demo-recordings', keep_raw: true, keep_frames: false },
       annotation: { enabled: true, model: 'claude-sonnet-4-6', extract_fps: 1, language: 'en', overlay_position: 'bottom', overlay_font_size: 14 },
       watch: { include: ['src/**/*'], exclude: ['node_modules/**'], debounce_ms: 500 },
@@ -493,6 +510,7 @@ describe('record command (multi-scenario session report)', () => {
         { name: 'basic', description: 'Basic', setup: [], steps: [{ action: 'key', value: 'q', pause: '500ms' }] },
         { name: 'advanced', description: 'Advanced', setup: [], steps: [{ action: 'type', value: 'hello', pause: '1s' }] },
       ],
+      browser_scenarios: [],
     } as never);
 
     // Mock record to return proper report paths
