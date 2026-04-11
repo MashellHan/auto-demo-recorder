@@ -1,6 +1,26 @@
 import { resolve, basename } from 'node:path';
 import { formatTimestamp } from './index.js';
 import { validateDependencies } from './config/dependencies.js';
+import type { Config } from './config/schema.js';
+import type { HistoryEntry } from './analytics/history.js';
+
+/**
+ * Filter history entries to only include scenarios defined in the config.
+ *
+ * Many analytics commands use `readHistory()` which returns entries for ALL
+ * scenarios ever recorded. When a user specifies `--config`, they expect
+ * results scoped to the scenarios in that config file.
+ */
+export function filterEntriesByConfig(
+  entries: readonly HistoryEntry[],
+  config: Config,
+): readonly HistoryEntry[] {
+  const scenarioNames = new Set([
+    ...config.scenarios.map((s) => s.name),
+    ...config.browser_scenarios.map((s) => s.name),
+  ]);
+  return entries.filter((e) => scenarioNames.has(e.scenario));
+}
 
 /**
  * Resolve a user-supplied session/scenario path, stripping the output directory

@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { resolve, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { loadConfig } from './config/loader.js';
-import { resolveSessionPath } from './cli-utils.js';
+import { resolveSessionPath, filterEntriesByConfig } from './cli-utils.js';
 import { analyzeTimingFromReport, formatTimingReport } from './analytics/timing.js';
 import { saveBaseline, checkBaseline, listBaselines, formatBaselineComparison } from './analytics/baseline.js';
 import { computeMetrics, formatMetrics } from './analytics/metrics.js';
@@ -281,12 +281,12 @@ function registerHistoryCommand(program: Command): void {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
 
-        const entries = await readHistory(outputDir, {
+        const entries = filterEntriesByConfig(await readHistory(outputDir, {
           since: opts.since ? new Date(opts.since) : undefined,
           scenario: opts.scenario,
           status: opts.status,
           limit: opts.limit ? parseInt(opts.limit, 10) : undefined,
-        });
+        }), config);
 
         console.log(formatHistoryTable(entries));
       } catch (error) {
@@ -307,9 +307,9 @@ function registerTimelineCommand(program: Command): void {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
 
-        const entries = await readHistory(outputDir, {
+        const entries = filterEntriesByConfig(await readHistory(outputDir, {
           limit: opts.limit ? parseInt(opts.limit, 10) : undefined,
-        });
+        }), config);
 
         const result = generateTimeline(entries);
         console.log(formatTimeline(result));
@@ -352,7 +352,7 @@ function registerSearchCommand(program: Command): void {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
 
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = searchHistory(entries, query, {
           limit: opts.limit ? parseInt(opts.limit, 10) : undefined,
           status: opts.status,

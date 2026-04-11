@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { resolve } from 'node:path';
 import { loadConfig } from './config/loader.js';
 import { readHistory } from './analytics/history.js';
+import { filterEntriesByConfig } from './cli-utils.js';
 import { generateHeatMap, formatHeatMap } from './analytics/heatmap.js';
 import { computeScoreCard, formatScoreCard } from './analytics/scorecard.js';
 import { suggestTags, formatTagSuggestions } from './analytics/tag-suggestions.js';
@@ -52,7 +53,7 @@ function registerHeatMapCommand(program: Command): void {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
 
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = generateHeatMap(entries);
         console.log(formatHeatMap(result));
       } catch (error) {
@@ -72,7 +73,7 @@ function registerScoreCardCommand(program: Command): void {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
 
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const card = computeScoreCard(entries);
         console.log(formatScoreCard(card));
       } catch (error) {
@@ -108,7 +109,7 @@ function registerStatusOverviewCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const overview = computeStatusOverview(entries);
         console.log(formatStatusOverview(overview));
       } catch (error) {
@@ -127,7 +128,7 @@ function registerTrendsCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = analyzeTrends(entries);
         console.log(formatTrendReport(result));
       } catch (error) {
@@ -148,7 +149,7 @@ function registerOutliersCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const threshold = opts.threshold ? parseFloat(opts.threshold) : 2.0;
 
         if (opts.perScenario) {
@@ -175,7 +176,7 @@ function registerCorrelationCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const minSessions = opts.minSessions ? parseInt(opts.minSessions, 10) : 3;
         const result = computeCorrelations(entries, minSessions);
         console.log(formatCorrelations(result));
@@ -223,7 +224,7 @@ function registerDistributionCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = analyzeDistribution(entries);
         console.log(formatDistribution(result));
       } catch (error) {
@@ -243,7 +244,7 @@ function registerAnomalyCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const threshold = opts.threshold ? parseFloat(opts.threshold) : 2.0;
         const result = detectAnomalies(entries, threshold);
         console.log(formatAnomalies(result));
@@ -264,7 +265,7 @@ function registerFingerprintCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const threshold = opts.threshold ? parseInt(opts.threshold, 10) : 80;
         const result = fingerprintSessions(entries, threshold);
         console.log(formatFingerprints(result));
@@ -284,7 +285,7 @@ function registerFunnelCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = analyzeFunnel(entries);
         console.log(formatFunnel(result));
       } catch (error) {
@@ -303,7 +304,7 @@ function registerRadarCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = computeRadar(entries);
         console.log(formatRadar(result));
       } catch (error) {
@@ -322,7 +323,7 @@ function registerParetoCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = analyzePareto(entries);
         console.log(formatPareto(result));
       } catch (error) {

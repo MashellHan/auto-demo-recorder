@@ -79,7 +79,7 @@ export type { NotificationPayload } from './pipeline/notifier.js';
 export { buildDependencyOrder, validateDependencies, buildDependencyGraph, formatDependencyGraph } from './config/dependencies.js';
 export type { DependencyScenario, DependencyEdge, DependencyGraph } from './config/dependencies.js';
 /** Utility to resolve user-supplied session paths, stripping output dir prefix. */
-export { resolveSessionPath } from './cli-utils.js';
+export { resolveSessionPath, filterEntriesByConfig } from './cli-utils.js';
 /** Step timing analysis for recorded scenarios. */
 export { analyzeTimingFromReport, analyzeTimingFromData, renderTimingChart, formatTimingReport } from './analytics/timing.js';
 export type { StepTiming, TimingAnalysis } from './analytics/timing.js';

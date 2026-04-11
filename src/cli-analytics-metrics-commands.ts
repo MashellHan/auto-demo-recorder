@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { resolve } from 'node:path';
 import { loadConfig } from './config/loader.js';
 import { readHistory } from './analytics/history.js';
+import { filterEntriesByConfig } from './cli-utils.js';
 import { computeBenchmarks, formatBenchmarks } from './analytics/benchmarks.js';
 import { computeFreshness, formatFreshness } from './analytics/freshness.js';
 import { analyzeRates, formatRateAnalysis } from './analytics/rate-analysis.js';
@@ -54,7 +55,7 @@ function registerBenchmarksCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = computeBenchmarks(entries);
         console.log(formatBenchmarks(result));
       } catch (error) {
@@ -73,7 +74,7 @@ function registerFreshnessCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = computeFreshness(entries);
         console.log(formatFreshness(result));
       } catch (error) {
@@ -92,7 +93,7 @@ function registerRatesCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = analyzeRates(entries);
         console.log(formatRateAnalysis(result));
       } catch (error) {
@@ -111,7 +112,7 @@ function registerDashboardCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = computeHealthDashboard(entries);
         console.log(formatHealthDashboard(result));
       } catch (error) {
@@ -130,7 +131,7 @@ function registerStreaksCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = analyzeStreaks(entries);
         console.log(formatStreaks(result));
       } catch (error) {
@@ -149,7 +150,7 @@ function registerRiskCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = computeRiskScores(entries);
         console.log(formatRiskScores(result));
       } catch (error) {
@@ -168,7 +169,7 @@ function registerEfficiencyCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = computeEfficiency(entries);
         console.log(formatEfficiency(result));
       } catch (error) {
@@ -187,7 +188,7 @@ function registerVelocityCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const result = analyzeVelocity(entries);
         console.log(formatVelocity(result));
       } catch (error) {
@@ -207,7 +208,7 @@ function registerCapacityCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const workHours = opts.workHours ? parseFloat(opts.workHours) : 8;
         const result = analyzeCapacity(entries, new Date(), workHours);
         console.log(formatCapacity(result));
@@ -228,7 +229,7 @@ function registerDigestCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const period: DigestPeriod = opts.period === 'weekly' ? 'weekly' : 'daily';
         const result = generateDigest(entries, period);
         console.log(formatDigest(result));
@@ -250,7 +251,7 @@ function registerQualityTrendsCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const windowDays = opts.windowDays ? parseInt(opts.windowDays, 10) : 7;
         const maxWindows = opts.maxWindows ? parseInt(opts.maxWindows, 10) : 8;
         const result = analyzeQualityTrends(entries, windowDays, maxWindows);
@@ -276,7 +277,7 @@ function registerForecastCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const days = opts.days ? parseInt(opts.days, 10) : 7;
         const method: ForecastMethod = opts.method === 'sma' ? 'sma' : 'ema';
         const windowSize = opts.window ? parseInt(opts.window, 10) : 7;
@@ -301,7 +302,7 @@ function registerCohortsCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const granularity: CohortGranularity = opts.granularity === 'monthly' ? 'monthly' : 'weekly';
         const result = analyzeCohorts(entries, granularity);
         console.log(formatCohorts(result));
@@ -324,7 +325,7 @@ function registerBurndownCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const target = opts.target ? parseInt(opts.target, 10) : 100;
         const now = new Date();
         const startDate = opts.start ? new Date(opts.start) : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -348,7 +349,7 @@ function registerHealthScoreCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const windowDays = opts.window ? parseInt(opts.window, 10) : 30;
         const result = computeHealthScore(entries, windowDays);
         console.log(formatHealthScore(result));

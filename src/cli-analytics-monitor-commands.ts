@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { resolve } from 'node:path';
 import { loadConfig } from './config/loader.js';
 import { readHistory } from './analytics/history.js';
+import { filterEntriesByConfig } from './cli-utils.js';
 import { detectDuplicates, formatDuplicates } from './analytics/duplicates.js';
 import { groupRecordings, formatGrouping } from './analytics/grouping.js';
 import { generateAlerts, formatAlerts } from './analytics/alerts.js';
@@ -38,7 +39,7 @@ function registerDuplicatesCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const windowSeconds = opts.window ? parseInt(opts.window, 10) : 60;
         const result = detectDuplicates(entries, windowSeconds);
         console.log(formatDuplicates(result));
@@ -59,7 +60,7 @@ function registerGroupCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const groupBy = (opts.by ?? 'day') as GroupBy;
         if (!['day', 'week', 'scenario', 'backend', 'status'].includes(groupBy)) {
           console.error(`Invalid group-by criterion: ${groupBy}. Use day, week, scenario, backend, or status.`);
@@ -85,7 +86,7 @@ function registerAlertsCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const thresholds = {
           maxFailureRate: opts.maxFailure ? parseFloat(opts.maxFailure) : undefined,
           maxDuration: opts.maxDuration ? parseFloat(opts.maxDuration) : undefined,
@@ -113,7 +114,7 @@ function registerSlaCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const targets: Record<string, number> = {};
         if (opts.minSuccess) targets.minSuccessRate = parseFloat(opts.minSuccess);
         if (opts.maxDuration) targets.maxAvgDuration = parseFloat(opts.maxDuration);
@@ -142,7 +143,7 @@ function registerRetentionCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const policy = {
           maxAgeDays: opts.maxAge ? parseInt(opts.maxAge, 10) : undefined,
           maxCount: opts.maxCount ? parseInt(opts.maxCount, 10) : undefined,
@@ -169,7 +170,7 @@ function registerSessionDiffSummaryCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const allEntries = await readHistory(outputDir);
+        const allEntries = filterEntriesByConfig(await readHistory(outputDir), config);
         const entriesA = allEntries.filter((e) => e.sessionId === sessionA);
         const entriesB = allEntries.filter((e) => e.sessionId === sessionB);
 
@@ -201,7 +202,7 @@ function registerCoverageCommand(program: Command): void {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const entries = await readHistory(outputDir);
+        const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const staleDays = opts.staleDays ? parseInt(opts.staleDays, 10) : 7;
         const scenarioNames = [
           ...config.scenarios.map((s) => s.name),

@@ -110,7 +110,7 @@ export async function readHistory(
 /**
  * Get history summary statistics.
  */
-export function historyStats(entries: HistoryEntry[]): {
+export function historyStats(entries: readonly HistoryEntry[]): {
   total: number;
   okCount: number;
   errorCount: number;
@@ -138,7 +138,7 @@ function statusIcon(status: string): string {
 /**
  * Format history entries as a human-readable table.
  */
-export function formatHistoryTable(entries: HistoryEntry[]): string {
+export function formatHistoryTable(entries: readonly HistoryEntry[]): string {
   const lines: string[] = [];
 
   if (entries.length === 0) {
