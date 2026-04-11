@@ -15,6 +15,7 @@ import { computeStats, formatStats } from './analytics/stats.js';
 import { diffSessions, formatSessionDiff } from './analytics/diff.js';
 import { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate } from './cli-utils.js';
 import { pLimit } from './pipeline/concurrency.js';
+import { createArchive, listSessionArtifacts } from './pipeline/exporter.js';
 import type { Step, BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -383,6 +384,39 @@ export function createCli(): Command {
         if (result.regressed > 0) {
           process.exit(1);
         }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('export')
+    .description('Export a recording session as a zip or tar.gz archive')
+    .argument('<session>', 'Session timestamp (e.g., 2026-04-11_08-00)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('-f, --format <format>', 'Archive format: tar or zip', 'tar')
+    .option('-o, --output <dir>', 'Output directory for the archive')
+    .action(async (session: string, opts: { config?: string; format?: string; output?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const sessionDir = join(outputDir, session);
+
+        if (!existsSync(sessionDir)) {
+          throw new Error(`Session directory not found: ${sessionDir}`);
+        }
+
+        const artifacts = await listSessionArtifacts(sessionDir);
+        console.log(`Exporting session "${session}":`);
+        console.log(`  Scenarios: ${artifacts.directories.length}`);
+        console.log(`  Files: ${artifacts.files.length}`);
+
+        const archiveFormat = opts.format === 'zip' ? 'zip' : 'tar' as const;
+        const archiveOutputDir = opts.output ? resolve(process.cwd(), opts.output) : outputDir;
+
+        const result = await createArchive(sessionDir, archiveOutputDir, archiveFormat);
+        console.log(`\n✓ Archive created: ${result.outputPath}`);
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
