@@ -246,6 +246,27 @@ describe('generateForecast', () => {
     }
   });
 
+  it('EMA predicts high success rate when all recordings are ok (T2210 fix)', () => {
+    // Regression test: EMA used to treat zero-data days as real 0% success,
+    // producing ~30% instead of ~100% when data was sparse.
+    const now = new Date('2026-04-11T23:00:00.000Z');
+    // Only 1 recording per day for 1 day in a 30-day lookback window
+    const entries = [
+      makeEntry({ timestamp: '2026-04-11T10:00:00.000Z', status: 'ok' }),
+    ];
+    const result = generateForecast(entries, 3, 'ema', 7, 0.3, now, 30);
+    // All recordings are ok, so predicted success rate should be 100%
+    expect(result.forecast[0]!.predictedSuccessRate).toBe(100);
+  });
+
+  it('SMA predicts high success rate with sparse all-ok data (T2210 fix)', () => {
+    const now = new Date('2026-04-11T23:00:00.000Z');
+    // 3 days with 2 ok recordings each, in a 30-day window
+    const entries = makeEntriesForDays(3, 2, now, 'ok');
+    const result = generateForecast(entries, 3, 'sma', 7, 0.3, now, 30);
+    expect(result.forecast[0]!.predictedSuccessRate).toBe(100);
+  });
+
   it('handles mixed success and error entries', () => {
     const now = new Date('2026-04-11T12:00:00.000Z');
     const ok = makeEntriesForDays(5, 3, now, 'ok');

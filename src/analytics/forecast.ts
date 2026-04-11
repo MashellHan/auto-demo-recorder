@@ -152,16 +152,23 @@ export function generateForecast(
   }
 
   const counts = observations.map((o) => o.count);
-  const rates = observations.map((o) => o.successRate);
+
+  // For success rate, use only days with actual data to avoid
+  // zero-data days dragging the rate down (bug T2210 fix).
+  const activeDayRates = observations
+    .filter((o) => o.count > 0)
+    .map((o) => o.successRate);
 
   // Compute base predictions
   const predictedCount = method === 'sma'
     ? computeSMA(counts, windowSize)
     : computeEMA(counts, alpha);
 
-  const predictedRate = method === 'sma'
-    ? computeSMA(rates, windowSize)
-    : computeEMA(rates, alpha);
+  const predictedRate = activeDayRates.length > 0
+    ? (method === 'sma'
+        ? computeSMA(activeDayRates, windowSize)
+        : computeEMA(activeDayRates, alpha))
+    : 0;
 
   // Build forecast points with decaying confidence
   const forecast: ForecastPoint[] = [];
