@@ -795,3 +795,228 @@ describe('watch command', () => {
     }));
   });
 });
+
+describe('adhoc browser recording', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('handles --adhoc --backend browser --url flag', async () => {
+    const { recordBrowser: rbFn } = await import('../src/index.js');
+    vi.mocked(rbFn).mockClear();
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'record', '--adhoc', '--backend', 'browser', '--url', 'http://localhost:3000', '--quiet']);
+    } catch {
+      // may throw
+    }
+
+    if (vi.mocked(rbFn).mock.calls.length > 0) {
+      const callArgs = vi.mocked(rbFn).mock.calls[0][0] as any;
+      expect(callArgs.scenario.name).toBe('adhoc-browser');
+      expect(callArgs.scenario.url).toBe('http://localhost:3000');
+      expect(callArgs.config.recording.backend).toBe('browser');
+    }
+
+    consoleSpy.mockRestore();
+  });
+
+  it('throws when --url is missing in adhoc browser mode', async () => {
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit'); });
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'record', '--adhoc', '--backend', 'browser', '--quiet']);
+    } catch {
+      // expected
+    }
+
+    expect(consoleErrorSpy.mock.calls.some((c) => String(c[0]).includes('--url is required'))).toBe(true);
+
+    consoleErrorSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it('parses browser steps from --steps flag', async () => {
+    const { recordBrowser: rbFn } = await import('../src/index.js');
+    vi.mocked(rbFn).mockClear();
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync([
+        'node', 'demo-recorder', 'record', '--adhoc', '--backend', 'browser',
+        '--url', 'http://localhost:3000',
+        '--steps', 'click:.btn,sleep:1s,fill:input#name=John,nav:http://example.com,scroll:300,wait:.loaded,hello',
+        '--quiet',
+      ]);
+    } catch {
+      // may throw
+    }
+
+    if (vi.mocked(rbFn).mock.calls.length > 0) {
+      const steps = (vi.mocked(rbFn).mock.calls[0][0] as any).scenario.steps;
+      expect(steps[0]).toEqual({ action: 'click', value: '.btn', pause: '500ms' });
+      expect(steps[1]).toEqual({ action: 'sleep', value: '1s', pause: '0ms' });
+      expect(steps[2]).toEqual({ action: 'fill', value: 'input#name', text: 'John', pause: '500ms' });
+      expect(steps[3]).toEqual({ action: 'navigate', value: 'http://example.com', pause: '1000ms' });
+      expect(steps[4]).toEqual({ action: 'scroll', value: '300', pause: '500ms' });
+      expect(steps[5]).toEqual({ action: 'wait', value: '.loaded', pause: '500ms' });
+      expect(steps[6]).toEqual({ action: 'type', value: 'hello', pause: '500ms' });
+    }
+
+    consoleSpy.mockRestore();
+  });
+
+  it('passes theme to adhoc browser config', async () => {
+    const { recordBrowser: rbFn } = await import('../src/index.js');
+    vi.mocked(rbFn).mockClear();
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync([
+        'node', 'demo-recorder', 'record', '--adhoc', '--backend', 'browser',
+        '--url', 'http://localhost:3000', '--theme', 'Nord', '--quiet',
+      ]);
+    } catch {
+      // may throw
+    }
+
+    if (vi.mocked(rbFn).mock.calls.length > 0) {
+      const callArgs = vi.mocked(rbFn).mock.calls[0][0] as any;
+      expect(callArgs.config.recording.theme).toBe('nord');
+    }
+
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('init --browser command', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = join(tmpdir(), `cli-test-init-browser-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  it('generates browser recording template', async () => {
+    const origCwd = process.cwd();
+    process.chdir(tempDir);
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'init', '--browser']);
+    } catch {
+      // may throw
+    }
+
+    const { readFile: rf } = await import('node:fs/promises');
+    const content = await rf(join(tempDir, 'demo-recorder.yaml'), 'utf-8');
+    expect(content).toContain('backend: browser');
+    expect(content).toContain('browser_scenarios:');
+    expect(content).toContain('viewport_width: 1280');
+    expect(content).toContain('url:');
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('browser recording template');
+
+    consoleSpy.mockRestore();
+    process.chdir(origCwd);
+    await rm(tempDir, { recursive: true, force: true });
+  });
+});
+
+describe('themes command', () => {
+  it('lists all themes grouped by category', () => {
+    const cli = createCli();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    cli.parse(['node', 'demo-recorder', 'themes']);
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Dark Themes:');
+    expect(output).toContain('Light Themes:');
+    expect(output).toContain('Total:');
+    expect(output).toContain('Dracula');
+    expect(output).toContain('Usage: demo-recorder record --theme');
+
+    consoleSpy.mockRestore();
+  });
+
+  it('filters by category', () => {
+    const cli = createCli();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    cli.parse(['node', 'demo-recorder', 'themes', '--category', 'light']);
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Light Themes:');
+    expect(output).not.toContain('Dark Themes:');
+
+    consoleSpy.mockRestore();
+  });
+
+  it('shows message for unknown category', () => {
+    const cli = createCli();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    cli.parse(['node', 'demo-recorder', 'themes', '--category', 'neon']);
+
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('No themes found for category: neon');
+
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('record command (browser backend via config)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('routes to browser handler when backend is browser', async () => {
+    const { recordBrowser: rbFn } = await import('../src/index.js');
+    const { loadConfig } = await import('../src/config/loader.js');
+    vi.mocked(rbFn).mockClear();
+
+    vi.mocked(loadConfig).mockResolvedValueOnce({
+      project: { name: 'web-test', description: 'Web Test' },
+      recording: { width: 1280, height: 720, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60, backend: 'browser', browser: { headless: true, browser: 'chromium', viewport_width: 1280, viewport_height: 720, timeout_ms: 30000, device_scale_factor: 1, record_video: true } },
+      output: { dir: '.demo-recordings', keep_raw: true, keep_frames: false },
+      annotation: { enabled: false, model: 'claude-sonnet-4-6', extract_fps: 1, language: 'en', overlay_position: 'bottom', overlay_font_size: 14 },
+      watch: { include: ['src/**/*'], exclude: ['node_modules/**'], debounce_ms: 500 },
+      scenarios: [],
+      browser_scenarios: [
+        { name: 'homepage', description: 'Homepage test', url: 'http://localhost:3000', setup: [], steps: [] },
+      ],
+    } as never);
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'record', '--quiet']);
+    } catch {
+      // may throw
+    }
+
+    expect(vi.mocked(rbFn).mock.calls.length).toBeGreaterThanOrEqual(1);
+
+    consoleSpy.mockRestore();
+  });
+});

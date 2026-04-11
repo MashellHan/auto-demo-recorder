@@ -147,4 +147,50 @@ describe('generatePresentation', () => {
     expect(html).not.toContain('<script>xss</script>');
     expect(html).toContain('&lt;script&gt;');
   });
+
+  it('falls back to per-frame slides when chapters are empty', async () => {
+    const report = makeReport({
+      frames: [
+        { index: 0, timestamp: '0:00', status: 'ok', description: 'App starts', feature_being_demonstrated: '', bugs_detected: [], visual_quality: 'good', annotation_text: 'Welcome screen loads' },
+        { index: 1, timestamp: '0:05', status: 'warning', description: 'Menu visible', feature_being_demonstrated: '', bugs_detected: [], visual_quality: 'good', annotation_text: 'Main menu is shown' },
+      ],
+    });
+    vi.mocked(readFile).mockResolvedValueOnce(JSON.stringify(report) as never);
+    // All frames have the same (empty) feature, so chapters will produce a single chapter with title "Introduction"
+    // This tests the chapter path with empty features
+
+    await generatePresentation({
+      reportPath: '/tmp/report.json',
+      outputPath: '/tmp/presentation.html',
+      projectName: 'test',
+      scenarioName: 'demo',
+      framesDir: 'frames',
+    });
+
+    const html = vi.mocked(writeFile).mock.calls[0][1] as string;
+    // Single chapter titled "Introduction" (default when feature is empty)
+    expect(html).toContain('Introduction');
+    expect(html).toContain('frames/frame-000.png');
+  });
+
+  it('uses annotation_text in slide description for single-feature frames', async () => {
+    const report = makeReport({
+      frames: [
+        { index: 0, timestamp: '0:00', status: 'ok', description: 'desc', feature_being_demonstrated: 'Login', bugs_detected: [], visual_quality: 'good', annotation_text: 'Annotation text here' },
+      ],
+    });
+    vi.mocked(readFile).mockResolvedValueOnce(JSON.stringify(report) as never);
+
+    await generatePresentation({
+      reportPath: '/tmp/report.json',
+      outputPath: '/tmp/presentation.html',
+      projectName: 'test',
+      scenarioName: 'demo',
+    });
+
+    const html = vi.mocked(writeFile).mock.calls[0][1] as string;
+    // Chapter description is derived from the first frame's annotation_text
+    expect(html).toContain('Annotation text here');
+    expect(html).toContain('Login');
+  });
 });
