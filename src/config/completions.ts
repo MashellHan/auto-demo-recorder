@@ -49,6 +49,8 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'graph', description: 'Show dependency graph', options: ['--config'] },
   { name: 'timeline', description: 'Show recording timeline', options: ['--config', '--limit'] },
   { name: 'step-analysis', description: 'Analyze step distribution', options: ['--config'] },
+  { name: 'search', description: 'Search recording history', options: ['--config', '--limit', '--status', '--backend', '--min-score'] },
+  { name: 'scaffold', description: 'Generate starter config', options: ['--category', '--output'] },
 ];
 
 /**

@@ -189,3 +189,11 @@ export type { TimelineEntry, TimelineResult } from './analytics/timeline.js';
 /** Step distribution and scenario complexity analysis. */
 export { analyzeSteps, formatStepAnalysis } from './analytics/step-analysis.js';
 export type { StepTypeStats, ScenarioComplexity, StepAnalysis } from './analytics/step-analysis.js';
+
+/** Recording history search. */
+export { searchHistory, formatSearchResults } from './analytics/search.js';
+export type { SearchHit, SearchResult, SearchOptions } from './analytics/search.js';
+
+/** Config scaffold generator. */
+export { listScaffolds, findScaffold, getScaffoldCategories, listScaffoldsByCategory, formatScaffoldList } from './config/scaffold.js';
+export type { Scaffold } from './config/scaffold.js';

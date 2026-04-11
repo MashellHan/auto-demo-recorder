@@ -14,6 +14,7 @@ import { generateComparisonReport, formatComparisonReport } from './analytics/co
 import { readHistory, formatHistoryTable } from './analytics/history.js';
 import { generateTimeline, formatTimeline } from './analytics/timeline.js';
 import { analyzeSteps, formatStepAnalysis } from './analytics/step-analysis.js';
+import { searchHistory, formatSearchResults } from './analytics/search.js';
 
 /**
  * Register analytics CLI commands onto the given program.
@@ -31,6 +32,7 @@ export function registerAnalyticsCommands(program: Command): void {
   registerHistoryCommand(program);
   registerTimelineCommand(program);
   registerStepAnalysisCommand(program);
+  registerSearchCommand(program);
 }
 
 function registerAnalyzeCommand(program: Command): void {
@@ -319,6 +321,37 @@ function registerStepAnalysisCommand(program: Command): void {
         const config = await loadConfig(opts.config);
         const result = analyzeSteps(config);
         console.log(formatStepAnalysis(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerSearchCommand(program: Command): void {
+  program
+    .command('search')
+    .description('Search recording history by keyword')
+    .argument('<query>', 'Search query (matches scenario, session, backend, status)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('-n, --limit <n>', 'Maximum results')
+    .option('--status <status>', 'Filter by status (ok, warning, error)')
+    .option('--backend <backend>', 'Filter by backend (vhs, browser)')
+    .option('--min-score <score>', 'Minimum relevance score (0-100)')
+    .action(async (query: string, opts: { config?: string; limit?: string; status?: string; backend?: string; minScore?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+
+        const entries = await readHistory(outputDir);
+        const result = searchHistory(entries, query, {
+          limit: opts.limit ? parseInt(opts.limit, 10) : undefined,
+          status: opts.status,
+          backend: opts.backend,
+          minScore: opts.minScore ? parseInt(opts.minScore, 10) : undefined,
+        });
+
+        console.log(formatSearchResults(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
