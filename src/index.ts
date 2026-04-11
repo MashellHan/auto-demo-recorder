@@ -100,6 +100,12 @@ export type { MigrationStep, MigrationResult } from './config/migration.js';
 /** Recording session pruning. */
 export { pruneRecordings, formatPruneReport } from './pipeline/prune.js';
 export type { PruneOptions, PruneResult } from './pipeline/prune.js';
+/** CI configuration generation. */
+export { generateCIConfig, getSupportedProviders } from './config/ci-generator.js';
+export type { CIProvider, CIConfigOptions, CIConfigResult } from './config/ci-generator.js';
+/** Health check for tool availability. */
+export { runHealthCheck, formatHealthCheck } from './pipeline/health-check.js';
+export type { HealthCheckItem, HealthCheckResult } from './pipeline/health-check.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {

@@ -22,6 +22,8 @@ import { analyzeTimingFromReport, formatTimingReport } from './analytics/timing.
 import { captureEnvironmentSnapshot, formatEnvironmentSnapshot } from './pipeline/environment.js';
 import { migrateConfig, formatMigrationReport } from './config/migration.js';
 import { pruneRecordings, formatPruneReport } from './pipeline/prune.js';
+import { generateCIConfig, getSupportedProviders } from './config/ci-generator.js';
+import { runHealthCheck, formatHealthCheck } from './pipeline/health-check.js';
 import type { BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -673,6 +675,63 @@ export function createCli(): Command {
         });
 
         console.log(formatPruneReport(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('ci')
+    .description('Generate CI/CD configuration for automated recording')
+    .option('--provider <provider>', 'CI provider: github, gitlab, or circleci', 'github')
+    .option('--branch <branches>', 'Branches to trigger on (comma-separated)', 'main')
+    .option('--no-annotate', 'Skip AI annotation in CI')
+    .option('--backend <backend>', 'Recording backend: vhs or browser', 'vhs')
+    .option('--node-version <version>', 'Node.js version', '22')
+    .action(async (opts: { provider: string; branch: string; annotate: boolean; backend: string; nodeVersion: string }) => {
+      try {
+        const providers = getSupportedProviders();
+        if (!providers.includes(opts.provider as any)) {
+          throw new Error(`Unsupported provider "${opts.provider}". Supported: ${providers.join(', ')}`);
+        }
+
+        const result = generateCIConfig({
+          provider: opts.provider as any,
+          branches: opts.branch.split(',').map((b) => b.trim()),
+          annotate: opts.annotate,
+          backend: opts.backend as 'vhs' | 'browser',
+          nodeVersion: opts.nodeVersion,
+        });
+
+        const targetPath = resolve(process.cwd(), result.filePath);
+        const targetDir = targetPath.substring(0, targetPath.lastIndexOf('/'));
+
+        if (!existsSync(targetDir)) {
+          const { mkdir } = await import('node:fs/promises');
+          await mkdir(targetDir, { recursive: true });
+        }
+
+        await writeFile(targetPath, result.content, 'utf-8');
+        console.log(`✓ ${result.description}`);
+        console.log(`  Created: ${result.filePath}`);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('doctor')
+    .description('Check system health and tool availability')
+    .option('--backend <backend>', 'Check for specific backend: vhs or browser', 'vhs')
+    .action(async (opts: { backend: string }) => {
+      try {
+        const result = await runHealthCheck(process.cwd(), opts.backend as 'vhs' | 'browser');
+        console.log(formatHealthCheck(result));
+        if (!result.allPassed) {
+          process.exit(1);
+        }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
