@@ -14,6 +14,7 @@ import { computeCoverage, formatCoverage } from './analytics/coverage.js';
 import { analyzeRates, formatRateAnalysis } from './analytics/rate-analysis.js';
 import { computeHealthDashboard, formatHealthDashboard } from './analytics/health-dashboard.js';
 import { analyzeStreaks, formatStreaks } from './analytics/streaks.js';
+import { computeRiskScores, formatRiskScores } from './analytics/risk-score.js';
 import type { GroupBy } from './analytics/grouping.js';
 
 /**
@@ -36,6 +37,7 @@ export function registerAnalyticsMonitorCommands(program: Command): void {
   registerRatesCommand(program);
   registerDashboardCommand(program);
   registerStreaksCommand(program);
+  registerRiskCommand(program);
 }
 
 function registerDuplicatesCommand(program: Command): void {
@@ -314,6 +316,25 @@ function registerStreaksCommand(program: Command): void {
         const entries = await readHistory(outputDir);
         const result = analyzeStreaks(entries);
         console.log(formatStreaks(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerRiskCommand(program: Command): void {
+  program
+    .command('risk')
+    .description('Show scenario risk scores (failure, volatility, staleness)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const result = computeRiskScores(entries);
+        console.log(formatRiskScores(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

@@ -79,6 +79,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'streaks', description: 'Recording streak tracker', options: ['--config'] },
   { name: 'impact', description: 'Dependency impact analysis', options: ['--config', '--scenario'] },
   { name: 'distribution', description: 'Recording distribution analysis', options: ['--config'] },
+  { name: 'risk', description: 'Scenario risk scoring', options: ['--config'] },
 ];
 
 /**

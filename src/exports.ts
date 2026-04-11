@@ -313,3 +313,7 @@ export type { ImpactScenario, ScenarioImpact, ImpactLayer, ImpactAnalysis } from
 /** Recording distribution analysis. */
 export { analyzeDistribution, formatDistribution } from './analytics/distribution.js';
 export type { ScenarioDistribution, DistributionResult } from './analytics/distribution.js';
+
+/** Scenario risk scoring. */
+export { computeRiskScores, formatRiskScores } from './analytics/risk-score.js';
+export type { RiskLevel, ScenarioRisk, RiskResult } from './analytics/risk-score.js';
