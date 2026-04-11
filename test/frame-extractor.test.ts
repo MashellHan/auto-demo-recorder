@@ -53,4 +53,18 @@ describe('extractFrames', () => {
     const args = vi.mocked(execFile).mock.calls[0][1];
     expect(args).toContain('fps=1');
   });
+
+  it('throws when ffmpeg fails', async () => {
+    const { execFile } = await import('node:child_process');
+    vi.mocked(execFile).mockImplementationOnce(
+      (_cmd: string, _args: unknown, _opts: unknown, cb: (err: Error | null) => void) => {
+        cb(new Error('ffmpeg not found'));
+        return { stderr: { on: vi.fn() } } as never;
+      },
+    );
+
+    await expect(extractFrames('/tmp/raw.mp4', '/tmp/frames', 1)).rejects.toThrow(
+      'ffmpeg frame extraction failed: ffmpeg not found',
+    );
+  });
 });

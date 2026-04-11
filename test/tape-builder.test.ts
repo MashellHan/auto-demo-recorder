@@ -133,5 +133,55 @@ describe('buildTape', () => {
     });
 
     expect(tape).toContain('Sleep 3s');
+    // sleep action should NOT emit the default pause after it (continue skips it)
+    const lines = tape.split('\n');
+    const sleepIdx = lines.findIndex((l) => l === 'Sleep 3s');
+    expect(sleepIdx).toBeGreaterThan(-1);
+    // next non-empty line should NOT be 'Sleep 500ms'
+    const nextLine = lines.slice(sleepIdx + 1).find((l) => l.trim() !== '');
+    expect(nextLine).not.toBe('Sleep 500ms');
+  });
+
+  it('maps Backspace, Left, and Right keys', () => {
+    const scenario: Scenario = {
+      name: 'extra-keys',
+      description: 'Extra keys test',
+      setup: [],
+      steps: [
+        { action: 'key', value: 'Backspace', pause: '500ms' },
+        { action: 'key', value: 'Left', pause: '500ms' },
+        { action: 'key', value: 'Right', pause: '500ms' },
+        { action: 'key', value: 'esc', pause: '500ms' },
+      ],
+    };
+
+    const tape = buildTape({
+      scenario,
+      recording: defaultRecording,
+      outputPath: '/tmp/test.mp4',
+    });
+
+    expect(tape).toContain('\nBackspace\n');
+    expect(tape).toContain('\nLeft\n');
+    expect(tape).toContain('\nRight\n');
+    expect(tape).toContain('\nEscape\n');
+  });
+
+  it('handles sleep with repeat', () => {
+    const scenario: Scenario = {
+      name: 'sleep-repeat',
+      description: 'Sleep repeat test',
+      setup: [],
+      steps: [{ action: 'sleep', value: '1s', pause: '0ms', repeat: 2 }],
+    };
+
+    const tape = buildTape({
+      scenario,
+      recording: defaultRecording,
+      outputPath: '/tmp/test.mp4',
+    });
+
+    const matches = tape.match(/Sleep 1s/g);
+    expect(matches).toHaveLength(2);
   });
 });
