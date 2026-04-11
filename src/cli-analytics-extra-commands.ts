@@ -11,6 +11,7 @@ import { detectOutliers, detectOutliersPerScenario, formatOutliers, formatOutlie
 import { computeCorrelations, formatCorrelations } from './analytics/correlation.js';
 import { analyzeImpact, analyzeFailureImpact, formatImpactAnalysis } from './analytics/impact-analysis.js';
 import { analyzeDistribution, formatDistribution } from './analytics/distribution.js';
+import { detectAnomalies, formatAnomalies } from './analytics/anomaly.js';
 
 /**
  * Register descriptive analytics CLI commands onto the given program.
@@ -30,6 +31,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerCorrelationCommand(program);
   registerImpactCommand(program);
   registerDistributionCommand(program);
+  registerAnomalyCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -216,6 +218,27 @@ function registerDistributionCommand(program: Command): void {
         const entries = await readHistory(outputDir);
         const result = analyzeDistribution(entries);
         console.log(formatDistribution(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerAnomalyCommand(program: Command): void {
+  program
+    .command('anomalies')
+    .description('Detect recording anomalies using Z-score analysis')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--threshold <z>', 'Z-score threshold for flagging (default: 2.0)')
+    .action(async (opts: { config?: string; threshold?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const threshold = opts.threshold ? parseFloat(opts.threshold) : 2.0;
+        const result = detectAnomalies(entries, threshold);
+        console.log(formatAnomalies(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

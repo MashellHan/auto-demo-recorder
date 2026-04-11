@@ -337,3 +337,7 @@ export type { QualityDirection, QualitySnapshot, DimensionTrend, QualityTrendRes
 /** Dependency health checker. */
 export { checkDependencyHealth, formatDepHealth } from './config/dep-health.js';
 export type { DepHealthSeverity, DepHealthIssue, DepHealthResult } from './config/dep-health.js';
+
+/** Recording anomaly detector. */
+export { detectAnomalies, formatAnomalies } from './analytics/anomaly.js';
+export type { AnomalyType, AnomalySeverity, Anomaly, AnomalyResult } from './analytics/anomaly.js';
