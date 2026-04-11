@@ -15,6 +15,7 @@ import { detectAnomalies, formatAnomalies } from './analytics/anomaly.js';
 import { fingerprintSessions, formatFingerprints } from './analytics/fingerprint.js';
 import { analyzeFunnel, formatFunnel } from './analytics/funnel.js';
 import { computeRadar, formatRadar } from './analytics/radar.js';
+import { analyzePareto, formatPareto } from './analytics/pareto.js';
 
 /**
  * Register descriptive analytics CLI commands onto the given program.
@@ -38,6 +39,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerFingerprintCommand(program);
   registerFunnelCommand(program);
   registerRadarCommand(program);
+  registerParetoCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -304,6 +306,25 @@ function registerRadarCommand(program: Command): void {
         const entries = await readHistory(outputDir);
         const result = computeRadar(entries);
         console.log(formatRadar(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerParetoCommand(program: Command): void {
+  program
+    .command('pareto')
+    .description('Apply 80/20 rule to identify top failure and bug contributors')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const result = analyzePareto(entries);
+        console.log(formatPareto(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

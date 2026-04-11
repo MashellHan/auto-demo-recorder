@@ -373,3 +373,7 @@ export type { FunnelStage, ScenarioFunnel, FunnelResult } from './analytics/funn
 /** Recording comparison radar. */
 export { computeRadar, formatRadar, RADAR_DIMENSIONS } from './analytics/radar.js';
 export type { RadarDimensionName, RadarValue, RadarProfile, RadarResult } from './analytics/radar.js';
+
+/** Recording Pareto analysis. */
+export { analyzePareto, formatPareto } from './analytics/pareto.js';
+export type { ParetoCategory, ParetoItem, ParetoAnalysis, ParetoResult } from './analytics/pareto.js';

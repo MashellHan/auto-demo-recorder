@@ -94,6 +94,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'health-score', description: 'Composite health score', options: ['--config', '--window'] },
   { name: 'funnel', description: 'Recording funnel analysis', options: ['--config'] },
   { name: 'radar', description: 'Scenario comparison radar', options: ['--config'] },
+  { name: 'pareto', description: 'Recording Pareto analysis', options: ['--config'] },
 ];
 
 /**
