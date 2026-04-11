@@ -1,0 +1,62 @@
+# Browser Recording Example Configuration
+# Use with: demo-recorder record --backend browser
+
+project:
+  name: my-web-app
+  description: "Demo recording of a web application"
+  # build_command: "npm run build"
+
+recording:
+  backend: browser
+  browser:
+    headless: true
+    browser: chromium         # chromium, firefox, or webkit
+    viewport_width: 1280
+    viewport_height: 720
+    timeout_ms: 30000
+    device_scale_factor: 1
+    record_video: true
+
+output:
+  dir: ".demo-recordings"
+  keep_raw: true
+  keep_frames: false
+
+annotation:
+  enabled: true
+  model: "claude-sonnet-4-6"
+  extract_fps: 1
+  language: "en"
+  overlay_position: "bottom"
+  overlay_font_size: 14
+
+browser_scenarios:
+  - name: "homepage-tour"
+    description: "Navigate the homepage and explore key sections"
+    url: "http://localhost:3000"
+    steps:
+      - { action: "sleep", value: "2s", pause: "500ms" }
+      - { action: "click", value: "nav a:nth-child(2)", pause: "1s" }
+      - { action: "scroll", value: "500", pause: "1s" }
+      - { action: "click", value: "nav a:nth-child(3)", pause: "1s" }
+      - { action: "screenshot", value: "features.png" }
+
+  - name: "login-flow"
+    description: "Complete login flow with form validation"
+    url: "http://localhost:3000/login"
+    steps:
+      - { action: "fill", value: "#email", text: "demo@example.com", pause: "500ms" }
+      - { action: "fill", value: "#password", text: "demo123", pause: "500ms" }
+      - { action: "click", value: "button[type=submit]", pause: "2s" }
+      - { action: "wait", value: ".dashboard", pause: "1s" }
+      - { action: "screenshot", value: "dashboard.png" }
+
+  - name: "search-feature"
+    description: "Test search functionality"
+    url: "http://localhost:3000"
+    steps:
+      - { action: "click", value: "#search-input", pause: "500ms" }
+      - { action: "type", value: "demo query", pause: "1s" }
+      - { action: "key", value: "Enter", pause: "2s" }
+      - { action: "wait", value: ".search-results", pause: "500ms" }
+      - { action: "scroll", value: "300", pause: "1s" }

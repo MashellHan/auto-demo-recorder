@@ -1,7 +1,7 @@
 {
   "name": "auto-demo-recorder",
   "version": "0.1.0",
-  "description": "On-demand terminal demo recording + AI annotation CLI tool",
+  "description": "On-demand terminal & browser demo recording + AI annotation CLI tool",
   "type": "module",
   "bin": {
     "demo-recorder": "./dist/bin/demo-recorder.js"
@@ -28,6 +28,8 @@
     "demo",
     "recording",
     "terminal",
+    "browser",
+    "playwright",
     "tui",
     "vhs",
     "annotation",
