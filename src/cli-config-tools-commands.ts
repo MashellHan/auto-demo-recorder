@@ -15,6 +15,7 @@ import { exportConfig, formatExportSummary } from './config/config-export.js';
 import { cloneScenario, cloneBrowserScenario, formatCloneSummary } from './config/scenario-clone.js';
 import { interpolateConfig, listConfigVariables, formatInterpolationResult } from './config/interpolation.js';
 import { compareConfigs, formatComparisonReport } from './config/config-comparison.js';
+import { analyzeDependencyDepth, formatDepthAnalysis } from './config/dependency-depth.js';
 
 /**
  * Register config tool CLI commands onto the given program.
@@ -33,6 +34,7 @@ export function registerConfigToolCommands(program: Command): void {
   registerCloneCommand(program);
   registerInterpolateCommand(program);
   registerConfigCompareCommand(program);
+  registerDepthAnalysisCommand(program);
 }
 
 function registerLintCommand(program: Command): void {
@@ -350,6 +352,27 @@ function registerConfigCompareCommand(program: Command): void {
         const configB = ConfigSchema.parse(rawB);
         const report = compareConfigs(configA, configB);
         console.log(formatComparisonReport(report));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerDepthAnalysisCommand(program: Command): void {
+  program
+    .command('depth')
+    .description('Analyze scenario dependency depth and critical paths')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const allScenarios = [
+          ...config.scenarios.map((s) => ({ name: s.name, depends_on: s.depends_on })),
+          ...config.browser_scenarios.map((s) => ({ name: s.name, depends_on: s.depends_on })),
+        ];
+        const result = analyzeDependencyDepth(allScenarios);
+        console.log(formatDepthAnalysis(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

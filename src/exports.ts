@@ -273,3 +273,7 @@ export type { TemplatePreview } from './config/template-preview.js';
 /** Performance benchmarks. */
 export { computeBenchmarks, formatBenchmarks } from './analytics/benchmarks.js';
 export type { ScenarioBenchmark, BenchmarkResult } from './analytics/benchmarks.js';
+
+/** Dependency depth analysis. */
+export { analyzeDependencyDepth, formatDepthAnalysis } from './config/dependency-depth.js';
+export type { ScenarioDepthInfo, DepthAnalysis } from './config/dependency-depth.js';

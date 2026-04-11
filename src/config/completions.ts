@@ -70,6 +70,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'retention', description: 'Evaluate retention policy', options: ['--config', '--max-age', '--max-count', '--max-per-scenario', '--no-keep-failed'] },
   { name: 'session-diff-summary', description: 'Compare two sessions', options: ['--config'] },
   { name: 'benchmarks', description: 'Performance benchmarks', options: ['--config'] },
+  { name: 'depth', description: 'Dependency depth analysis', options: ['--config'] },
 ];
 
 /**
