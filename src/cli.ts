@@ -19,6 +19,7 @@ import { createArchive, listSessionArtifacts } from './pipeline/exporter.js';
 import { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile, parseCustomProfiles, getAllProfiles } from './config/profiles.js';
 import { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipeline/replay.js';
 import { registerCommands } from './cli-commands.js';
+import { generateValidationHints, formatValidationHints } from './config/validation-hints.js';
 import type { BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -184,6 +185,17 @@ export function createCli(): Command {
         console.log(output);
       } catch (error) {
         console.error(`✗ Config invalid: ${error instanceof Error ? error.message : error}`);
+        // Show actionable hints if it's a Zod validation error
+        if (error && typeof error === 'object' && 'issues' in error) {
+          const { z } = await import('zod');
+          if (error instanceof z.ZodError) {
+            const hints = generateValidationHints(error);
+            if (hints.length > 0) {
+              console.log('');
+              console.log(formatValidationHints(hints));
+            }
+          }
+        }
         process.exit(1);
       }
     });
