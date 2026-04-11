@@ -221,3 +221,11 @@ export type { ScenarioStatus, StatusOverview } from './analytics/status-overview
 /** Recording trend analysis. */
 export { analyzeTrends, formatTrendReport } from './analytics/trends.js';
 export type { TrendWindow, TrendDirection, TrendResult } from './analytics/trends.js';
+
+/** Config export to JSON/TOML. */
+export { exportConfig, formatExportSummary } from './config/config-export.js';
+export type { ExportFormat, ConfigExport } from './config/config-export.js';
+
+/** Recording outlier detection. */
+export { detectOutliers, formatOutliers } from './analytics/outliers.js';
+export type { Outlier, OutlierResult } from './analytics/outliers.js';

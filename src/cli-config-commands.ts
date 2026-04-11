@@ -18,6 +18,7 @@ import { mergeConfigs, formatMergeReport } from './config/config-merge.js';
 import { formatDependencyGraph } from './config/dependencies.js';
 import { listScaffolds, findScaffold, listScaffoldsByCategory, formatScaffoldList } from './config/scaffold.js';
 import { diagnoseConfig, formatDoctorResult } from './config/config-doctor.js';
+import { exportConfig, formatExportSummary } from './config/config-export.js';
 
 /**
  * Register config-related CLI commands onto the given program.
@@ -41,6 +42,7 @@ export function registerConfigCommands(program: Command): void {
   registerGraphCommand(program);
   registerScaffoldCommand(program);
   registerDiagnoseCommand(program);
+  registerConfigExportCommand(program);
 }
 
 function registerEnvCommand(program: Command): void {
@@ -475,6 +477,33 @@ function registerDiagnoseCommand(program: Command): void {
         const result = diagnoseConfig(config);
         console.log(formatDoctorResult(result));
         if (!result.passed) process.exit(1);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerConfigExportCommand(program: Command): void {
+  program
+    .command('config-export')
+    .description('Export parsed config as JSON or TOML')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('-f, --format <format>', 'Output format (json, toml)', 'json')
+    .option('-o, --output <path>', 'Write to file instead of stdout')
+    .action(async (opts: { config?: string; format?: string; output?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const format = (opts.format === 'toml' ? 'toml' : 'json') as 'json' | 'toml';
+        const result = exportConfig(config, format);
+
+        if (opts.output) {
+          await writeFile(opts.output, result.content, 'utf-8');
+          console.log(formatExportSummary(result));
+          console.log(`Written to: ${opts.output}`);
+        } else {
+          console.log(result.content);
+        }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
