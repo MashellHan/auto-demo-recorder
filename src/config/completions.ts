@@ -86,6 +86,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'quality-trends', description: 'Recording quality trends', options: ['--config', '--window-days', '--max-windows'] },
   { name: 'dep-health', description: 'Dependency health check', options: ['--config'] },
   { name: 'anomalies', description: 'Recording anomaly detection', options: ['--config', '--threshold'] },
+  { name: 'fingerprints', description: 'Session fingerprinting', options: ['--config', '--threshold'] },
 ];
 
 /**

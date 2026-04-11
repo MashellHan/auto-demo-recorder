@@ -341,3 +341,7 @@ export type { DepHealthSeverity, DepHealthIssue, DepHealthResult } from './confi
 /** Recording anomaly detector. */
 export { detectAnomalies, formatAnomalies } from './analytics/anomaly.js';
 export type { AnomalyType, AnomalySeverity, Anomaly, AnomalyResult } from './analytics/anomaly.js';
+
+/** Recording session fingerprinting. */
+export { fingerprintSessions, formatFingerprints } from './analytics/fingerprint.js';
+export type { SessionFingerprint, SimilarityMatch, FingerprintResult } from './analytics/fingerprint.js';

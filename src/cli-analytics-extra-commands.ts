@@ -12,6 +12,7 @@ import { computeCorrelations, formatCorrelations } from './analytics/correlation
 import { analyzeImpact, analyzeFailureImpact, formatImpactAnalysis } from './analytics/impact-analysis.js';
 import { analyzeDistribution, formatDistribution } from './analytics/distribution.js';
 import { detectAnomalies, formatAnomalies } from './analytics/anomaly.js';
+import { fingerprintSessions, formatFingerprints } from './analytics/fingerprint.js';
 
 /**
  * Register descriptive analytics CLI commands onto the given program.
@@ -32,6 +33,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerImpactCommand(program);
   registerDistributionCommand(program);
   registerAnomalyCommand(program);
+  registerFingerprintCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -239,6 +241,27 @@ function registerAnomalyCommand(program: Command): void {
         const threshold = opts.threshold ? parseFloat(opts.threshold) : 2.0;
         const result = detectAnomalies(entries, threshold);
         console.log(formatAnomalies(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerFingerprintCommand(program: Command): void {
+  program
+    .command('fingerprints')
+    .description('Generate session fingerprints and detect duplicates/similarities')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--threshold <pct>', 'Similarity threshold percentage (default: 80)')
+    .action(async (opts: { config?: string; threshold?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const threshold = opts.threshold ? parseInt(opts.threshold, 10) : 80;
+        const result = fingerprintSessions(entries, threshold);
+        console.log(formatFingerprints(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
