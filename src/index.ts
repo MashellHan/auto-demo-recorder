@@ -74,6 +74,9 @@ export type { ArchiveResult, SessionArtifacts } from './pipeline/exporter.js';
 /** Recording replay utilities. */
 export { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipeline/replay.js';
 export type { ReplayPlan, ReplayStep } from './pipeline/replay.js';
+/** Recording profiles. */
+export { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile } from './config/profiles.js';
+export type { RecordingProfile } from './config/profiles.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {

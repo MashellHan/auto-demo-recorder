@@ -18,6 +18,7 @@ import { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate }
 import { pLimit } from './pipeline/concurrency.js';
 import { createArchive, listSessionArtifacts } from './pipeline/exporter.js';
 import { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipeline/replay.js';
+import { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile } from './config/profiles.js';
 import type { Step, BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -53,6 +54,7 @@ export function createCli(): Command {
     .option('--dry-run', 'Preview recording plan without executing')
     .option('--parallel', 'Record scenarios in parallel')
     .option('--workers <n>', 'Max concurrent recordings (default: 3)', '3')
+    .option('--profile <name>', 'Apply a recording profile (ci, demo, quick, presentation)')
     .action(async (opts) => {
       try {
         const logger = opts.quiet ? noopLogger : undefined;
@@ -63,14 +65,24 @@ export function createCli(): Command {
         }
 
         const loaded = await loadConfig(opts.config);
+
+        // Apply profile overrides if specified
+        const profiled = opts.profile
+          ? applyProfile(loaded as Record<string, unknown>, (() => {
+              const p = getProfile(opts.profile);
+              if (!p) throw new Error(`Unknown profile "${opts.profile}". Available: ${getProfileNames().join(', ')}`);
+              return p;
+            })()) as typeof loaded
+          : loaded;
+
         const config = {
-          ...loaded,
+          ...profiled,
           annotation: {
-            ...loaded.annotation,
+            ...profiled.annotation,
             ...(opts.annotate === false && { enabled: false }),
           },
           recording: {
-            ...loaded.recording,
+            ...profiled.recording,
             ...(opts.format === 'gif' && { format: 'gif' as const }),
             ...(opts.backend && { backend: opts.backend as 'vhs' | 'browser' }),
             ...(opts.theme && { theme: resolveThemeId(opts.theme) }),
@@ -522,6 +534,27 @@ export function createCli(): Command {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
       }
+    });
+
+  program
+    .command('profiles')
+    .description('List available recording profiles')
+    .action(() => {
+      console.log('Available Recording Profiles:\n');
+      for (const profile of BUILT_IN_PROFILES) {
+        console.log(`  ${profile.name.padEnd(16)} ${profile.description}`);
+        const rec = profile.recording;
+        const details: string[] = [];
+        if (rec.width && rec.height) details.push(`${rec.width}x${rec.height}`);
+        if (rec.format) details.push(`${rec.format}`);
+        if (rec.fps) details.push(`${rec.fps}fps`);
+        if (rec.theme) details.push(`${rec.theme}`);
+        if (details.length > 0) {
+          console.log(`  ${''.padEnd(16)} ${details.join(', ')}`);
+        }
+        console.log('');
+      }
+      console.log('Usage: demo-recorder record --profile ci');
     });
 
   return program;
