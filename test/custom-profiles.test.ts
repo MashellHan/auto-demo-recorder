@@ -6,6 +6,7 @@ import {
   parseCustomProfiles,
   BUILT_IN_PROFILES,
 } from '../src/config/profiles.js';
+import { ConfigSchema } from '../src/config/schema.js';
 
 describe('getProfile with custom profiles', () => {
   it('returns built-in profile when no custom profiles', () => {
@@ -101,5 +102,41 @@ describe('parseCustomProfiles', () => {
     const input = [{ description: 'No name', recording: {} }];
     const profiles = parseCustomProfiles(input as any);
     expect(profiles[0].name).toBe('custom');
+  });
+});
+
+describe('ConfigSchema profiles field', () => {
+  const minConfig = {
+    project: { name: 'test' },
+    scenarios: [{ name: 'demo', description: 'test', steps: [{ action: 'type', value: 'echo hi' }] }],
+  };
+
+  it('accepts config with profiles array', () => {
+    const config = ConfigSchema.parse({
+      ...minConfig,
+      profiles: [
+        { name: 'ultra-hd', description: '4K preset', recording: { width: 3840, height: 2160 } },
+      ],
+    });
+    expect(config.profiles).toHaveLength(1);
+    expect(config.profiles[0].name).toBe('ultra-hd');
+  });
+
+  it('defaults profiles to empty array', () => {
+    const config = ConfigSchema.parse(minConfig);
+    expect(config.profiles).toEqual([]);
+  });
+
+  it('custom profiles from schema integrate with getProfile', () => {
+    const config = ConfigSchema.parse({
+      ...minConfig,
+      profiles: [
+        { name: 'staging', description: 'Staging env', recording: { width: 1024 } },
+      ],
+    });
+    const custom = parseCustomProfiles(config.profiles as Record<string, unknown>[]);
+    const profile = getProfile('staging', custom);
+    expect(profile).toBeDefined();
+    expect(profile!.name).toBe('staging');
   });
 });

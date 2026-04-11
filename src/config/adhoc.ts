@@ -69,6 +69,7 @@ export function buildAdhocConfig(opts: AdhocOptions): Config {
     browser_scenarios: isBrowser
       ? [{ name: 'adhoc-browser', description: `Ad-hoc browser: ${opts.command}`, url: opts.command, setup: [], steps: [], tags: [], depends_on: [] }]
       : [],
+    profiles: [],
   };
 }
 

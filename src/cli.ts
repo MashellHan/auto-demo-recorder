@@ -16,7 +16,7 @@ import { generateChangelog, formatChangelog } from './analytics/changelog.js';
 import { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate, resolveSessionPath } from './cli-utils.js';
 import { filterByTag, handleVhsRecord, handleBrowserRecord, handleAdhocRecord, loadChangelogSessions } from './cli-handlers.js';
 import { createArchive, listSessionArtifacts } from './pipeline/exporter.js';
-import { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile } from './config/profiles.js';
+import { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile, parseCustomProfiles, getAllProfiles } from './config/profiles.js';
 import { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipeline/replay.js';
 import { registerCommands } from './cli-commands.js';
 import type { BrowserScenario } from './config/schema.js';
@@ -69,10 +69,11 @@ export function createCli(): Command {
         const loaded = await loadConfig(opts.config);
 
         // Apply profile overrides if specified
+        const customProfiles = parseCustomProfiles((loaded as any).profiles);
         const profiled = opts.profile
           ? applyProfile(loaded as Record<string, unknown>, (() => {
-              const p = getProfile(opts.profile);
-              if (!p) throw new Error(`Unknown profile "${opts.profile}". Available: ${getProfileNames().join(', ')}`);
+              const p = getProfile(opts.profile, customProfiles);
+              if (!p) throw new Error(`Unknown profile "${opts.profile}". Available: ${getProfileNames(customProfiles).join(', ')}`);
               return p;
             })()) as typeof loaded
           : loaded;
@@ -515,10 +516,28 @@ export function createCli(): Command {
   program
     .command('profiles')
     .description('List available recording profiles')
-    .action(() => {
+    .option('-c, --config <path>', 'Config file path (to show custom profiles)')
+    .action(async (opts: { config?: string }) => {
+      let customProfiles: import('./config/profiles.js').RecordingProfile[] = [];
+      if (opts.config) {
+        try {
+          const loaded = await loadConfig(opts.config);
+          customProfiles = parseCustomProfiles((loaded as any).profiles);
+        } catch { /* ignore config load errors */ }
+      } else {
+        try {
+          const loaded = await loadConfig();
+          customProfiles = parseCustomProfiles((loaded as any).profiles);
+        } catch { /* no config file, show built-in only */ }
+      }
+
+      const allProfiles = getAllProfiles(customProfiles);
+      const customNames = new Set(customProfiles.map((p) => p.name.toLowerCase()));
+
       console.log('Available Recording Profiles:\n');
-      for (const profile of BUILT_IN_PROFILES) {
-        console.log(`  ${profile.name.padEnd(16)} ${profile.description}`);
+      for (const profile of allProfiles) {
+        const label = customNames.has(profile.name.toLowerCase()) ? ' (custom)' : '';
+        console.log(`  ${profile.name.padEnd(16)} ${profile.description}${label}`);
         const rec = profile.recording;
         const details: string[] = [];
         if (rec.width && rec.height) details.push(`${rec.width}x${rec.height}`);

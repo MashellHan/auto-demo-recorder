@@ -157,6 +157,15 @@ const WatchSchema = z.object({
   debounce_ms: z.number().default(500),
 });
 
+/** Custom recording profile definition in config YAML. */
+const ProfileSchema = z.object({
+  name: z.string(),
+  description: z.string().default(''),
+  recording: z.record(z.unknown()).default({}),
+  annotation: z.record(z.unknown()).optional(),
+  output: z.record(z.unknown()).optional(),
+});
+
 export const ConfigSchema = z.object({
   project: ProjectSchema,
   recording: RecordingSchema.default({}),
@@ -166,6 +175,8 @@ export const ConfigSchema = z.object({
   scenarios: z.array(ScenarioSchema).default([]),
   /** Browser scenarios — used when recording.backend is 'browser'. */
   browser_scenarios: z.array(BrowserScenarioSchema).default([]),
+  /** Custom recording profiles defined in config. */
+  profiles: z.array(ProfileSchema).default([]),
 }).refine(
   (data) => {
     if (data.recording.backend === 'vhs') {
