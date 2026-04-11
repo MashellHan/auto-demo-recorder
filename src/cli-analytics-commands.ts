@@ -20,6 +20,7 @@ import { computeScoreCard, formatScoreCard } from './analytics/scorecard.js';
 import { suggestTags, formatTagSuggestions } from './analytics/tag-suggestions.js';
 import { computeStatusOverview, formatStatusOverview } from './analytics/status-overview.js';
 import { analyzeTrends, formatTrendReport } from './analytics/trends.js';
+import { detectOutliers, formatOutliers } from './analytics/outliers.js';
 
 /**
  * Register analytics CLI commands onto the given program.
@@ -43,6 +44,7 @@ export function registerAnalyticsCommands(program: Command): void {
   registerTagSuggestCommand(program);
   registerStatusOverviewCommand(program);
   registerTrendsCommand(program);
+  registerOutliersCommand(program);
 }
 
 function registerAnalyzeCommand(program: Command): void {
@@ -457,6 +459,27 @@ function registerTrendsCommand(program: Command): void {
         const entries = await readHistory(outputDir);
         const result = analyzeTrends(entries);
         console.log(formatTrendReport(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerOutliersCommand(program: Command): void {
+  program
+    .command('outliers')
+    .description('Detect outlier recordings by duration, bugs, or status')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('-t, --threshold <n>', 'Z-score threshold (default: 2.0)')
+    .action(async (opts: { config?: string; threshold?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const threshold = opts.threshold ? parseFloat(opts.threshold) : 2.0;
+        const result = detectOutliers(entries, threshold);
+        console.log(formatOutliers(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
