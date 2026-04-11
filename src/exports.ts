@@ -349,3 +349,7 @@ export type { SessionFingerprint, SimilarityMatch, FingerprintResult } from './a
 /** Recording summary digest. */
 export { generateDigest, formatDigest } from './analytics/digest.js';
 export type { DigestPeriod, DigestItem, DigestResult } from './analytics/digest.js';
+
+/** Recording forecast. */
+export { buildDailyObservations, generateForecast, formatForecast } from './analytics/forecast.js';
+export type { ForecastMethod, ForecastPoint, DailyObservation, ForecastResult } from './analytics/forecast.js';

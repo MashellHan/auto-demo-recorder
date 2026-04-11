@@ -14,6 +14,8 @@ import { analyzeCapacity, formatCapacity } from './analytics/capacity.js';
 import { analyzeQualityTrends, formatQualityTrends } from './analytics/quality-trends.js';
 import { generateDigest, formatDigest } from './analytics/digest.js';
 import type { DigestPeriod } from './analytics/digest.js';
+import { generateForecast, formatForecast } from './analytics/forecast.js';
+import type { ForecastMethod } from './analytics/forecast.js';
 
 /**
  * Register measurement/metrics analytics CLI commands onto the given program.
@@ -33,6 +35,7 @@ export function registerAnalyticsMetricsCommands(program: Command): void {
   registerCapacityCommand(program);
   registerQualityTrendsCommand(program);
   registerDigestCommand(program);
+  registerForecastCommand(program);
 }
 
 function registerBenchmarksCommand(program: Command): void {
@@ -245,6 +248,35 @@ function registerQualityTrendsCommand(program: Command): void {
         const maxWindows = opts.maxWindows ? parseInt(opts.maxWindows, 10) : 8;
         const result = analyzeQualityTrends(entries, windowDays, maxWindows);
         console.log(formatQualityTrends(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerForecastCommand(program: Command): void {
+  program
+    .command('forecast')
+    .description('Forecast future recording volumes and success rates')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--days <n>', 'Number of days to forecast (default: 7)')
+    .option('--method <method>', 'Forecast method: sma or ema (default: ema)')
+    .option('--window <n>', 'SMA window size (default: 7)')
+    .option('--alpha <n>', 'EMA smoothing factor 0-1 (default: 0.3)')
+    .option('--lookback <n>', 'Historical lookback days (default: 30)')
+    .action(async (opts: { config?: string; days?: string; method?: string; window?: string; alpha?: string; lookback?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const days = opts.days ? parseInt(opts.days, 10) : 7;
+        const method: ForecastMethod = opts.method === 'sma' ? 'sma' : 'ema';
+        const windowSize = opts.window ? parseInt(opts.window, 10) : 7;
+        const alpha = opts.alpha ? parseFloat(opts.alpha) : 0.3;
+        const lookback = opts.lookback ? parseInt(opts.lookback, 10) : 30;
+        const result = generateForecast(entries, days, method, windowSize, alpha, new Date(), lookback);
+        console.log(formatForecast(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
