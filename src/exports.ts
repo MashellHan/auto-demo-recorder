@@ -309,3 +309,7 @@ export type { Streak, StreakResult } from './analytics/streaks.js';
 /** Dependency impact analysis. */
 export { analyzeImpact, analyzeFailureImpact, formatImpactAnalysis } from './analytics/impact-analysis.js';
 export type { ImpactScenario, ScenarioImpact, ImpactLayer, ImpactAnalysis } from './analytics/impact-analysis.js';
+
+/** Recording distribution analysis. */
+export { analyzeDistribution, formatDistribution } from './analytics/distribution.js';
+export type { ScenarioDistribution, DistributionResult } from './analytics/distribution.js';

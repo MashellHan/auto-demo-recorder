@@ -10,6 +10,7 @@ import { analyzeTrends, formatTrendReport } from './analytics/trends.js';
 import { detectOutliers, detectOutliersPerScenario, formatOutliers, formatOutliersPerScenario } from './analytics/outliers.js';
 import { computeCorrelations, formatCorrelations } from './analytics/correlation.js';
 import { analyzeImpact, analyzeFailureImpact, formatImpactAnalysis } from './analytics/impact-analysis.js';
+import { analyzeDistribution, formatDistribution } from './analytics/distribution.js';
 
 /**
  * Register descriptive analytics CLI commands onto the given program.
@@ -28,6 +29,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerOutliersCommand(program);
   registerCorrelationCommand(program);
   registerImpactCommand(program);
+  registerDistributionCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -195,6 +197,25 @@ function registerImpactCommand(program: Command): void {
           const result = analyzeImpact(allScenarios);
           console.log(formatImpactAnalysis(result));
         }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerDistributionCommand(program: Command): void {
+  program
+    .command('distribution')
+    .description('Analyze recording distribution across scenarios (Gini coefficient)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const result = analyzeDistribution(entries);
+        console.log(formatDistribution(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
