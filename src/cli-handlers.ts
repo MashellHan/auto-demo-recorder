@@ -251,7 +251,10 @@ export async function handleAdhocRecord(opts: {
   });
   const scenario = buildAdhocScenario(opts.command, parsedSteps);
 
-  await record({ config, scenario, projectDir: process.cwd(), logger });
+  const timestamp = formatTimestamp(new Date());
+  const result = await record({ config, scenario, projectDir: process.cwd(), logger, timestamp });
+  const outputDir = resolve(process.cwd(), config.output.dir);
+  await recordHistoryEntry(outputDir, scenario.name, timestamp, result, 'vhs');
 }
 
 export async function handleAdhocBrowserRecord(opts: {
@@ -290,7 +293,10 @@ export async function handleAdhocBrowserRecord(opts: {
     depends_on: [],
   };
 
-  await recordBrowser({ config, scenario, projectDir: process.cwd(), logger });
+  const timestamp = formatTimestamp(new Date());
+  const result = await recordBrowser({ config, scenario, projectDir: process.cwd(), logger, timestamp });
+  const outputDir = resolve(process.cwd(), config.output.dir);
+  await recordHistoryEntry(outputDir, scenario.name, timestamp, result, 'browser');
 }
 
 export function parseAdhocBrowserSteps(stepsStr: string): BrowserScenario['steps'] {
