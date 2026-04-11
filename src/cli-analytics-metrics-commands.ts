@@ -12,6 +12,8 @@ import { computeEfficiency, formatEfficiency } from './analytics/efficiency.js';
 import { analyzeVelocity, formatVelocity } from './analytics/velocity.js';
 import { analyzeCapacity, formatCapacity } from './analytics/capacity.js';
 import { analyzeQualityTrends, formatQualityTrends } from './analytics/quality-trends.js';
+import { generateDigest, formatDigest } from './analytics/digest.js';
+import type { DigestPeriod } from './analytics/digest.js';
 
 /**
  * Register measurement/metrics analytics CLI commands onto the given program.
@@ -30,6 +32,7 @@ export function registerAnalyticsMetricsCommands(program: Command): void {
   registerVelocityCommand(program);
   registerCapacityCommand(program);
   registerQualityTrendsCommand(program);
+  registerDigestCommand(program);
 }
 
 function registerBenchmarksCommand(program: Command): void {
@@ -198,6 +201,27 @@ function registerCapacityCommand(program: Command): void {
         const workHours = opts.workHours ? parseFloat(opts.workHours) : 8;
         const result = analyzeCapacity(entries, new Date(), workHours);
         console.log(formatCapacity(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerDigestCommand(program: Command): void {
+  program
+    .command('digest')
+    .description('Show daily or weekly recording summary digest with highlights and concerns')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--period <period>', 'Digest period: daily or weekly (default: daily)')
+    .action(async (opts: { config?: string; period?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const period: DigestPeriod = opts.period === 'weekly' ? 'weekly' : 'daily';
+        const result = generateDigest(entries, period);
+        console.log(formatDigest(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

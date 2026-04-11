@@ -345,3 +345,7 @@ export type { AnomalyType, AnomalySeverity, Anomaly, AnomalyResult } from './ana
 /** Recording session fingerprinting. */
 export { fingerprintSessions, formatFingerprints } from './analytics/fingerprint.js';
 export type { SessionFingerprint, SimilarityMatch, FingerprintResult } from './analytics/fingerprint.js';
+
+/** Recording summary digest. */
+export { generateDigest, formatDigest } from './analytics/digest.js';
+export type { DigestPeriod, DigestItem, DigestResult } from './analytics/digest.js';
