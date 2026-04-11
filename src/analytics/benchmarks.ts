@@ -5,6 +5,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Percentile benchmark for a single scenario. */
 export interface ScenarioBenchmark {
@@ -117,10 +118,6 @@ function percentile(sorted: readonly number[], pct: number): number {
   if (lower === upper) return sorted[lower];
   const frac = index - lower;
   return sorted[lower] * (1 - frac) + sorted[upper] * frac;
-}
-
-function round2(v: number): number {
-  return Math.round(v * 100) / 100;
 }
 
 /**

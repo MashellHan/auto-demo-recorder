@@ -6,6 +6,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** A single funnel stage. */
 export interface FunnelStage {
@@ -146,10 +147,6 @@ export function analyzeFunnel(
     totalRecordings: total,
     hasData: true,
   };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

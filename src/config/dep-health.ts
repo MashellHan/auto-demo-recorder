@@ -5,6 +5,7 @@
  */
 
 import type { DependencyScenario } from './dependencies.js';
+import { round2 } from '../analytics/utils.js';
 
 /** Severity of a dependency health issue. */
 export type DepHealthSeverity = 'error' | 'warning' | 'info';
@@ -296,10 +297,6 @@ function findComponents(
   }
 
   return components;
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

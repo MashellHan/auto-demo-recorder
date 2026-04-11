@@ -377,3 +377,6 @@ export type { RadarDimensionName, RadarValue, RadarProfile, RadarResult } from '
 /** Recording Pareto analysis. */
 export { analyzePareto, formatPareto } from './analytics/pareto.js';
 export type { ParetoCategory, ParetoItem, ParetoAnalysis, ParetoResult } from './analytics/pareto.js';
+
+/** Shared analytics utilities. */
+export { round2 } from './analytics/utils.js';

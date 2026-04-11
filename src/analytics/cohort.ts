@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Cohort granularity. */
 export type CohortGranularity = 'weekly' | 'monthly';
@@ -206,10 +207,6 @@ export function analyzeCohorts(
     avgRetentionPeriod1,
     hasData: true,
   };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

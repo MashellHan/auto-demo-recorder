@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Velocity window (rolling period). */
 export interface VelocityWindow {
@@ -137,10 +138,6 @@ export function analyzeVelocity(
     peakDailyOutput,
     peakDay,
   };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

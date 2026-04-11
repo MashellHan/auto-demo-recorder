@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Digest time period. */
 export type DigestPeriod = 'daily' | 'weekly';
@@ -173,10 +174,6 @@ export function generateDigest(
     concerns,
     hasData: true,
   };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** A single scored dimension. */
 export interface HealthDimension {
@@ -192,10 +193,6 @@ function buildEmptyDimensions(): HealthDimension[] {
     { name: 'Consistency', score: 0, weight: WEIGHTS.consistency, contribution: 0, detail: 'No data' },
     { name: 'Volume', score: 0, weight: WEIGHTS.volume, contribution: 0, detail: 'No data' },
   ];
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

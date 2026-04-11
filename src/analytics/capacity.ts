@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Scenario throughput profile. */
 export interface ScenarioThroughput {
@@ -178,10 +179,6 @@ function buildTargets(
   }
 
   return targets;
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

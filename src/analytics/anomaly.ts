@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Anomaly type classification. */
 export type AnomalyType = 'duration' | 'burst' | 'gap';
@@ -225,10 +226,6 @@ function classifySeverity(z: number, threshold: number): AnomalySeverity {
   if (z >= threshold * 2) return 'high';
   if (z >= threshold * 1.5) return 'medium';
   return 'low';
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

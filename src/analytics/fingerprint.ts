@@ -5,6 +5,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Fingerprint for a single session. */
 export interface SessionFingerprint {
@@ -230,10 +231,6 @@ function computeSimilarity(a: SessionFingerprint, b: SessionFingerprint): Simila
     identical: a.hash === b.hash,
     differences,
   };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

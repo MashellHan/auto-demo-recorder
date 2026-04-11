@@ -6,6 +6,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Radar dimension names. */
 export const RADAR_DIMENSIONS = [
@@ -168,10 +169,6 @@ function dimToKey(dim: RadarDimensionName): 'successRate' | 'volume' | 'freshnes
     case 'Consistency': return 'consistency';
     case 'Speed': return 'speed';
   }
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** A single day in the burndown chart. */
 export interface BurndownDay {
@@ -184,10 +185,6 @@ function buildBurndownDays(
   }
 
   return days;
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

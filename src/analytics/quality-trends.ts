@@ -5,6 +5,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Direction a quality dimension is trending. */
 export type QualityDirection = 'improving' | 'degrading' | 'stable';
@@ -168,10 +169,6 @@ function computeDimension(
     : 'degrading';
 
   return { name, current, previous, change, changePct, direction };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

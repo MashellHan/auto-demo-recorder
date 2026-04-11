@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Efficiency metrics result. */
 export interface EfficiencyResult {
@@ -148,10 +149,6 @@ export function computeEfficiency(entries: readonly HistoryEntry[]): EfficiencyR
     idle: { longestIdleHours, avgIdleMinutes, idleGaps },
     hourlyThroughput,
   };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

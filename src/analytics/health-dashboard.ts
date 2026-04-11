@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Overall health grade. */
 export type HealthGrade = 'excellent' | 'good' | 'fair' | 'poor' | 'critical';
@@ -180,10 +181,6 @@ function computeTrend(entries: readonly HistoryEntry[]): HealthDashboard['trend'
   if (diff > 0.1) return 'improving';
   if (diff < -0.1) return 'degrading';
   return 'stable';
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**

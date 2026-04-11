@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from './history.js';
+import { round2 } from './utils.js';
 
 /** Forecast method. */
 export type ForecastMethod = 'sma' | 'ema';
@@ -225,10 +226,6 @@ export function generateForecast(
     trend,
     hasEnoughData: true,
   };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /**
