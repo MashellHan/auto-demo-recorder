@@ -47,4 +47,51 @@ describe('runVhs', () => {
       'Could not find Output directive',
     );
   });
+
+  it('throws when VHS process fails', async () => {
+    const { execFile } = await import('node:child_process');
+    vi.mocked(execFile).mockImplementationOnce(
+      (_cmd: string, _args: unknown, _opts: unknown, cb: (err: Error | null) => void) => {
+        cb(new Error('vhs binary not found'));
+        return { stderr: { on: vi.fn() } } as never;
+      },
+    );
+
+    const tapeContent = 'Output "/tmp/test.mp4"\nType "hello"\n';
+    await expect(runVhs('/tmp/test.tape', tapeContent)).rejects.toThrow('VHS failed: vhs binary not found');
+  });
+
+  it('forwards stderr output to console.error', async () => {
+    const { execFile } = await import('node:child_process');
+    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    vi.mocked(execFile).mockImplementationOnce(
+      (_cmd: string, _args: unknown, _opts: unknown, cb: (err: Error | null) => void) => {
+        const stderrHandlers: Array<(data: Buffer) => void> = [];
+        const mockProc = {
+          stderr: {
+            on: vi.fn((event: string, handler: (data: Buffer) => void) => {
+              if (event === 'data') {
+                stderrHandlers.push(handler);
+              }
+            }),
+          },
+        };
+        // Trigger stderr data before resolving
+        setTimeout(() => {
+          for (const h of stderrHandlers) {
+            h(Buffer.from('Rendering frame 1/10'));
+          }
+          cb(null);
+        }, 0);
+        return mockProc as never;
+      },
+    );
+
+    const tapeContent = 'Output "/tmp/test.mp4"\nType "hello"\n';
+    await runVhs('/tmp/test.tape', tapeContent);
+
+    expect(stderrSpy).toHaveBeenCalledWith('  [vhs] Rendering frame 1/10');
+    stderrSpy.mockRestore();
+  });
 });

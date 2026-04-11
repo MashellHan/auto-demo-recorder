@@ -20,6 +20,15 @@ vi.mock('../src/index.js', () => ({
       description: 'Recording complete.',
     },
   }),
+  writeSessionReport: vi.fn().mockResolvedValue({
+    project: 'test',
+    timestamp: '2026-04-11T00:00:00Z',
+    scenarios_recorded: 2,
+    overall_status: 'ok',
+    total_bugs: 0,
+    total_duration_seconds: 10,
+    scenarios: [],
+  }),
   loadConfig: vi.fn(),
   findScenario: vi.fn(),
 }));
@@ -441,6 +450,119 @@ describe('record command (config mode)', () => {
       const callArgs = vi.mocked(recordFn).mock.calls[0][0];
       expect(callArgs.config.annotation.enabled).toBe(false);
     }
+
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('record command (multi-scenario session report)', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = join(tmpdir(), `cli-test-multi-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+  });
+
+  it('writes session report when recording multiple scenarios', async () => {
+    const { record: recordFn, writeSessionReport: wsrFn } = await import('../src/index.js');
+    const { loadConfig } = await import('../src/config/loader.js');
+    vi.mocked(recordFn).mockClear();
+    vi.mocked(wsrFn).mockClear();
+
+    // Create report files on disk so readFile in CLI succeeds
+    const tsDir = join(tempDir, '.demo-recordings', '2026-04-11_10-00');
+    const basicDir = join(tsDir, 'basic');
+    const advancedDir = join(tsDir, 'advanced');
+    await mkdir(basicDir, { recursive: true });
+    await mkdir(advancedDir, { recursive: true });
+
+    const reportA = { project: 'test', scenario: 'basic', timestamp: '2026-04-11T10:00:00Z', duration_seconds: 5, total_frames_analyzed: 2, overall_status: 'ok', frames: [], summary: 'ok', bugs_found: 0 };
+    const reportB = { project: 'test', scenario: 'advanced', timestamp: '2026-04-11T10:00:00Z', duration_seconds: 8, total_frames_analyzed: 3, overall_status: 'ok', frames: [], summary: 'ok', bugs_found: 0 };
+
+    await writeFile(join(basicDir, 'report.json'), JSON.stringify(reportA));
+    await writeFile(join(advancedDir, 'report.json'), JSON.stringify(reportB));
+
+    // Mock loadConfig to return 2 scenarios
+    vi.mocked(loadConfig).mockResolvedValueOnce({
+      project: { name: 'test', description: 'Test' },
+      recording: { width: 1200, height: 800, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60 },
+      output: { dir: '.demo-recordings', keep_raw: true, keep_frames: false },
+      annotation: { enabled: true, model: 'claude-sonnet-4-6', extract_fps: 1, language: 'en', overlay_position: 'bottom', overlay_font_size: 14 },
+      watch: { include: ['src/**/*'], exclude: ['node_modules/**'], debounce_ms: 500 },
+      scenarios: [
+        { name: 'basic', description: 'Basic', setup: [], steps: [{ action: 'key', value: 'q', pause: '500ms' }] },
+        { name: 'advanced', description: 'Advanced', setup: [], steps: [{ action: 'type', value: 'hello', pause: '1s' }] },
+      ],
+    } as never);
+
+    // Mock record to return proper report paths
+    vi.mocked(recordFn)
+      .mockResolvedValueOnce({
+        success: true,
+        videoPath: join(basicDir, 'annotated.mp4'),
+        rawVideoPath: join(basicDir, 'raw.mp4'),
+        reportPath: join(basicDir, 'report.json'),
+        thumbnailPath: join(basicDir, 'thumb.png'),
+        summary: { status: 'ok', durationSeconds: 5, framesAnalyzed: 2, bugsFound: 0, featuresDemo: ['nav'], description: 'ok' },
+      } as never)
+      .mockResolvedValueOnce({
+        success: true,
+        videoPath: join(advancedDir, 'annotated.mp4'),
+        rawVideoPath: join(advancedDir, 'raw.mp4'),
+        reportPath: join(advancedDir, 'report.json'),
+        thumbnailPath: join(advancedDir, 'thumb.png'),
+        summary: { status: 'ok', durationSeconds: 8, framesAnalyzed: 3, bugsFound: 0, featuresDemo: ['edit'], description: 'ok' },
+      } as never);
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'record']);
+    } catch {
+      // may throw
+    }
+
+    // record should be called twice (once per scenario)
+    expect(vi.mocked(recordFn).mock.calls.length).toBe(2);
+
+    // writeSessionReport should be called with correct args
+    expect(vi.mocked(wsrFn)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(wsrFn)).toHaveBeenCalledWith(
+      expect.stringContaining('session-report.json'),
+      'test',
+      expect.arrayContaining([
+        expect.objectContaining({ scenario: 'basic' }),
+        expect.objectContaining({ scenario: 'advanced' }),
+      ]),
+    );
+
+    // Should log session report path
+    const output = consoleSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(output).toContain('Session report:');
+
+    consoleSpy.mockRestore();
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('does not write session report for single scenario', async () => {
+    const { record: recordFn, writeSessionReport: wsrFn } = await import('../src/index.js');
+    vi.mocked(recordFn).mockClear();
+    vi.mocked(wsrFn).mockClear();
+
+    const cli = createCli();
+    cli.exitOverride();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await cli.parseAsync(['node', 'demo-recorder', 'record']);
+    } catch {
+      // may throw
+    }
+
+    // Default loadConfig returns 1 scenario, so writeSessionReport should NOT be called
+    expect(vi.mocked(wsrFn)).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
   });
