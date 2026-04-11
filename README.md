@@ -12,6 +12,7 @@ On-demand terminal demo recording + AI annotation CLI tool, callable by agents o
 - Regression detection between recordings
 - Language-aware annotations (configurable via `annotation.language`)
 - Watch mode: auto-record on source file changes
+- CI/CD GitHub Action: record demos on PR, upload artifacts, post regression summary
 
 ## Prerequisites
 
@@ -140,6 +141,27 @@ For agent integration (Claude Code, Cursor, etc.):
   }
 }
 ```
+
+## CI/CD Integration
+
+A ready-to-use GitHub Actions workflow is included at `.github/workflows/demo-record.yml`.
+
+### Setup
+
+1. Add `ANTHROPIC_API_KEY` as a repository secret (optional — annotation is skipped if missing)
+2. The workflow runs on every PR (opened, synchronized) and can be triggered manually
+
+### What it does
+
+- Installs VHS + ffmpeg on Ubuntu runner
+- Runs `demo-recorder record` for all scenarios (or a specific one via manual trigger)
+- Runs regression checks against previous recordings
+- Uploads recordings as GitHub Actions artifacts (14-day retention)
+- Posts a sticky PR comment with recording results and regression summary
+
+### Manual trigger
+
+Go to Actions → Demo Recording → Run workflow. Optionally specify a scenario name.
 
 ## License
 

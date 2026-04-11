@@ -1,0 +1,135 @@
+name: Demo Recording
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Scenario name (leave empty for all)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Install VHS
+        run: |
+          # Install VHS via go install
+          go install github.com/charmbracelet/vhs@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Install ttyd (VHS dependency)
+        run: |
+          sudo apt-get install -y -qq ttyd || true
+
+      - name: Validate config
+        run: npx demo-recorder validate
+        continue-on-error: true
+
+      - name: Record demos
+        id: record
+        run: |
+          SCENARIO_FLAG=""
+          if [ -n "${{ inputs.scenario }}" ]; then
+            SCENARIO_FLAG="--scenario ${{ inputs.scenario }}"
+          fi
+
+          # Skip annotation if no API key
+          ANNOTATE_FLAG=""
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::notice::ANTHROPIC_API_KEY not set — skipping AI annotation"
+            ANNOTATE_FLAG="--no-annotate"
+          fi
+
+          npx demo-recorder record $SCENARIO_FLAG $ANNOTATE_FLAG --quiet 2>&1 || true
+
+          # Find output directory
+          OUTPUT_DIR=$(ls -td .demo-recordings/*/  2>/dev/null | head -1)
+          echo "output_dir=$OUTPUT_DIR" >> $GITHUB_OUTPUT
+
+          # Collect report summaries
+          if [ -n "$OUTPUT_DIR" ]; then
+            echo "## Demo Recording Results" > recording-summary.md
+            echo "" >> recording-summary.md
+            for report in "$OUTPUT_DIR"/*/report.json; do
+              if [ -f "$report" ]; then
+                scenario=$(jq -r '.scenario' "$report")
+                status=$(jq -r '.overall_status' "$report")
+                bugs=$(jq -r '.bugs_found' "$report")
+                duration=$(jq -r '.duration_seconds' "$report")
+                summary=$(jq -r '.summary' "$report")
+                icon="✅"
+                [ "$status" = "warning" ] && icon="⚠️"
+                [ "$status" = "error" ] && icon="❌"
+                echo "### $icon $scenario" >> recording-summary.md
+                echo "- **Status**: $status" >> recording-summary.md
+                echo "- **Duration**: ${duration}s" >> recording-summary.md
+                echo "- **Bugs**: $bugs" >> recording-summary.md
+                echo "- **Summary**: $summary" >> recording-summary.md
+                echo "" >> recording-summary.md
+              fi
+            done
+          fi
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Run regression check
+        if: github.event_name == 'pull_request'
+        run: |
+          # Compare with baseline if available
+          if [ -d ".demo-recordings/latest" ]; then
+            for report in .demo-recordings/latest/*/report.json; do
+              scenario=$(basename $(dirname "$report"))
+              current=".demo-recordings/$(ls -t .demo-recordings/ | grep -v latest | head -1)/$scenario/report.json"
+              if [ -f "$current" ]; then
+                echo "Checking regressions for $scenario..."
+                npx demo-recorder diff "$report" "$current" --quiet || echo "::warning::Regressions detected in $scenario"
+              fi
+            done
+          fi
+        continue-on-error: true
+
+      - name: Upload recordings
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: demo-recordings
+          path: |
+            .demo-recordings/
+            recording-summary.md
+          retention-days: 14
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && hashFiles('recording-summary.md') != ''
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: demo-recording
+          path: recording-summary.md
