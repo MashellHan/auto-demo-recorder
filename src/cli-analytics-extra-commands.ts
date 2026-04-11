@@ -9,6 +9,7 @@ import { computeStatusOverview, formatStatusOverview } from './analytics/status-
 import { analyzeTrends, formatTrendReport } from './analytics/trends.js';
 import { detectOutliers, detectOutliersPerScenario, formatOutliers, formatOutliersPerScenario } from './analytics/outliers.js';
 import { computeCorrelations, formatCorrelations } from './analytics/correlation.js';
+import { detectDuplicates, formatDuplicates } from './analytics/duplicates.js';
 
 /**
  * Register extra analytics CLI commands onto the given program.
@@ -24,6 +25,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerTrendsCommand(program);
   registerOutliersCommand(program);
   registerCorrelationCommand(program);
+  registerDuplicatesCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -163,6 +165,27 @@ function registerCorrelationCommand(program: Command): void {
         const minSessions = opts.minSessions ? parseInt(opts.minSessions, 10) : 3;
         const result = computeCorrelations(entries, minSessions);
         console.log(formatCorrelations(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerDuplicatesCommand(program: Command): void {
+  program
+    .command('duplicates')
+    .description('Detect duplicate recordings in history')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--window <seconds>', 'Time window for near-duplicate detection (default: 60)')
+    .action(async (opts: { config?: string; window?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const windowSeconds = opts.window ? parseInt(opts.window, 10) : 60;
+        const result = detectDuplicates(entries, windowSeconds);
+        console.log(formatDuplicates(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

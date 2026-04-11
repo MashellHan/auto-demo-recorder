@@ -61,6 +61,8 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'config-export', description: 'Export config as JSON/TOML', options: ['--config', '--format', '--output'] },
   { name: 'clone', description: 'Clone a scenario with overrides', options: ['--config', '--description', '--tags', '--url'] },
   { name: 'correlations', description: 'Show scenario correlations', options: ['--config', '--min-sessions'] },
+  { name: 'duplicates', description: 'Detect duplicate recordings', options: ['--config', '--window'] },
+  { name: 'interpolate', description: 'Show config variable interpolation', options: ['--config', '--list'] },
 ];
 
 /**

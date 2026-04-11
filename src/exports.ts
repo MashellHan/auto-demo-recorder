@@ -233,3 +233,11 @@ export type { Outlier, OutlierResult, PerScenarioOutlierResult } from './analyti
 /** Scenario correlation analysis. */
 export { computeCorrelations, formatCorrelations } from './analytics/correlation.js';
 export type { CorrelationPair, CorrelationResult } from './analytics/correlation.js';
+
+/** Recording duplicate detection. */
+export { detectDuplicates, formatDuplicates } from './analytics/duplicates.js';
+export type { DuplicateGroup, DuplicateResult } from './analytics/duplicates.js';
+
+/** Config variable interpolation. */
+export { interpolateConfig, listConfigVariables, formatInterpolationResult } from './config/interpolation.js';
+export type { InterpolationResult } from './config/interpolation.js';
