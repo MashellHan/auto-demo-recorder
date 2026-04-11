@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { loadConfig, findScenario } from './config/loader.js';
 import { buildAdhocConfig, buildAdhocScenario } from './config/adhoc.js';
+import { scanProject, generateConfig } from './config/scanner.js';
 import { record } from './index.js';
 import { startMcpServer } from './mcp/server.js';
 import { detectRegressions } from './pipeline/regression.js';
@@ -148,14 +149,22 @@ export function createCli(): Command {
   program
     .command('init')
     .description('Generate a demo-recorder.yaml template in the current directory')
-    .action(async () => {
+    .option('--from-existing', 'Scan project to auto-detect settings')
+    .action(async (opts: { fromExisting?: boolean }) => {
       const targetPath = resolve(process.cwd(), 'demo-recorder.yaml');
       if (existsSync(targetPath)) {
         console.error('demo-recorder.yaml already exists in this directory.');
         process.exit(1);
       }
 
-      const template = `project:
+      let template: string;
+
+      if (opts.fromExisting) {
+        const info = await scanProject(process.cwd());
+        template = generateConfig(info);
+        console.log(`\u2713 Detected ${info.type} project: ${info.name}`);
+      } else {
+        template = `project:
   name: my-project
   description: "My CLI/TUI project"
   # build_command: "make build"
@@ -191,6 +200,7 @@ scenarios:
       - { action: "type", value: "./my-project", pause: "2s" }
       - { action: "key", value: "q", pause: "500ms" }
 `;
+      }
 
       await writeFile(targetPath, template, 'utf-8');
       console.log('\u2713 Created demo-recorder.yaml');
