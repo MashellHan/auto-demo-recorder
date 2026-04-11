@@ -11,6 +11,7 @@ import { extractFrames } from './pipeline/frame-extractor.js';
 import { annotateFrames, type Logger } from './pipeline/annotator.js';
 import { postProcess } from './pipeline/post-processor.js';
 import { generatePlayer } from './pipeline/player-generator.js';
+import { generateDocs } from './pipeline/doc-generator.js';
 import { compareReports, writeSessionReport, type Report } from './pipeline/regression.js';
 
 /** Load and validate a demo-recorder.yaml config file. */
@@ -34,6 +35,9 @@ export type { ThemeInfo } from './config/themes.js';
 /** HTML player generator. */
 export { generatePlayer } from './pipeline/player-generator.js';
 export type { PlayerOptions } from './pipeline/player-generator.js';
+/** AI documentation generator. */
+export { generateDocs } from './pipeline/doc-generator.js';
+export type { DocGeneratorOptions } from './pipeline/doc-generator.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
@@ -68,6 +72,8 @@ export interface RecordResult {
   extraVideoPaths?: string[];
   /** Path to the HTML player file (when player output is enabled). */
   playerPath?: string;
+  /** Path to the generated documentation file (when docs output is enabled). */
+  docsPath?: string;
 }
 
 /** Options for the {@link record} function (VHS terminal backend). */
@@ -173,6 +179,22 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
     log.log('  ✓ HTML player generated');
   }
 
+  // Generate markdown documentation if enabled
+  if (config.output.docs) {
+    const docsPath = join(outputBase, 'DEMO.md');
+    await generateDocs({
+      reportPath: paths.report,
+      outputPath: docsPath,
+      projectName: config.project.name,
+      scenarioName: scenario.name,
+      scenarioDescription: scenario.description,
+      includeScreenshots: config.output.keep_frames,
+      framesDir: config.output.keep_frames ? 'frames' : undefined,
+    });
+    result.docsPath = docsPath;
+    log.log('  ✓ Documentation generated');
+  }
+
   // Retain-on-failure: prune clean recordings to save disk space
   if (config.output.record_mode === 'retain-on-failure') {
     const hasBugs = (annotationResult?.bugs_found ?? 0) > 0;
@@ -251,6 +273,22 @@ export async function recordBrowser(options: BrowserRecordOptions): Promise<Reco
     });
     result.playerPath = playerPath;
     log.log('  ✓ HTML player generated');
+  }
+
+  // Generate markdown documentation if enabled
+  if (config.output.docs) {
+    const docsPath = join(outputBase, 'DEMO.md');
+    await generateDocs({
+      reportPath: paths.report,
+      outputPath: docsPath,
+      projectName: config.project.name,
+      scenarioName: scenario.name,
+      scenarioDescription: scenario.description,
+      includeScreenshots: config.output.keep_frames,
+      framesDir: config.output.keep_frames ? 'frames' : undefined,
+    });
+    result.docsPath = docsPath;
+    log.log('  ✓ Documentation generated');
   }
 
   // Retain-on-failure: prune clean recordings to save disk space

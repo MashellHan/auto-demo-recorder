@@ -110,6 +110,8 @@ const OutputSchema = z.object({
   record_mode: z.enum(['always', 'retain-on-failure']).default('always'),
   /** Generate an HTML player file alongside recordings. */
   player: z.boolean().default(false),
+  /** Generate markdown documentation from recording analysis. */
+  docs: z.boolean().default(false),
 });
 
 const AnnotationSchema = z.object({
