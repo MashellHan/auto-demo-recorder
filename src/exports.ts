@@ -289,3 +289,7 @@ export type { CoverageStatus, ScenarioCoverage, CoverageReport } from './analyti
 /** Config snapshot diff. */
 export { createConfigSnapshot, detectDrift, classifyDriftSeverity, formatDrift } from './config/config-snapshot-diff.js';
 export type { ConfigSnapshot, DriftResult } from './config/config-snapshot-diff.js';
+
+/** Scenario complexity scorer. */
+export { scoreComplexity, formatComplexity } from './analytics/complexity.js';
+export type { ComplexityScore, ComplexityResult, ComplexityScenario } from './analytics/complexity.js';

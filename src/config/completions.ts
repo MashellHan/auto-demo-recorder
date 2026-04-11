@@ -73,6 +73,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'depth', description: 'Dependency depth analysis', options: ['--config'] },
   { name: 'freshness', description: 'Recording freshness index', options: ['--config'] },
   { name: 'coverage', description: 'Scenario coverage report', options: ['--config', '--stale-days'] },
+  { name: 'complexity', description: 'Scenario complexity scoring', options: ['--config'] },
 ];
 
 /**
