@@ -13,6 +13,7 @@ import { detectDuplicates, formatDuplicates } from './analytics/duplicates.js';
 import { groupRecordings, formatGrouping } from './analytics/grouping.js';
 import { generateAlerts, formatAlerts } from './analytics/alerts.js';
 import { checkSla, formatSla } from './analytics/sla.js';
+import { evaluateRetention, formatRetention } from './analytics/retention.js';
 import type { GroupBy } from './analytics/grouping.js';
 
 /**
@@ -33,6 +34,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerGroupCommand(program);
   registerAlertsCommand(program);
   registerSlaCommand(program);
+  registerRetentionCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -274,6 +276,35 @@ function registerSlaCommand(program: Command): void {
         const result = checkSla(entries, targets);
         console.log(formatSla(result));
         if (!result.compliant) process.exit(1);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerRetentionCommand(program: Command): void {
+  program
+    .command('retention')
+    .description('Evaluate recording retention policy and show cleanup candidates')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--max-age <days>', 'Maximum recording age in days (default: 30)')
+    .option('--max-count <n>', 'Maximum total recordings (default: 1000)')
+    .option('--max-per-scenario <n>', 'Maximum recordings per scenario (default: 100)')
+    .option('--no-keep-failed', 'Allow removing failed recordings')
+    .action(async (opts: { config?: string; maxAge?: string; maxCount?: string; maxPerScenario?: string; keepFailed?: boolean }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const policy = {
+          maxAgeDays: opts.maxAge ? parseInt(opts.maxAge, 10) : undefined,
+          maxCount: opts.maxCount ? parseInt(opts.maxCount, 10) : undefined,
+          maxPerScenario: opts.maxPerScenario ? parseInt(opts.maxPerScenario, 10) : undefined,
+          keepFailed: opts.keepFailed,
+        };
+        const result = evaluateRetention(entries, policy);
+        console.log(formatRetention(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

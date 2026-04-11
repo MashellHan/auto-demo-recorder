@@ -257,3 +257,7 @@ export type { SlaTarget, SlaCheck, SlaResult } from './analytics/sla.js';
 /** Structured config comparison. */
 export { compareConfigs, formatComparisonReport as formatConfigComparisonReport } from './config/config-comparison.js';
 export type { ConfigChange, ComparisonReport as ConfigComparisonReport } from './config/config-comparison.js';
+
+/** Recording retention policy. */
+export { evaluateRetention, formatRetention } from './analytics/retention.js';
+export type { RetentionPolicy, RetentionCandidate, RetentionResult, ScenarioRetention } from './analytics/retention.js';
