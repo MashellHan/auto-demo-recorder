@@ -63,6 +63,8 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'correlations', description: 'Show scenario correlations', options: ['--config', '--min-sessions'] },
   { name: 'duplicates', description: 'Detect duplicate recordings', options: ['--config', '--window'] },
   { name: 'interpolate', description: 'Show config variable interpolation', options: ['--config', '--list'] },
+  { name: 'group', description: 'Group recordings by criteria', options: ['--config', '--by'] },
+  { name: 'alerts', description: 'Show scenario health alerts', options: ['--config', '--max-failure', '--max-duration'] },
 ];
 
 /**

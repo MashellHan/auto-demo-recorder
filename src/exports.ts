@@ -241,3 +241,11 @@ export type { DuplicateGroup, DuplicateResult } from './analytics/duplicates.js'
 /** Config variable interpolation. */
 export { interpolateConfig, listConfigVariables, formatInterpolationResult } from './config/interpolation.js';
 export type { InterpolationResult } from './config/interpolation.js';
+
+/** Recording session grouping. */
+export { groupRecordings, formatGrouping } from './analytics/grouping.js';
+export type { GroupBy, RecordingGroup, GroupingResult } from './analytics/grouping.js';
+
+/** Scenario health alerts. */
+export { generateAlerts, formatAlerts } from './analytics/alerts.js';
+export type { AlertSeverity, HealthAlert, AlertThresholds, AlertResult } from './analytics/alerts.js';

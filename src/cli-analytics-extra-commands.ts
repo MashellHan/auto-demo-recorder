@@ -10,6 +10,9 @@ import { analyzeTrends, formatTrendReport } from './analytics/trends.js';
 import { detectOutliers, detectOutliersPerScenario, formatOutliers, formatOutliersPerScenario } from './analytics/outliers.js';
 import { computeCorrelations, formatCorrelations } from './analytics/correlation.js';
 import { detectDuplicates, formatDuplicates } from './analytics/duplicates.js';
+import { groupRecordings, formatGrouping } from './analytics/grouping.js';
+import { generateAlerts, formatAlerts } from './analytics/alerts.js';
+import type { GroupBy } from './analytics/grouping.js';
 
 /**
  * Register extra analytics CLI commands onto the given program.
@@ -26,6 +29,8 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerOutliersCommand(program);
   registerCorrelationCommand(program);
   registerDuplicatesCommand(program);
+  registerGroupCommand(program);
+  registerAlertsCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -186,6 +191,57 @@ function registerDuplicatesCommand(program: Command): void {
         const windowSeconds = opts.window ? parseInt(opts.window, 10) : 60;
         const result = detectDuplicates(entries, windowSeconds);
         console.log(formatDuplicates(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerGroupCommand(program: Command): void {
+  program
+    .command('group')
+    .description('Group recordings by day, week, scenario, backend, or status')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--by <criterion>', 'Group by: day, week, scenario, backend, status (default: day)')
+    .action(async (opts: { config?: string; by?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const groupBy = (opts.by ?? 'day') as GroupBy;
+        if (!['day', 'week', 'scenario', 'backend', 'status'].includes(groupBy)) {
+          console.error(`Invalid group-by criterion: ${groupBy}. Use day, week, scenario, backend, or status.`);
+          process.exit(1);
+        }
+        const result = groupRecordings(entries, groupBy);
+        console.log(formatGrouping(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerAlertsCommand(program: Command): void {
+  program
+    .command('alerts')
+    .description('Show scenario health alerts (failure rate, duration, bugs)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--max-failure <rate>', 'Warning failure rate threshold (default: 0.2)')
+    .option('--max-duration <seconds>', 'Max average duration threshold (default: 60)')
+    .action(async (opts: { config?: string; maxFailure?: string; maxDuration?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const thresholds = {
+          maxFailureRate: opts.maxFailure ? parseFloat(opts.maxFailure) : undefined,
+          maxDuration: opts.maxDuration ? parseFloat(opts.maxDuration) : undefined,
+        };
+        const result = generateAlerts(entries, thresholds);
+        console.log(formatAlerts(result));
+        if (result.alerts.some((a) => a.severity === 'critical')) process.exit(1);
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
