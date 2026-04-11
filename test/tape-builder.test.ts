@@ -184,4 +184,44 @@ describe('buildTape', () => {
     const matches = tape.match(/Sleep 1s/g);
     expect(matches).toHaveLength(2);
   });
+
+  it('generates Screenshot directive for screenshot action', () => {
+    const scenario: Scenario = {
+      name: 'screenshot-test',
+      description: 'Screenshot test',
+      setup: [],
+      steps: [{ action: 'screenshot', value: 'capture.png', pause: '500ms' }],
+    };
+
+    const tape = buildTape({
+      scenario,
+      recording: defaultRecording,
+      outputPath: '/tmp/test.mp4',
+    });
+
+    expect(tape).toContain('Screenshot "capture.png"');
+    // screenshot should NOT emit a trailing pause
+    const lines = tape.split('\n');
+    const screenshotIdx = lines.findIndex((l) => l === 'Screenshot "capture.png"');
+    expect(screenshotIdx).toBeGreaterThan(-1);
+    const nextLine = lines.slice(screenshotIdx + 1).find((l) => l.trim() !== '');
+    expect(nextLine).not.toBe('Sleep 500ms');
+  });
+
+  it('escapes quotes in screenshot filename', () => {
+    const scenario: Scenario = {
+      name: 'screenshot-escape',
+      description: 'Screenshot escape test',
+      setup: [],
+      steps: [{ action: 'screenshot', value: 'my "file".png', pause: '0ms' }],
+    };
+
+    const tape = buildTape({
+      scenario,
+      recording: defaultRecording,
+      outputPath: '/tmp/test.mp4',
+    });
+
+    expect(tape).toContain('Screenshot "my \\"file\\".png"');
+  });
 });

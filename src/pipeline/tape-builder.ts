@@ -47,6 +47,9 @@ export function buildTape(options: TapeBuildOptions): string {
         case 'sleep':
           lines.push(`Sleep ${step.value}`);
           continue; // sleep action uses value as duration, skip the default pause
+        case 'screenshot':
+          lines.push(`Screenshot "${escapeQuotes(step.value)}"`);
+          continue; // screenshot doesn't need a trailing pause
       }
       lines.push(`Sleep ${step.pause}`);
     }

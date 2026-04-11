@@ -130,6 +130,21 @@ describe('ConfigSchema', () => {
     };
     expect(() => ConfigSchema.parse(raw)).toThrow();
   });
+
+  it('accepts screenshot action in terminal steps', () => {
+    const raw = {
+      project: { name: 'test' },
+      scenarios: [
+        {
+          name: 'screenshot-test',
+          description: 'Screenshot test',
+          steps: [{ action: 'screenshot', value: 'snap.png' }],
+        },
+      ],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.scenarios[0].steps[0].action).toBe('screenshot');
+  });
 });
 
 describe('ConfigSchema — browser backend', () => {

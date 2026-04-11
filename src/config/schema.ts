@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const StepSchema = z.object({
-  action: z.enum(['type', 'key', 'sleep']),
+  action: z.enum(['type', 'key', 'sleep', 'screenshot']),
   value: z.string(),
   pause: z.string().default('500ms'),
   repeat: z.number().optional(),
