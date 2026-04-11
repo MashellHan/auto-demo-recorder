@@ -18,6 +18,21 @@ vi.mock('../src/index.js', () => ({
       description: 'Recording complete.',
     },
   }),
+  recordBrowser: vi.fn().mockResolvedValue({
+    success: true,
+    videoPath: '/tmp/project/.demo-recordings/2026-04-11_07-30/homepage/annotated.mp4',
+    rawVideoPath: '/tmp/project/.demo-recordings/2026-04-11_07-30/homepage/raw.webm',
+    reportPath: '/tmp/project/.demo-recordings/2026-04-11_07-30/homepage/report.json',
+    thumbnailPath: '/tmp/project/.demo-recordings/2026-04-11_07-30/homepage/thumb.png',
+    summary: {
+      status: 'ok',
+      durationSeconds: 5,
+      framesAnalyzed: 3,
+      bugsFound: 0,
+      featuresDemo: ['homepage'],
+      description: 'Recording complete.',
+    },
+  }),
   updateLatestSymlink: vi.fn().mockResolvedValue(undefined),
   writeSessionReport: vi.fn().mockResolvedValue({
     project: 'test',
@@ -349,5 +364,195 @@ describe('MCP Server', () => {
     // Should NOT have multi-scenario fields
     expect(parsed.session_report_path).toBeUndefined();
     expect(parsed.recordings).toBeUndefined();
+  });
+
+  it('handles browser recording via backend flag', async () => {
+    const { loadConfig } = await import('../src/config/loader.js');
+    const { recordBrowser } = await import('../src/index.js');
+
+    vi.mocked(loadConfig).mockResolvedValueOnce({
+      project: { name: 'web-test', description: 'Web' },
+      recording: { width: 1280, height: 720, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60, backend: 'browser', browser: { headless: true, browser: 'chromium', viewport_width: 1280, viewport_height: 720, timeout_ms: 30000, device_scale_factor: 1, record_video: true } },
+      output: { dir: '.demo-recordings', keep_raw: true, keep_frames: false },
+      annotation: { enabled: false, model: 'claude-sonnet-4-6', extract_fps: 1, language: 'en', overlay_position: 'bottom', overlay_font_size: 14 },
+      scenarios: [],
+      browser_scenarios: [{ name: 'homepage', description: 'Homepage', url: 'http://localhost:3000', setup: [], steps: [] }],
+    } as never);
+
+    vi.mocked(recordBrowser).mockResolvedValueOnce({
+      success: true,
+      videoPath: '/out/annotated.mp4',
+      rawVideoPath: '/out/raw.webm',
+      reportPath: '/out/2026/homepage/report.json',
+      thumbnailPath: '/out/thumb.png',
+      summary: { status: 'ok', durationSeconds: 5, framesAnalyzed: 3, bugsFound: 0, featuresDemo: ['home'], description: 'ok' },
+    } as never);
+
+    await startMcpServer();
+    const callHandler = handlers.get('tools/call')!;
+    const result = await callHandler({
+      params: {
+        name: 'demo_recorder_record',
+        arguments: { project_dir: '/tmp/project', backend: 'browser' },
+      },
+    }) as { content: Array<{ type: string; text: string }> };
+
+    expect(vi.mocked(recordBrowser)).toHaveBeenCalledTimes(1);
+    const callArgs = vi.mocked(recordBrowser).mock.calls[0][0] as any;
+    expect(callArgs.scenario.name).toBe('homepage');
+
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(parsed.video_path).toContain('annotated.mp4');
+  });
+
+  it('handles browser scenario not found error', async () => {
+    const { loadConfig } = await import('../src/config/loader.js');
+
+    vi.mocked(loadConfig).mockResolvedValueOnce({
+      project: { name: 'web-test', description: 'Web' },
+      recording: { width: 1280, height: 720, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60, backend: 'browser', browser: { headless: true, browser: 'chromium', viewport_width: 1280, viewport_height: 720, timeout_ms: 30000, device_scale_factor: 1, record_video: true } },
+      output: { dir: '.demo-recordings', keep_raw: true, keep_frames: false },
+      annotation: { enabled: false, model: 'claude-sonnet-4-6', extract_fps: 1, language: 'en', overlay_position: 'bottom', overlay_font_size: 14 },
+      scenarios: [],
+      browser_scenarios: [],
+    } as never);
+
+    await startMcpServer();
+    const callHandler = handlers.get('tools/call')!;
+    const result = await callHandler({
+      params: {
+        name: 'demo_recorder_record',
+        arguments: { project_dir: '/tmp/project', backend: 'browser', scenario: 'nonexistent' },
+      },
+    }) as { content: Array<{ type: string; text: string }>; isError: boolean };
+
+    expect(result.isError).toBe(true);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(false);
+    expect(parsed.error).toContain('not found');
+  });
+
+  it('handles multi-scenario browser recording with session report', async () => {
+    const { loadConfig } = await import('../src/config/loader.js');
+    const { recordBrowser, updateLatestSymlink, writeSessionReport } = await import('../src/index.js');
+
+    vi.mocked(loadConfig).mockResolvedValueOnce({
+      project: { name: 'web-test', description: 'Web' },
+      recording: { width: 1280, height: 720, font_size: 16, theme: 'Catppuccin Mocha', fps: 25, max_duration: 60, backend: 'browser', browser: { headless: true, browser: 'chromium', viewport_width: 1280, viewport_height: 720, timeout_ms: 30000, device_scale_factor: 1, record_video: true } },
+      output: { dir: '.demo-recordings', keep_raw: true, keep_frames: false },
+      annotation: { enabled: false, model: 'claude-sonnet-4-6', extract_fps: 1, language: 'en', overlay_position: 'bottom', overlay_font_size: 14 },
+      scenarios: [],
+      browser_scenarios: [
+        { name: 'homepage', description: 'Homepage', url: 'http://localhost:3000', setup: [], steps: [] },
+        { name: 'dashboard', description: 'Dashboard', url: 'http://localhost:3000/dash', setup: [], steps: [] },
+      ],
+    } as never);
+
+    vi.mocked(recordBrowser).mockResolvedValue({
+      success: true,
+      videoPath: '/out/annotated.mp4',
+      rawVideoPath: '/out/raw.webm',
+      reportPath: '/tmp/project/.demo-recordings/2026-04-11_07-30/homepage/report.json',
+      thumbnailPath: '/out/thumb.png',
+      summary: { status: 'ok', durationSeconds: 5, framesAnalyzed: 3, bugsFound: 0, featuresDemo: ['home'], description: 'ok' },
+    } as never);
+
+    await startMcpServer();
+    const callHandler = handlers.get('tools/call')!;
+    const result = await callHandler({
+      params: {
+        name: 'demo_recorder_record',
+        arguments: { project_dir: '/tmp/project', backend: 'browser' },
+      },
+    }) as { content: Array<{ type: string; text: string }> };
+
+    // 2 scenarios → 2 recordBrowser calls
+    expect(vi.mocked(recordBrowser).mock.calls.length).toBe(2);
+    expect(vi.mocked(recordBrowser).mock.calls[0][0].skipSymlinkUpdate).toBe(true);
+
+    // updateLatestSymlink + writeSessionReport called for multi-scenario
+    expect(vi.mocked(updateLatestSymlink)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(writeSessionReport)).toHaveBeenCalledTimes(1);
+
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(parsed.session_report_path).toContain('session-report.json');
+    expect(parsed.recordings).toHaveLength(2);
+  });
+
+  it('handles adhoc browser recording via MCP', async () => {
+    const { recordBrowser } = await import('../src/index.js');
+
+    vi.mocked(recordBrowser).mockResolvedValueOnce({
+      success: true,
+      videoPath: '/out/annotated.mp4',
+      rawVideoPath: '/out/raw.webm',
+      reportPath: '/out/report.json',
+      thumbnailPath: '/out/thumb.png',
+      summary: { status: 'ok', durationSeconds: 5, framesAnalyzed: 0, bugsFound: 0, featuresDemo: [], description: 'ok' },
+    } as never);
+
+    await startMcpServer();
+    const callHandler = handlers.get('tools/call')!;
+    const result = await callHandler({
+      params: {
+        name: 'demo_recorder_record',
+        arguments: {
+          project_dir: '/tmp/project',
+          backend: 'browser',
+          adhoc: {
+            command: 'http://localhost:3000',
+            steps: [
+              { action: 'click', value: '.btn' },
+              { action: 'fill', value: '#input', text: 'hello' },
+            ],
+            width: 1920,
+            height: 1080,
+          },
+        },
+      },
+    }) as { content: Array<{ type: string; text: string }> };
+
+    expect(vi.mocked(recordBrowser)).toHaveBeenCalledTimes(1);
+    const callArgs = vi.mocked(recordBrowser).mock.calls[0][0] as any;
+    expect(callArgs.scenario.name).toBe('adhoc-browser');
+    expect(callArgs.scenario.url).toBe('http://localhost:3000');
+    expect(callArgs.scenario.steps).toHaveLength(2);
+    expect(callArgs.scenario.steps[0]).toEqual({ action: 'click', value: '.btn', text: undefined, pause: '500ms' });
+    expect(callArgs.scenario.steps[1]).toEqual({ action: 'fill', value: '#input', text: 'hello', pause: '500ms' });
+
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+  });
+
+  it('handles adhoc browser recording with no steps', async () => {
+    const { recordBrowser } = await import('../src/index.js');
+
+    vi.mocked(recordBrowser).mockResolvedValueOnce({
+      success: true,
+      videoPath: '/out/annotated.mp4',
+      rawVideoPath: '/out/raw.webm',
+      reportPath: '/out/report.json',
+      thumbnailPath: '/out/thumb.png',
+      summary: { status: 'ok', durationSeconds: 5, framesAnalyzed: 0, bugsFound: 0, featuresDemo: [], description: 'ok' },
+    } as never);
+
+    await startMcpServer();
+    const callHandler = handlers.get('tools/call')!;
+    await callHandler({
+      params: {
+        name: 'demo_recorder_record',
+        arguments: {
+          project_dir: '/tmp/project',
+          backend: 'browser',
+          adhoc: { command: 'http://localhost:3000' },
+        },
+      },
+    });
+
+    const callArgs = vi.mocked(recordBrowser).mock.calls[0][0] as any;
+    expect(callArgs.scenario.steps).toHaveLength(0);
+    expect(callArgs.scenario.url).toBe('http://localhost:3000');
   });
 });
