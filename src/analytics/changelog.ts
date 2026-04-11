@@ -106,8 +106,18 @@ export function formatChangelog(entries: ChangelogEntry[]): string {
   lines.push('# Recording Changelog');
   lines.push('');
 
+  let lastDate = '';
+
   for (const entry of entries) {
-    lines.push(`## ${entry.date}`);
+    // Only emit date header when the date changes (prevents duplicate headers)
+    if (entry.date !== lastDate) {
+      lines.push(`## ${entry.date}`);
+      lines.push('');
+      lastDate = entry.date;
+    }
+
+    // Show session timestamp as a sub-heading when grouping by date
+    lines.push(`### Session ${entry.timestamp}`);
     lines.push('');
     lines.push(`- Scenarios: ${entry.totalScenarios}`);
     lines.push(`- Bugs: ${entry.totalBugs}`);
