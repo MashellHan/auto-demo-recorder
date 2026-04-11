@@ -26,6 +26,16 @@ describe('generateBashCompletion', () => {
     expect(script).toContain('compare');
     expect(script).toContain('doctor');
     expect(script).toContain('prune');
+    expect(script).toContain('plugins');
+    expect(script).toContain('snapshot');
+    expect(script).toContain('config-diff');
+  });
+
+  it('does not include phantom commands', () => {
+    const script = generateBashCompletion();
+    expect(script).not.toContain('bundle');
+    expect(script).not.toContain('init-browser');
+    expect(script).not.toContain('mcp-server');
   });
 
   it('includes options for commands', () => {

@@ -23,10 +23,8 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'compare', description: 'Compare two sessions', options: ['--config'] },
   { name: 'history', description: 'Show recording history', options: ['--config', '--since', '--scenario', '--status', '--limit'] },
   { name: 'export', description: 'Export recordings', options: ['--config', '--format'] },
-  { name: 'bundle', description: 'Bundle recordings' },
   { name: 'replay', description: 'Replay recording steps', options: ['--config'] },
   { name: 'init', description: 'Initialize config file' },
-  { name: 'init-browser', description: 'Initialize browser config' },
   { name: 'themes', description: 'List available themes' },
   { name: 'profiles', description: 'List recording profiles', options: ['--config'] },
   { name: 'languages', description: 'List annotation languages' },
@@ -39,8 +37,11 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'doctor', description: 'Check system health', options: ['--backend'] },
   { name: 'prune', description: 'Remove old recordings', options: ['--config', '--keep', '--max-age', '--dry-run'] },
   { name: 'watch', description: 'Watch for changes', options: ['--config'] },
-  { name: 'mcp-server', description: 'Start MCP server' },
+  { name: 'serve', description: 'Start MCP server' },
   { name: 'completion', description: 'Generate shell completion', options: ['--shell'] },
+  { name: 'plugins', description: 'List registered plugins' },
+  { name: 'snapshot', description: 'Manage recording snapshots' },
+  { name: 'config-diff', description: 'Compare two config files' },
 ];
 
 /**

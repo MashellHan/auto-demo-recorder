@@ -1,13 +1,15 @@
 import { readFile, readdir } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { findScenario } from './config/loader.js';
 import { buildAdhocConfig, buildAdhocScenario } from './config/adhoc.js';
 import { record, recordBrowser, writeSessionReport, formatTimestamp } from './index.js';
 import { pLimit } from './pipeline/concurrency.js';
 import { withRetry } from './pipeline/retry.js';
+import { appendHistoryEntry } from './analytics/history.js';
 import type { Step, BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
+import type { RecordResult } from './index.js';
 
 /** Filter scenarios by tag. Supports negation with "!" prefix. */
 export function filterByTag<T extends { tags?: string[] }>(scenarios: T[], tag: string): T[] {
@@ -70,6 +72,11 @@ export async function handleVhsRecord(
       await writeSessionReport(sessionPath, (config as any).project.name, reports);
       if (!quiet) console.log(`Session report: ${sessionPath}`);
     }
+    // Log history for all parallel results
+    const outputDir = resolve(projectDir, (config as any).output.dir);
+    for (let i = 0; i < results.length; i++) {
+      await recordHistoryEntry(outputDir, scenarios[i].name, timestamp, results[i], 'vhs');
+    }
     if (!quiet) console.log(`\n${results.length}/${scenarios.length} scenarios recorded successfully.`);
     return;
   }
@@ -87,6 +94,8 @@ export async function handleVhsRecord(
         })
       : await recordFn();
     results.push(result);
+    const outputDir = resolve(projectDir, (config as any).output.dir);
+    await recordHistoryEntry(outputDir, scenario.name, timestamp, result, 'vhs');
     if (!quiet) console.log('');
   }
 
@@ -156,6 +165,11 @@ export async function handleBrowserRecord(
       await writeSessionReport(sessionPath, (config as any).project.name, reports);
       if (!quiet) console.log(`Session report: ${sessionPath}`);
     }
+    // Log history for all parallel browser results
+    const outputDir = resolve(projectDir, (config as any).output.dir);
+    for (let i = 0; i < results.length; i++) {
+      await recordHistoryEntry(outputDir, browserScenarios[i].name, timestamp, results[i], 'browser');
+    }
     if (!quiet) console.log(`\n${results.length}/${browserScenarios.length} browser scenarios recorded successfully.`);
     return;
   }
@@ -173,6 +187,8 @@ export async function handleBrowserRecord(
         })
       : await recordFn();
     results.push(result);
+    const bOutputDir = resolve(projectDir, (config as any).output.dir);
+    await recordHistoryEntry(bOutputDir, scenario.name, timestamp, result, 'browser');
     if (!quiet) console.log('');
   }
 
@@ -347,4 +363,30 @@ export async function loadChangelogSessions(outputDir: string): Promise<Changelo
   }
 
   return sessions;
+}
+
+/**
+ * Record a history entry for a completed recording.
+ * Silently returns if writing fails (non-critical side-effect).
+ */
+async function recordHistoryEntry(
+  outputDir: string,
+  scenarioName: string,
+  timestamp: string,
+  result: RecordResult,
+  backend: 'vhs' | 'browser',
+): Promise<void> {
+  try {
+    await appendHistoryEntry(outputDir, {
+      timestamp: new Date().toISOString(),
+      sessionId: timestamp,
+      scenario: scenarioName,
+      status: result.summary.status,
+      durationSeconds: result.summary.durationSeconds,
+      bugsFound: result.summary.bugsFound,
+      backend,
+    });
+  } catch {
+    // History logging is non-critical — don't fail the recording
+  }
 }
