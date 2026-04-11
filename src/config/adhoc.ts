@@ -63,9 +63,9 @@ export function buildAdhocConfig(opts: AdhocOptions): Config {
       exclude: ['node_modules/**', 'dist/**', '.demo-recordings/**'],
       debounce_ms: 500,
     },
-    scenarios: isBrowser ? [] : [{ name: 'adhoc', description: `Ad-hoc: ${opts.command}`, setup: [], steps: [] }],
+    scenarios: isBrowser ? [] : [{ name: 'adhoc', description: `Ad-hoc: ${opts.command}`, setup: [], steps: [], tags: [] }],
     browser_scenarios: isBrowser
-      ? [{ name: 'adhoc-browser', description: `Ad-hoc browser: ${opts.command}`, url: opts.command, setup: [], steps: [] }]
+      ? [{ name: 'adhoc-browser', description: `Ad-hoc browser: ${opts.command}`, url: opts.command, setup: [], steps: [], tags: [] }]
       : [],
   };
 }
@@ -82,5 +82,6 @@ export function buildAdhocScenario(command: string, steps?: Step[]): Scenario {
     description: `Ad-hoc: ${command}`,
     setup: [],
     steps: allSteps,
+    tags: [],
   };
 }

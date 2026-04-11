@@ -305,6 +305,7 @@ async function handleAdhocMcp(args: {
       url: args.adhoc.command,
       setup: [],
       steps: browserSteps,
+      tags: [],
     };
 
     return recordBrowser({ config, scenario, projectDir: args.project_dir, logger: mcpLogger });

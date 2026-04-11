@@ -30,6 +30,8 @@ const ScenarioSchema = z.object({
   description: z.string(),
   setup: z.array(z.string()).default([]),
   steps: z.array(StepSchema),
+  /** Tags for filtering scenarios (e.g., "smoke", "full", "regression"). */
+  tags: z.array(z.string()).default([]),
 });
 
 /** Browser scenario with URL and browser-specific steps. */
@@ -41,6 +43,8 @@ const BrowserScenarioSchema = z.object({
   /** Setup commands to run before recording (e.g., start dev server). */
   setup: z.array(z.string()).default([]),
   steps: z.array(BrowserStepSchema),
+  /** Tags for filtering scenarios (e.g., "smoke", "full", "regression"). */
+  tags: z.array(z.string()).default([]),
 });
 
 const ProjectSchema = z.object({

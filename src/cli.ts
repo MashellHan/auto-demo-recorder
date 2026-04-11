@@ -40,6 +40,7 @@ export function createCli(): Command {
     .option('--height <n>', 'Terminal height (used with --adhoc)', '800')
     .option('--url <url>', 'Starting URL for browser recording (used with --adhoc --backend browser)')
     .option('--theme <theme>', 'Override recording theme (use "demo-recorder themes" to list)')
+    .option('--tag <tag>', 'Filter scenarios by tag (prefix with "!" to exclude)')
     .action(async (opts) => {
       try {
         const logger = opts.quiet ? noopLogger : undefined;
@@ -68,9 +69,9 @@ export function createCli(): Command {
         const projectDir = process.cwd();
 
         if (backend === 'browser') {
-          await handleBrowserRecord(config, opts.scenario, projectDir, logger, opts.quiet);
+          await handleBrowserRecord(config, opts.scenario, projectDir, logger, opts.quiet, opts.tag);
         } else {
-          await handleVhsRecord(config, opts.scenario, projectDir, logger, opts.quiet);
+          await handleVhsRecord(config, opts.scenario, projectDir, logger, opts.quiet, opts.tag);
         }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
@@ -82,23 +83,35 @@ export function createCli(): Command {
     .command('list')
     .description('List available scenarios')
     .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--tag <tag>', 'Filter scenarios by tag')
     .action(async (opts) => {
       try {
         const config = await loadConfig(opts.config);
         console.log(`Project: ${config.project.name}`);
 
-        if (config.scenarios.length > 0) {
+        let terminalScenarios = config.scenarios;
+        let browserScenarios = config.browser_scenarios;
+        if (opts.tag) {
+          terminalScenarios = filterByTag(terminalScenarios, opts.tag);
+          browserScenarios = filterByTag(browserScenarios, opts.tag);
+        }
+
+        if (terminalScenarios.length > 0) {
           console.log(`Terminal Scenarios:`);
-          for (const s of config.scenarios) {
-            console.log(`  - ${s.name}: ${s.description}`);
+          for (const s of terminalScenarios) {
+            const tags = (s as any).tags ?? [];
+            const tagStr = tags.length > 0 ? ` [${tags.join(', ')}]` : '';
+            console.log(`  - ${s.name}: ${s.description}${tagStr}`);
             console.log(`    Steps: ${s.steps.length}, Setup: ${s.setup.length} commands`);
           }
         }
 
-        if (config.browser_scenarios.length > 0) {
+        if (browserScenarios.length > 0) {
           console.log(`Browser Scenarios:`);
-          for (const s of config.browser_scenarios) {
-            console.log(`  - ${s.name}: ${s.description}`);
+          for (const s of browserScenarios) {
+            const tags = (s as any).tags ?? [];
+            const tagStr = tags.length > 0 ? ` [${tags.join(', ')}]` : '';
+            console.log(`  - ${s.name}: ${s.description}${tagStr}`);
             console.log(`    URL: ${s.url}, Steps: ${s.steps.length}`);
           }
         }
@@ -318,10 +331,18 @@ async function handleVhsRecord(
   projectDir: string,
   logger: Logger | undefined,
   quiet: boolean | undefined,
+  tag?: string,
 ) {
-  const scenarios = scenarioName
+  let scenarios = scenarioName
     ? [findScenario(config as any, scenarioName)]
     : (config as any).scenarios;
+
+  if (tag) {
+    scenarios = filterByTag(scenarios, tag);
+    if (scenarios.length === 0) {
+      throw new Error(`No scenarios match tag "${tag}"`);
+    }
+  }
 
   const timestamp = formatTimestamp(new Date());
   const results = [];
@@ -348,13 +369,21 @@ async function handleBrowserRecord(
   projectDir: string,
   logger: Logger | undefined,
   quiet: boolean | undefined,
+  tag?: string,
 ) {
-  const browserScenarios: BrowserScenario[] = scenarioName
+  let browserScenarios: BrowserScenario[] = scenarioName
     ? [(config as any).browser_scenarios.find((s: BrowserScenario) => s.name === scenarioName)]
     : (config as any).browser_scenarios;
 
   if (scenarioName && !browserScenarios[0]) {
     throw new Error(`Browser scenario "${scenarioName}" not found`);
+  }
+
+  if (tag) {
+    browserScenarios = filterByTag(browserScenarios, tag);
+    if (browserScenarios.length === 0) {
+      throw new Error(`No browser scenarios match tag "${tag}"`);
+    }
   }
 
   const timestamp = formatTimestamp(new Date());
@@ -374,6 +403,21 @@ async function handleBrowserRecord(
     await writeSessionReport(sessionPath, (config as any).project.name, reports);
     if (!quiet) console.log(`Session report: ${sessionPath}`);
   }
+}
+
+/**
+ * Filter scenarios by tag. Supports negation with "!" prefix.
+ * @param scenarios - Array of scenarios with optional `tags` field.
+ * @param tag - Tag to filter by. Prefix with "!" to exclude.
+ * @returns Filtered scenarios.
+ */
+export function filterByTag<T extends { tags?: string[] }>(scenarios: T[], tag: string): T[] {
+  if (tag.startsWith('!')) {
+    const excludeTag = tag.slice(1).toLowerCase();
+    return scenarios.filter((s) => !(s.tags ?? []).some((t) => t.toLowerCase() === excludeTag));
+  }
+  const includeTag = tag.toLowerCase();
+  return scenarios.filter((s) => (s.tags ?? []).some((t) => t.toLowerCase() === includeTag));
 }
 
 function parseAdhocSteps(stepsStr: string): Step[] {
@@ -459,6 +503,7 @@ async function handleAdhocBrowserRecord(opts: {
     url: opts.url,
     setup: [],
     steps: browserSteps,
+    tags: [],
   };
 
   await recordBrowser({ config, scenario, projectDir: process.cwd(), logger });

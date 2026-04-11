@@ -280,7 +280,7 @@ export async function recordBrowser(options: BrowserRecordOptions): Promise<Reco
   const durationSeconds = browserResult.durationMs / 1000;
 
   const annotationResult = config.annotation.enabled
-    ? await runAnnotationPipeline(config, { name: scenario.name, description: scenario.description, setup: [], steps: [] }, paths, log, false)
+    ? await runAnnotationPipeline(config, { name: scenario.name, description: scenario.description, setup: [], steps: [], tags: [] }, paths, log, false)
     : null;
 
   await writeReport(paths.report, config.project.name, scenario.name, durationSeconds, annotationResult);
