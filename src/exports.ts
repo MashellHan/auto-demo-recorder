@@ -329,3 +329,7 @@ export type { VelocityWindow, VelocityResult } from './analytics/velocity.js';
 /** Recording capacity planner. */
 export { analyzeCapacity, formatCapacity } from './analytics/capacity.js';
 export type { ScenarioThroughput, TargetEstimate, CapacityResult } from './analytics/capacity.js';
+
+/** Recording quality trend analyzer. */
+export { analyzeQualityTrends, formatQualityTrends } from './analytics/quality-trends.js';
+export type { QualityDirection, QualitySnapshot, DimensionTrend, QualityTrendResult } from './analytics/quality-trends.js';

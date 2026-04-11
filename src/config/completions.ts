@@ -83,6 +83,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'efficiency', description: 'Recording efficiency metrics', options: ['--config'] },
   { name: 'velocity', description: 'Recording velocity tracker', options: ['--config'] },
   { name: 'capacity', description: 'Recording capacity planner', options: ['--config', '--work-hours'] },
+  { name: 'quality-trends', description: 'Recording quality trends', options: ['--config', '--window-days', '--max-windows'] },
 ];
 
 /**

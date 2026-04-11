@@ -11,6 +11,7 @@ import { computeRiskScores, formatRiskScores } from './analytics/risk-score.js';
 import { computeEfficiency, formatEfficiency } from './analytics/efficiency.js';
 import { analyzeVelocity, formatVelocity } from './analytics/velocity.js';
 import { analyzeCapacity, formatCapacity } from './analytics/capacity.js';
+import { analyzeQualityTrends, formatQualityTrends } from './analytics/quality-trends.js';
 
 /**
  * Register measurement/metrics analytics CLI commands onto the given program.
@@ -28,6 +29,7 @@ export function registerAnalyticsMetricsCommands(program: Command): void {
   registerEfficiencyCommand(program);
   registerVelocityCommand(program);
   registerCapacityCommand(program);
+  registerQualityTrendsCommand(program);
 }
 
 function registerBenchmarksCommand(program: Command): void {
@@ -196,6 +198,29 @@ function registerCapacityCommand(program: Command): void {
         const workHours = opts.workHours ? parseFloat(opts.workHours) : 8;
         const result = analyzeCapacity(entries, new Date(), workHours);
         console.log(formatCapacity(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerQualityTrendsCommand(program: Command): void {
+  program
+    .command('quality-trends')
+    .description('Show recording quality trends over time windows')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--window-days <days>', 'Window size in days (default: 7)')
+    .option('--max-windows <n>', 'Maximum windows to analyze (default: 8)')
+    .action(async (opts: { config?: string; windowDays?: string; maxWindows?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const windowDays = opts.windowDays ? parseInt(opts.windowDays, 10) : 7;
+        const maxWindows = opts.maxWindows ? parseInt(opts.maxWindows, 10) : 8;
+        const result = analyzeQualityTrends(entries, windowDays, maxWindows);
+        console.log(formatQualityTrends(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
