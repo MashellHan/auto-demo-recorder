@@ -80,6 +80,9 @@ export type { RecordingProfile } from './config/profiles.js';
 /** Retry utility for recording resilience. */
 export { withRetry } from './pipeline/retry.js';
 export type { RetryOptions } from './pipeline/retry.js';
+/** Post-recording notification utilities. */
+export { buildNotification, formatNotificationSummary, sendWebhook, runNotificationCommand } from './pipeline/notifier.js';
+export type { NotificationPayload } from './pipeline/notifier.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
