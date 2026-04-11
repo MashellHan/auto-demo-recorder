@@ -14,6 +14,7 @@ import { VHS_THEMES, findTheme, resolveThemeId } from './config/themes.js';
 import { computeStats, formatStats } from './analytics/stats.js';
 import { diffSessions, formatSessionDiff } from './analytics/diff.js';
 import { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate } from './cli-utils.js';
+import { pLimit } from './pipeline/concurrency.js';
 import type { Step, BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
@@ -47,6 +48,8 @@ export function createCli(): Command {
     .option('--theme <theme>', 'Override recording theme (use "demo-recorder themes" to list)')
     .option('--tag <tag>', 'Filter scenarios by tag (prefix with "!" to exclude)')
     .option('--dry-run', 'Preview recording plan without executing')
+    .option('--parallel', 'Record scenarios in parallel')
+    .option('--workers <n>', 'Max concurrent recordings (default: 3)', '3')
     .action(async (opts) => {
       try {
         const logger = opts.quiet ? noopLogger : undefined;
@@ -95,10 +98,13 @@ export function createCli(): Command {
           return;
         }
 
+        const isParallel = opts.parallel || config.recording.parallel;
+        const maxWorkers = parseInt(opts.workers, 10) || config.recording.max_workers || 3;
+
         if (backend === 'browser') {
-          await handleBrowserRecord(config, opts.scenario, projectDir, logger, opts.quiet, opts.tag);
+          await handleBrowserRecord(config, opts.scenario, projectDir, logger, opts.quiet, opts.tag, isParallel, maxWorkers);
         } else {
-          await handleVhsRecord(config, opts.scenario, projectDir, logger, opts.quiet, opts.tag);
+          await handleVhsRecord(config, opts.scenario, projectDir, logger, opts.quiet, opts.tag, isParallel, maxWorkers);
         }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
@@ -393,6 +399,8 @@ async function handleVhsRecord(
   logger: Logger | undefined,
   quiet: boolean | undefined,
   tag?: string,
+  parallel?: boolean,
+  maxWorkers?: number,
 ) {
   let scenarios = scenarioName
     ? [findScenario(config as any, scenarioName)]
@@ -406,6 +414,38 @@ async function handleVhsRecord(
   }
 
   const timestamp = formatTimestamp(new Date());
+
+  if (parallel && scenarios.length > 1) {
+    const limit = pLimit(maxWorkers ?? 3);
+    if (!quiet) console.log(`Recording ${scenarios.length} scenarios in parallel (max ${maxWorkers ?? 3} workers)...`);
+    const settled = await Promise.allSettled(
+      scenarios.map((scenario: any) =>
+        limit(() => record({ config: config as any, scenario, projectDir, logger, timestamp, skipSymlinkUpdate: true })),
+      ),
+    );
+    const results = [];
+    for (let i = 0; i < settled.length; i++) {
+      const s = settled[i];
+      if (s.status === 'fulfilled') {
+        results.push(s.value);
+        if (!quiet) console.log(`  ✓ ${scenarios[i].name} complete`);
+      } else {
+        if (!quiet) console.error(`  ✗ ${scenarios[i].name} failed: ${s.reason instanceof Error ? s.reason.message : s.reason}`);
+      }
+    }
+    if (results.length > 1) {
+      const sessionDir = dirname(dirname(results[0].reportPath));
+      const sessionPath = join(sessionDir, 'session-report.json');
+      const reports = await Promise.all(
+        results.map(async (r) => JSON.parse(await readFile(r.reportPath, 'utf-8'))),
+      );
+      await writeSessionReport(sessionPath, (config as any).project.name, reports);
+      if (!quiet) console.log(`Session report: ${sessionPath}`);
+    }
+    if (!quiet) console.log(`\n${results.length}/${scenarios.length} scenarios recorded successfully.`);
+    return;
+  }
+
   const results = [];
   for (const scenario of scenarios) {
     const result = await record({ config: config as any, scenario, projectDir, logger, timestamp });
@@ -431,6 +471,8 @@ async function handleBrowserRecord(
   logger: Logger | undefined,
   quiet: boolean | undefined,
   tag?: string,
+  parallel?: boolean,
+  maxWorkers?: number,
 ) {
   let browserScenarios: BrowserScenario[] = scenarioName
     ? [(config as any).browser_scenarios.find((s: BrowserScenario) => s.name === scenarioName)]
@@ -448,6 +490,38 @@ async function handleBrowserRecord(
   }
 
   const timestamp = formatTimestamp(new Date());
+
+  if (parallel && browserScenarios.length > 1) {
+    const limit = pLimit(maxWorkers ?? 3);
+    if (!quiet) console.log(`Recording ${browserScenarios.length} browser scenarios in parallel (max ${maxWorkers ?? 3} workers)...`);
+    const settled = await Promise.allSettled(
+      browserScenarios.map((scenario) =>
+        limit(() => recordBrowser({ config: config as any, scenario, projectDir, logger, timestamp, skipSymlinkUpdate: true })),
+      ),
+    );
+    const results = [];
+    for (let i = 0; i < settled.length; i++) {
+      const s = settled[i];
+      if (s.status === 'fulfilled') {
+        results.push(s.value);
+        if (!quiet) console.log(`  ✓ ${browserScenarios[i].name} complete`);
+      } else {
+        if (!quiet) console.error(`  ✗ ${browserScenarios[i].name} failed: ${s.reason instanceof Error ? s.reason.message : s.reason}`);
+      }
+    }
+    if (results.length > 1) {
+      const sessionDir = dirname(dirname(results[0].reportPath));
+      const sessionPath = join(sessionDir, 'session-report.json');
+      const reports = await Promise.all(
+        results.map(async (r) => JSON.parse(await readFile(r.reportPath, 'utf-8'))),
+      );
+      await writeSessionReport(sessionPath, (config as any).project.name, reports);
+      if (!quiet) console.log(`Session report: ${sessionPath}`);
+    }
+    if (!quiet) console.log(`\n${results.length}/${browserScenarios.length} browser scenarios recorded successfully.`);
+    return;
+  }
+
   const results = [];
   for (const scenario of browserScenarios) {
     const result = await recordBrowser({ config: config as any, scenario, projectDir, logger, timestamp });

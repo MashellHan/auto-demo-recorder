@@ -116,6 +116,10 @@ const RecordingSchema = z.object({
   formats: z.array(z.enum(['mp4', 'gif', 'svg'])).optional(),
   /** Window frame decoration. */
   frame: FrameSchema.default({}),
+  /** Enable parallel recording of multiple scenarios. */
+  parallel: z.boolean().default(false),
+  /** Maximum concurrent recordings when parallel is enabled (default: 3). */
+  max_workers: z.number().int().min(1).max(16).default(3),
 });
 
 const OutputSchema = z.object({

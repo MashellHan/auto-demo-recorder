@@ -41,6 +41,8 @@ export function buildAdhocConfig(opts: AdhocOptions): Config {
         record_video: true,
       },
       frame: { style: 'none' },
+      parallel: false,
+      max_workers: 3,
     },
     output: {
       dir: '.demo-recordings',
