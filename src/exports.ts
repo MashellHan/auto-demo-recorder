@@ -169,3 +169,7 @@ export type { ModelPricing, ScenarioCostEstimate, CostEstimate, EstimateScenario
 /** Config linter with best-practice rules. */
 export { lintConfig, formatLintReport } from './config/linter.js';
 export type { LintSeverity, LintWarning, LintResult } from './config/linter.js';
+
+/** Pre-flight checks (validation + lint + health). */
+export { runPreflightChecks, formatPreflightReport } from './config/preflight.js';
+export type { PreflightCheck, PreflightResult } from './config/preflight.js';

@@ -13,6 +13,7 @@ import { resolveExtendsChain, formatExtendsChain } from './config/extends-resolv
 import { generateCompletion, detectShell } from './config/completions.js';
 import { diffConfigs, formatConfigDiff } from './config/config-diff.js';
 import { lintConfig, formatLintReport } from './config/linter.js';
+import { runPreflightChecks, formatPreflightReport } from './config/preflight.js';
 
 /**
  * Register config-related CLI commands onto the given program.
@@ -31,6 +32,7 @@ export function registerConfigCommands(program: Command): void {
   registerCompletionCommand(program);
   registerDiffCommand(program);
   registerLintCommand(program);
+  registerCheckCommand(program);
 }
 
 function registerEnvCommand(program: Command): void {
@@ -314,6 +316,27 @@ function registerLintCommand(program: Command): void {
         const config = await loadConfig(opts.config);
         const result = lintConfig(config);
         console.log(formatLintReport(result));
+        if (!result.passed) {
+          process.exit(1);
+        }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerCheckCommand(program: Command): void {
+  program
+    .command('check')
+    .description('Run pre-flight checks (validation + lint + health)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--backend <backend>', 'Check for specific backend: vhs or browser', 'vhs')
+    .action(async (opts: { config?: string; backend: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const result = await runPreflightChecks(config, process.cwd(), opts.backend as 'vhs' | 'browser');
+        console.log(formatPreflightReport(result));
         if (!result.passed) {
           process.exit(1);
         }
