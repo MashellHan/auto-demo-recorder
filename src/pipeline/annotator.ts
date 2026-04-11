@@ -50,18 +50,79 @@ export async function annotateFrames(
   const frames: FrameAnalysis[] = [];
 
   for (let i = 1; i <= frameCount; i++) {
-    const framePath = resolve(framesDir, `frame-${String(i).padStart(3, '0')}.png`);
-    const imageData = await readFile(framePath);
-    const base64 = imageData.toString('base64');
-    const seconds = (i - 1) / config.extract_fps;
-    const timestamp = `${Math.floor(seconds / 60)}:${String(Math.floor(seconds) % 60).padStart(2, '0')}`;
+    const frame = await processFrame(client, framesDir, i, frameCount, projectName, projectDescription, scenarioDescription, config, logger);
+    frames.push(frame);
+    logger.log(`  Frame ${i}/${frameCount}: ${frame.annotation_text}`);
+  }
 
-    const languageInstruction = config.language !== 'en'
-      ? `\nRespond in ${config.language}. All text fields including description and annotation_text should be in ${config.language}.`
-      : '';
+  const bugsFound = frames.reduce((sum, f) => sum + f.bugs_detected.length, 0);
+  const hasError = frames.some((f) => f.status === 'error');
+  const hasWarning = frames.some((f) => f.status === 'warning');
 
-    const prompt = `You are analyzing a screenshot from a terminal TUI application called "${projectName}".
-This is frame ${i} of ${frameCount} (timestamp: ${timestamp}).
+  return {
+    frames,
+    overall_status: hasError ? 'error' : hasWarning ? 'warning' : 'ok',
+    bugs_found: bugsFound,
+    summary: buildSummary(frames),
+  };
+}
+
+async function processFrame(
+  client: Anthropic,
+  framesDir: string,
+  frameIndex: number,
+  frameCount: number,
+  projectName: string,
+  projectDescription: string,
+  scenarioDescription: string,
+  config: AnnotationConfig,
+  logger: Logger,
+): Promise<FrameAnalysis> {
+  const framePath = resolve(framesDir, `frame-${String(frameIndex).padStart(3, '0')}.png`);
+  const imageData = await readFile(framePath);
+  const base64 = imageData.toString('base64');
+  const seconds = (frameIndex - 1) / config.extract_fps;
+  const timestamp = `${Math.floor(seconds / 60)}:${String(Math.floor(seconds) % 60).padStart(2, '0')}`;
+
+  const prompt = buildFramePrompt(projectName, frameIndex, frameCount, timestamp, projectDescription, scenarioDescription, config.language);
+
+  const response = await retryWithBackoff(() =>
+    client.messages.create({
+      model: config.model,
+      max_tokens: 500,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/png', data: base64 } },
+            { type: 'text', text: prompt },
+          ],
+        },
+      ],
+    }),
+    3,
+    1000,
+    logger,
+  );
+
+  return parseFrameResponse(response, frameIndex, timestamp);
+}
+
+function buildFramePrompt(
+  projectName: string,
+  frameIndex: number,
+  frameCount: number,
+  timestamp: string,
+  projectDescription: string,
+  scenarioDescription: string,
+  language: string,
+): string {
+  const languageInstruction = language !== 'en'
+    ? `\nRespond in ${language}. All text fields including description and annotation_text should be in ${language}.`
+    : '';
+
+  return `You are analyzing a screenshot from a terminal TUI application called "${projectName}".
+This is frame ${frameIndex} of ${frameCount} (timestamp: ${timestamp}).
 
 Project description: ${projectDescription}
 Scenario being recorded: ${scenarioDescription}
@@ -76,72 +137,38 @@ Analyze the screenshot and provide a JSON response (no markdown fences, just raw
   "visual_quality": "good" | "degraded" | "broken",
   "annotation_text": "Short text (< 50 chars) to overlay on this frame"
 }${languageInstruction}`;
+}
 
-    const response = await retryWithBackoff(() =>
-      client.messages.create({
-        model: config.model,
-        max_tokens: 500,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: 'image/png', data: base64 },
-              },
-              { type: 'text', text: prompt },
-            ],
-          },
-        ],
-      }),
-      3,
-      1000,
-      logger,
-    );
+function parseFrameResponse(response: Anthropic.Message, frameIndex: number, timestamp: string): FrameAnalysis {
+  const text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('');
 
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('');
-
-    try {
-      const parsed = JSON.parse(text);
-      frames.push({
-        index: i - 1,
-        timestamp,
-        status: parsed.status ?? 'ok',
-        description: parsed.description ?? '',
-        feature_being_demonstrated: parsed.feature_being_demonstrated ?? '',
-        bugs_detected: parsed.bugs_detected ?? [],
-        visual_quality: parsed.visual_quality ?? 'good',
-        annotation_text: parsed.annotation_text ?? '',
-      });
-    } catch {
-      frames.push({
-        index: i - 1,
-        timestamp,
-        status: 'warning',
-        description: 'Failed to parse AI response',
-        feature_being_demonstrated: '',
-        bugs_detected: [],
-        visual_quality: 'good',
-        annotation_text: `Frame ${i}`,
-      });
-    }
-
-    logger.log(`  Frame ${i}/${frameCount}: ${frames[frames.length - 1].annotation_text}`);
+  try {
+    const parsed = JSON.parse(text);
+    return {
+      index: frameIndex - 1,
+      timestamp,
+      status: parsed.status ?? 'ok',
+      description: parsed.description ?? '',
+      feature_being_demonstrated: parsed.feature_being_demonstrated ?? '',
+      bugs_detected: parsed.bugs_detected ?? [],
+      visual_quality: parsed.visual_quality ?? 'good',
+      annotation_text: parsed.annotation_text ?? '',
+    };
+  } catch {
+    return {
+      index: frameIndex - 1,
+      timestamp,
+      status: 'warning',
+      description: 'Failed to parse AI response',
+      feature_being_demonstrated: '',
+      bugs_detected: [],
+      visual_quality: 'good',
+      annotation_text: `Frame ${frameIndex}`,
+    };
   }
-
-  const bugsFound = frames.reduce((sum, f) => sum + f.bugs_detected.length, 0);
-  const hasError = frames.some((f) => f.status === 'error');
-  const hasWarning = frames.some((f) => f.status === 'warning');
-
-  return {
-    frames,
-    overall_status: hasError ? 'error' : hasWarning ? 'warning' : 'ok',
-    bugs_found: bugsFound,
-    summary: buildSummary(frames),
-  };
 }
 
 function buildSummary(frames: FrameAnalysis[]): string {
