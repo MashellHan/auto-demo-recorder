@@ -16,6 +16,7 @@ import { generateTimeline, formatTimeline } from './analytics/timeline.js';
 import { analyzeSteps, formatStepAnalysis } from './analytics/step-analysis.js';
 import { searchHistory, formatSearchResults } from './analytics/search.js';
 import { registerAnalyticsExtraCommands } from './cli-analytics-extra-commands.js';
+import { registerAnalyticsMonitorCommands } from './cli-analytics-monitor-commands.js';
 
 /**
  * Register analytics CLI commands onto the given program.
@@ -38,6 +39,7 @@ export function registerAnalyticsCommands(program: Command): void {
   registerStepAnalysisCommand(program);
   registerSearchCommand(program);
   registerAnalyticsExtraCommands(program);
+  registerAnalyticsMonitorCommands(program);
 }
 
 function registerAnalyzeCommand(program: Command): void {
