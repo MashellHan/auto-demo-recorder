@@ -177,3 +177,7 @@ export type { PreflightCheck, PreflightResult } from './config/preflight.js';
 /** Config merge utility. */
 export { mergeConfigs, formatMergeReport } from './config/config-merge.js';
 export type { MergeSource, MergeResolution, MergeResult } from './config/config-merge.js';
+
+/** Scenario cloning utility. */
+export { cloneScenario, cloneBrowserScenario, batchClone, formatCloneSummary } from './config/scenario-clone.js';
+export type { CloneOptions, BatchCloneResult } from './config/scenario-clone.js';
