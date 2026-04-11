@@ -286,4 +286,41 @@ describe('buildTape', () => {
     expect(tape).toContain('Sleep 2s');
     expect(tape).not.toContain('Sleep 5000ms');
   });
+
+  it('generates multiple Output directives for multi-format', () => {
+    const scenario: Scenario = {
+      name: 'multi-format',
+      description: 'Multi format test',
+      setup: [],
+      steps: [{ action: 'key', value: 'q', pause: '500ms' }],
+    };
+
+    const tape = buildTape({
+      scenario,
+      recording: defaultRecording,
+      outputPath: '/tmp/raw.mp4',
+      extraOutputPaths: ['/tmp/raw.gif'],
+    });
+
+    expect(tape).toContain('Output "/tmp/raw.mp4"');
+    expect(tape).toContain('Output "/tmp/raw.gif"');
+  });
+
+  it('generates single Output when no extra paths', () => {
+    const scenario: Scenario = {
+      name: 'single-format',
+      description: 'Single format test',
+      setup: [],
+      steps: [{ action: 'key', value: 'q', pause: '500ms' }],
+    };
+
+    const tape = buildTape({
+      scenario,
+      recording: defaultRecording,
+      outputPath: '/tmp/raw.mp4',
+    });
+
+    const outputCount = (tape.match(/^Output /gm) || []).length;
+    expect(outputCount).toBe(1);
+  });
 });

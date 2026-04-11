@@ -183,6 +183,25 @@ describe('ConfigSchema', () => {
     const config = ConfigSchema.parse(raw);
     expect(config.recording.idle_time_limit).toBeUndefined();
   });
+
+  it('accepts formats array in recording config', () => {
+    const raw = {
+      project: { name: 'test' },
+      recording: { formats: ['mp4', 'gif'] },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.recording.formats).toEqual(['mp4', 'gif']);
+  });
+
+  it('defaults formats to undefined', () => {
+    const raw = {
+      project: { name: 'test' },
+      scenarios: [{ name: 'test', description: 'Test', steps: [{ action: 'key', value: 'q' }] }],
+    };
+    const config = ConfigSchema.parse(raw);
+    expect(config.recording.formats).toBeUndefined();
+  });
 });
 
 describe('ConfigSchema — browser backend', () => {

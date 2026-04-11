@@ -4,15 +4,20 @@ export interface TapeBuildOptions {
   scenario: Scenario;
   recording: RecordingConfig;
   outputPath: string;
+  /** Additional output paths for multi-format recording. */
+  extraOutputPaths?: string[];
 }
 
 export function buildTape(options: TapeBuildOptions): string {
-  const { scenario, recording, outputPath } = options;
+  const { scenario, recording, outputPath, extraOutputPaths = [] } = options;
   const idleLimit = recording.idle_time_limit;
   const lines: string[] = [];
 
   lines.push(`# Auto-generated from scenario: ${scenario.name}`);
   lines.push(`Output "${outputPath}"`);
+  for (const extra of extraOutputPaths) {
+    lines.push(`Output "${extra}"`);
+  }
   lines.push(`Set Width ${recording.width}`);
   lines.push(`Set Height ${recording.height}`);
   lines.push(`Set FontSize ${recording.font_size}`);

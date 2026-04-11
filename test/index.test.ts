@@ -518,4 +518,31 @@ describe('record', () => {
     expect(rmCalls).toHaveLength(0);
     expect(result.retained).toBeUndefined();
   });
+
+  it('includes extra video paths when formats is set', async () => {
+    const multiConfig = {
+      ...baseConfig,
+      recording: { ...baseConfig.recording, formats: ['mp4', 'gif'] as ('mp4' | 'gif')[] },
+    };
+
+    const result = await record({
+      config: multiConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+    });
+
+    expect(result.extraVideoPaths).toBeDefined();
+    expect(result.extraVideoPaths!.length).toBe(1);
+    expect(result.extraVideoPaths![0]).toContain('raw.gif');
+  });
+
+  it('has no extra video paths when formats is not set', async () => {
+    const result = await record({
+      config: baseConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+    });
+
+    expect(result.extraVideoPaths).toBeUndefined();
+  });
 });

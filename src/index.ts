@@ -60,6 +60,8 @@ export interface RecordResult {
   };
   /** False when recording was pruned by retain-on-failure mode. */
   retained?: boolean;
+  /** Extra video paths when multi-format output is used. */
+  extraVideoPaths?: string[];
 }
 
 /** Options for the {@link record} function (VHS terminal backend). */
@@ -115,20 +117,25 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
   await mkdir(outputBase, { recursive: true });
 
   const ext = config.recording.format === 'gif' ? 'gif' : 'mp4';
+  const formats = config.recording.formats ?? [config.recording.format];
+  const primaryFormat = formats[0] === 'gif' ? 'gif' : 'mp4';
+  const extraFormats = formats.slice(1);
   const paths = {
-    rawVideo: join(outputBase, `raw.${ext}`),
-    annotatedVideo: join(outputBase, `annotated.${ext}`),
+    rawVideo: join(outputBase, `raw.${primaryFormat}`),
+    annotatedVideo: join(outputBase, `annotated.${primaryFormat}`),
     thumbnail: join(outputBase, 'thumbnail.png'),
     report: join(outputBase, 'report.json'),
     frames: join(outputBase, 'frames'),
     tape: join(outputBase, `${scenario.name}.tape`),
   };
+  const extraOutputPaths = extraFormats.map((f) => join(outputBase, `raw.${f}`));
 
   log.log(`Recording scenario: ${scenario.name}`);
-  const durationSeconds = await buildAndRecord(config, scenario, paths, projectDir, log);
+  const durationSeconds = await buildAndRecord(config, scenario, paths, projectDir, log, extraOutputPaths);
 
+  const isGif = primaryFormat === 'gif';
   const annotationResult = config.annotation.enabled
-    ? await runAnnotationPipeline(config, scenario, paths, log, config.recording.format === 'gif')
+    ? await runAnnotationPipeline(config, scenario, paths, log, isGif)
     : null;
 
   await writeReport(paths.report, config.project.name, scenario.name, durationSeconds, annotationResult);
@@ -140,8 +147,11 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
     await updateLatestSymlink(projectDir, config.output.dir, timestamp);
   }
 
-  const hasAnnotatedVideo = config.annotation.enabled && config.recording.format !== 'gif';
+  const hasAnnotatedVideo = config.annotation.enabled && primaryFormat !== 'gif';
   const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult, regressionInfo);
+  if (extraOutputPaths.length > 0) {
+    result.extraVideoPaths = extraOutputPaths;
+  }
 
   // Retain-on-failure: prune clean recordings to save disk space
   if (config.output.record_mode === 'retain-on-failure') {
@@ -233,8 +243,8 @@ interface RecordPaths {
   tape: string;
 }
 
-async function buildAndRecord(config: Config, scenario: Scenario, paths: RecordPaths, projectDir: string, log: Logger): Promise<number> {
-  const tapeContent = buildTape({ scenario, recording: config.recording, outputPath: paths.rawVideo });
+async function buildAndRecord(config: Config, scenario: Scenario, paths: RecordPaths, projectDir: string, log: Logger, extraOutputPaths: string[] = []): Promise<number> {
+  const tapeContent = buildTape({ scenario, recording: config.recording, outputPath: paths.rawVideo, extraOutputPaths });
   log.log('  ✓ Tape generated');
 
   if (config.project.build_command) {

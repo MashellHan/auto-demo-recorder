@@ -80,6 +80,8 @@ const RecordingSchema = z.object({
   browser: BrowserConfigSchema.default({}),
   /** Max idle time in seconds — pauses exceeding this are capped. */
   idle_time_limit: z.number().positive().optional(),
+  /** Generate multiple formats in a single pass (overrides format when set). */
+  formats: z.array(z.enum(['mp4', 'gif'])).optional(),
 });
 
 const OutputSchema = z.object({
