@@ -112,4 +112,45 @@ describe('validateConfig', () => {
     const result = validateConfig(config);
     expect(result).not.toContain('Warnings:');
   });
+
+  it('warns about circular dependencies', () => {
+    const config = {
+      ...baseConfig,
+      scenarios: [
+        { name: 'a', description: 'A', steps: [], tags: ['smoke'], depends_on: ['b'] },
+        { name: 'b', description: 'B', steps: [], tags: ['smoke'], depends_on: ['a'] },
+      ],
+    };
+
+    const result = validateConfig(config);
+    expect(result).toContain('Warnings:');
+    expect(result).toMatch(/[Cc]ircular|[Cc]ycle/);
+  });
+
+  it('warns about missing dependency references', () => {
+    const config = {
+      ...baseConfig,
+      scenarios: [
+        { name: 'a', description: 'A', steps: [], tags: ['smoke'], depends_on: ['nonexistent'] },
+      ],
+    };
+
+    const result = validateConfig(config);
+    expect(result).toContain('Warnings:');
+    expect(result).toContain('nonexistent');
+  });
+
+  it('no dependency warnings for valid depends_on chains', () => {
+    const config = {
+      ...baseConfig,
+      recording: { ...baseConfig.recording, idle_time_limit: 5 },
+      scenarios: [
+        { name: 'setup', description: 'Setup', steps: [], tags: ['smoke'], depends_on: [] },
+        { name: 'test', description: 'Test', steps: [], tags: ['smoke'], depends_on: ['setup'] },
+      ],
+    };
+
+    const result = validateConfig(config);
+    expect(result).not.toContain('Warnings:');
+  });
 });

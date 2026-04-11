@@ -1,5 +1,6 @@
 import { resolve, basename } from 'node:path';
 import { formatTimestamp } from './index.js';
+import { validateDependencies } from './config/dependencies.js';
 
 /**
  * Resolve a user-supplied session/scenario path, stripping the output directory
@@ -96,6 +97,12 @@ export function validateConfig(config: any): string {
 
   if (config.annotation.enabled && !config.annotation.model) {
     warnings.push('Annotation enabled but no model specified');
+  }
+
+  // Validate scenario dependencies
+  const depErrors = validateDependencies(allScenarios);
+  for (const err of depErrors) {
+    warnings.push(err);
   }
 
   if (warnings.length > 0) {
