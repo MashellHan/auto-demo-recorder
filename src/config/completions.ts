@@ -71,6 +71,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'session-diff-summary', description: 'Compare two sessions', options: ['--config'] },
   { name: 'benchmarks', description: 'Performance benchmarks', options: ['--config'] },
   { name: 'depth', description: 'Dependency depth analysis', options: ['--config'] },
+  { name: 'freshness', description: 'Recording freshness index', options: ['--config'] },
 ];
 
 /**

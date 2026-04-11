@@ -277,3 +277,7 @@ export type { ScenarioBenchmark, BenchmarkResult } from './analytics/benchmarks.
 /** Dependency depth analysis. */
 export { analyzeDependencyDepth, formatDepthAnalysis } from './config/dependency-depth.js';
 export type { ScenarioDepthInfo, DepthAnalysis } from './config/dependency-depth.js';
+
+/** Recording freshness index. */
+export { computeFreshness, formatFreshness } from './analytics/freshness.js';
+export type { FreshnessGrade, ScenarioFreshness, FreshnessResult } from './analytics/freshness.js';

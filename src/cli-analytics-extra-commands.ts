@@ -16,6 +16,7 @@ import { checkSla, formatSla } from './analytics/sla.js';
 import { evaluateRetention, formatRetention } from './analytics/retention.js';
 import { diffSessionEntries, formatSessionDiffSummary } from './analytics/session-diff-summary.js';
 import { computeBenchmarks, formatBenchmarks } from './analytics/benchmarks.js';
+import { computeFreshness, formatFreshness } from './analytics/freshness.js';
 import type { GroupBy } from './analytics/grouping.js';
 
 /**
@@ -39,6 +40,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerRetentionCommand(program);
   registerSessionDiffSummaryCommand(program);
   registerBenchmarksCommand(program);
+  registerFreshnessCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -361,6 +363,25 @@ function registerBenchmarksCommand(program: Command): void {
         const entries = await readHistory(outputDir);
         const result = computeBenchmarks(entries);
         console.log(formatBenchmarks(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerFreshnessCommand(program: Command): void {
+  program
+    .command('freshness')
+    .description('Show recording freshness index per scenario')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const result = computeFreshness(entries);
+        console.log(formatFreshness(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
