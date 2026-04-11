@@ -89,7 +89,7 @@ const RecordingSchema = z.object({
   theme: z.string().default('Catppuccin Mocha'),
   fps: z.number().default(25),
   max_duration: z.number().default(60),
-  format: z.enum(['mp4', 'gif']).default('mp4'),
+  format: z.enum(['mp4', 'gif', 'svg']).default('mp4'),
   /** Recording backend: 'vhs' for terminal, 'browser' for web UI. */
   backend: z.enum(['vhs', 'browser']).default('vhs'),
   /** Browser-specific configuration (required when backend is 'browser'). */
@@ -97,7 +97,7 @@ const RecordingSchema = z.object({
   /** Max idle time in seconds — pauses exceeding this are capped. */
   idle_time_limit: z.number().positive().optional(),
   /** Generate multiple formats in a single pass (overrides format when set). */
-  formats: z.array(z.enum(['mp4', 'gif'])).optional(),
+  formats: z.array(z.enum(['mp4', 'gif', 'svg'])).optional(),
   /** Window frame decoration. */
   frame: FrameSchema.default({}),
 });

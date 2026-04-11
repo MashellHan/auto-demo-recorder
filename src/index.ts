@@ -12,6 +12,7 @@ import { annotateFrames, type Logger } from './pipeline/annotator.js';
 import { postProcess } from './pipeline/post-processor.js';
 import { generatePlayer } from './pipeline/player-generator.js';
 import { generateDocs } from './pipeline/doc-generator.js';
+import { generateSvgFromReport } from './pipeline/svg-generator.js';
 import { compareReports, writeSessionReport, type Report } from './pipeline/regression.js';
 
 /** Load and validate a demo-recorder.yaml config file. */
@@ -38,6 +39,9 @@ export type { PlayerOptions } from './pipeline/player-generator.js';
 /** AI documentation generator. */
 export { generateDocs } from './pipeline/doc-generator.js';
 export type { DocGeneratorOptions } from './pipeline/doc-generator.js';
+/** SVG terminal image generator. */
+export { generateSvg, generateSvgFromReport } from './pipeline/svg-generator.js';
+export type { SvgGeneratorOptions, SvgTheme } from './pipeline/svg-generator.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
@@ -74,6 +78,8 @@ export interface RecordResult {
   playerPath?: string;
   /** Path to the generated documentation file (when docs output is enabled). */
   docsPath?: string;
+  /** Path to the generated SVG file (when SVG format is used). */
+  svgPath?: string;
 }
 
 /** Options for the {@link record} function (VHS terminal backend). */
@@ -193,6 +199,18 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
     });
     result.docsPath = docsPath;
     log.log('  ✓ Documentation generated');
+  }
+
+  // Generate SVG if format includes svg
+  if (formats.includes('svg')) {
+    const svgPath = join(outputBase, 'recording.svg');
+    await generateSvgFromReport({
+      reportPath: paths.report,
+      outputPath: svgPath,
+      title: `${config.project.name} — ${scenario.name}`,
+    });
+    result.svgPath = svgPath;
+    log.log('  ✓ SVG generated');
   }
 
   // Retain-on-failure: prune clean recordings to save disk space
