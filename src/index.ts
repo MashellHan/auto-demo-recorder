@@ -16,7 +16,7 @@ import { generateSvgFromReport } from './pipeline/svg-generator.js';
 import { compareReports, writeSessionReport, type Report } from './pipeline/regression.js';
 
 /** Load and validate a demo-recorder.yaml config file. */
-export { loadConfig, findScenario } from './config/loader.js';
+export { loadConfig, findScenario, deepMerge } from './config/loader.js';
 /** Zod schema for validating demo-recorder config objects. */
 export { ConfigSchema } from './config/schema.js';
 export type { Config, Scenario, BrowserScenario } from './config/schema.js';
