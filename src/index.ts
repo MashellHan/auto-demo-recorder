@@ -48,6 +48,9 @@ export type { ReportDashboardOptions } from './pipeline/report-generator.js';
 /** AI chapter and table of contents generator. */
 export { generateChapters, generateTableOfContents, renderTocMarkdown, renderChaptersHtml } from './pipeline/chapter-generator.js';
 export type { Chapter, TableOfContents } from './pipeline/chapter-generator.js';
+/** Asciicast v2 interop (import/export). */
+export { parseAsciicast, serializeAsciicast, loadAsciicast, saveAsciicast, reportToAsciicast, asciicastToReport } from './pipeline/asciicast.js';
+export type { Asciicast, AsciicastHeader, AsciicastEvent } from './pipeline/asciicast.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
