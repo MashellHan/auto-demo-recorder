@@ -16,6 +16,7 @@ import { resolveExtendsChain, formatExtendsChain } from './config/extends-resolv
 import { generateCompletion, detectShell } from './config/completions.js';
 import { PluginRegistry, formatPluginList } from './pipeline/plugin-system.js';
 import { listSnapshots, saveSnapshot, restoreSnapshot, formatSnapshotList } from './pipeline/snapshots.js';
+import { diffConfigs, formatConfigDiff } from './config/config-diff.js';
 import { registerAnalyticsCommands } from './cli-analytics-commands.js';
 
 /**
@@ -40,6 +41,7 @@ export function registerCommands(program: Command): void {
   registerCompletionCommand(program);
   registerPluginsCommand(program);
   registerSnapshotCommand(program);
+  registerDiffCommand(program);
 }
 
 function registerEnvCommand(program: Command): void {
@@ -433,6 +435,46 @@ function registerSnapshotCommand(program: Command): void {
         console.log(`✓ Session restored from snapshot`);
         console.log(`  Restored from: ${result.restoredFrom}`);
         console.log(`  Files: ${result.filesRestored}`);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerDiffCommand(program: Command): void {
+  program
+    .command('config-diff')
+    .description('Compare two config files and show differences')
+    .argument('<fileA>', 'Path to first config file')
+    .argument('<fileB>', 'Path to second config file')
+    .option('--json', 'Output as JSON')
+    .action(async (fileA: string, fileB: string, opts: { json?: boolean }) => {
+      try {
+        const yaml = await import('yaml');
+        const pathA = resolve(process.cwd(), fileA);
+        const pathB = resolve(process.cwd(), fileB);
+
+        if (!existsSync(pathA)) {
+          throw new Error(`Config file not found: ${pathA}`);
+        }
+        if (!existsSync(pathB)) {
+          throw new Error(`Config file not found: ${pathB}`);
+        }
+
+        const contentA = yaml.parse(await readFile(pathA, 'utf-8')) as Record<string, unknown>;
+        const contentB = yaml.parse(await readFile(pathB, 'utf-8')) as Record<string, unknown>;
+        const result = diffConfigs(contentA, contentB);
+
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          console.log(formatConfigDiff(result));
+        }
+
+        if (!result.identical) {
+          process.exit(1);
+        }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
