@@ -59,7 +59,7 @@ vi.mock('../src/pipeline/post-processor.js', () => ({
 }));
 
 const { record } = await import('../src/index.js');
-const { updateLatestSymlink } = await import('../src/index.js');
+const { updateLatestSymlink, formatTimestamp } = await import('../src/index.js');
 
 describe('record', () => {
   beforeEach(() => {
@@ -421,5 +421,30 @@ describe('record', () => {
 
   it('exports updateLatestSymlink for external callers', () => {
     expect(typeof updateLatestSymlink).toBe('function');
+  });
+
+  it('uses override timestamp when provided', async () => {
+    const { mkdir } = await import('node:fs/promises');
+
+    await record({
+      config: baseConfig,
+      scenario: baseScenario,
+      projectDir: '/tmp/project',
+      timestamp: '2026-04-11_12-00',
+    });
+
+    // mkdir should have been called with a path containing the custom timestamp
+    const mkdirCalls = vi.mocked(mkdir).mock.calls;
+    const hasTimestamp = mkdirCalls.some(
+      (call) => (call[0] as string).includes('2026-04-11_12-00'),
+    );
+    expect(hasTimestamp).toBe(true);
+  });
+
+  it('exports formatTimestamp function', () => {
+    expect(typeof formatTimestamp).toBe('function');
+    const ts = formatTimestamp(new Date('2026-04-11T14:30:00Z'));
+    // Should produce YYYY-MM-DD_HH-MM format (in local time)
+    expect(ts).toMatch(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}$/);
   });
 });

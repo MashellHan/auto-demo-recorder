@@ -6,7 +6,7 @@ import { writeFile } from 'node:fs/promises';
 import { loadConfig, findScenario } from './config/loader.js';
 import { buildAdhocConfig, buildAdhocScenario } from './config/adhoc.js';
 import { scanProject, generateConfig } from './config/scanner.js';
-import { record, recordBrowser, writeSessionReport } from './index.js';
+import { record, recordBrowser, writeSessionReport, formatTimestamp } from './index.js';
 import { startMcpServer } from './mcp/server.js';
 import { detectRegressions } from './pipeline/regression.js';
 import { startWatcher } from './pipeline/watcher.js';
@@ -283,9 +283,10 @@ async function handleVhsRecord(
     ? [findScenario(config as any, scenarioName)]
     : (config as any).scenarios;
 
+  const timestamp = formatTimestamp(new Date());
   const results = [];
   for (const scenario of scenarios) {
-    const result = await record({ config: config as any, scenario, projectDir, logger });
+    const result = await record({ config: config as any, scenario, projectDir, logger, timestamp });
     results.push(result);
     if (!quiet) console.log('');
   }
@@ -316,9 +317,10 @@ async function handleBrowserRecord(
     throw new Error(`Browser scenario "${scenarioName}" not found`);
   }
 
+  const timestamp = formatTimestamp(new Date());
   const results = [];
   for (const scenario of browserScenarios) {
-    const result = await recordBrowser({ config: config as any, scenario, projectDir, logger });
+    const result = await recordBrowser({ config: config as any, scenario, projectDir, logger, timestamp });
     results.push(result);
     if (!quiet) console.log('');
   }

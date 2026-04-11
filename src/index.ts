@@ -69,6 +69,8 @@ export interface RecordOptions {
   logger?: Logger;
   /** Skip updating the `latest` symlink (used for parallel recording). */
   skipSymlinkUpdate?: boolean;
+  /** Override timestamp for the output directory (used for multi-scenario sessions). */
+  timestamp?: string;
 }
 
 /** Options for the {@link recordBrowser} function. */
@@ -83,6 +85,8 @@ export interface BrowserRecordOptions {
   logger?: Logger;
   /** Skip updating the `latest` symlink (used for parallel recording). */
   skipSymlinkUpdate?: boolean;
+  /** Override timestamp for the output directory (used for multi-scenario sessions). */
+  timestamp?: string;
 }
 
 const defaultLogger: Logger = {
@@ -99,9 +103,9 @@ const defaultLogger: Logger = {
  * @returns Result object with paths to video, report, thumbnail, and analysis summary.
  */
 export async function record(options: RecordOptions): Promise<RecordResult> {
-  const { config, scenario, projectDir, logger: log = defaultLogger, skipSymlinkUpdate = false } = options;
+  const { config, scenario, projectDir, logger: log = defaultLogger, skipSymlinkUpdate = false, timestamp: overrideTimestamp } = options;
 
-  const timestamp = formatTimestamp(new Date());
+  const timestamp = overrideTimestamp ?? formatTimestamp(new Date());
   const outputBase = resolve(projectDir, config.output.dir, timestamp, scenario.name);
   await mkdir(outputBase, { recursive: true });
 
@@ -145,9 +149,9 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
  * @returns Result object with paths to video, report, thumbnail, and analysis summary.
  */
 export async function recordBrowser(options: BrowserRecordOptions): Promise<RecordResult> {
-  const { config, scenario, projectDir, logger: log = defaultLogger, skipSymlinkUpdate = false } = options;
+  const { config, scenario, projectDir, logger: log = defaultLogger, skipSymlinkUpdate = false, timestamp: overrideTimestamp } = options;
 
-  const timestamp = formatTimestamp(new Date());
+  const timestamp = overrideTimestamp ?? formatTimestamp(new Date());
   const outputBase = resolve(projectDir, config.output.dir, timestamp, scenario.name);
   await mkdir(outputBase, { recursive: true });
 
@@ -375,7 +379,8 @@ function printSummary(result: RecordResult, log: Logger) {
   log.log(`Summary: ${result.summary.description}`);
 }
 
-function formatTimestamp(date: Date): string {
+/** Format a Date as a filesystem-safe timestamp string (YYYY-MM-DD_HH-MM). */
+export function formatTimestamp(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}`;
 }

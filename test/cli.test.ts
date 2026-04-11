@@ -44,6 +44,7 @@ vi.mock('../src/index.js', () => ({
     total_duration_seconds: 10,
     scenarios: [],
   }),
+  formatTimestamp: vi.fn().mockReturnValue('2026-04-11_15-30'),
   loadConfig: vi.fn(),
   findScenario: vi.fn(),
 }));
