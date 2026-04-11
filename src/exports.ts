@@ -185,3 +185,7 @@ export type { CloneOptions, BatchCloneResult } from './config/scenario-clone.js'
 /** Recording timeline visualization. */
 export { generateTimeline, formatTimeline } from './analytics/timeline.js';
 export type { TimelineEntry, TimelineResult } from './analytics/timeline.js';
+
+/** Step distribution and scenario complexity analysis. */
+export { analyzeSteps, formatStepAnalysis } from './analytics/step-analysis.js';
+export type { StepTypeStats, ScenarioComplexity, StepAnalysis } from './analytics/step-analysis.js';

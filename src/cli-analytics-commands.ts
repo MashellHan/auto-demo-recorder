@@ -13,6 +13,7 @@ import { computeTagStats, formatTagStats } from './analytics/tag-stats.js';
 import { generateComparisonReport, formatComparisonReport } from './analytics/comparison-report.js';
 import { readHistory, formatHistoryTable } from './analytics/history.js';
 import { generateTimeline, formatTimeline } from './analytics/timeline.js';
+import { analyzeSteps, formatStepAnalysis } from './analytics/step-analysis.js';
 
 /**
  * Register analytics CLI commands onto the given program.
@@ -29,6 +30,7 @@ export function registerAnalyticsCommands(program: Command): void {
   registerCompareCommand(program);
   registerHistoryCommand(program);
   registerTimelineCommand(program);
+  registerStepAnalysisCommand(program);
 }
 
 function registerAnalyzeCommand(program: Command): void {
@@ -300,6 +302,23 @@ function registerTimelineCommand(program: Command): void {
 
         const result = generateTimeline(entries);
         console.log(formatTimeline(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerStepAnalysisCommand(program: Command): void {
+  program
+    .command('step-analysis')
+    .description('Analyze step distribution and scenario complexity')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const result = analyzeSteps(config);
+        console.log(formatStepAnalysis(result));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

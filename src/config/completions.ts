@@ -48,6 +48,7 @@ const COMMANDS: Array<{ name: string; description: string; options?: string[] }>
   { name: 'config-merge', description: 'Merge two config files', options: ['--output', '--json'] },
   { name: 'graph', description: 'Show dependency graph', options: ['--config'] },
   { name: 'timeline', description: 'Show recording timeline', options: ['--config', '--limit'] },
+  { name: 'step-analysis', description: 'Analyze step distribution', options: ['--config'] },
 ];
 
 /**
