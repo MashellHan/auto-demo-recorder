@@ -9,6 +9,7 @@ import { computeStatusOverview, formatStatusOverview } from './analytics/status-
 import { analyzeTrends, formatTrendReport } from './analytics/trends.js';
 import { detectOutliers, detectOutliersPerScenario, formatOutliers, formatOutliersPerScenario } from './analytics/outliers.js';
 import { computeCorrelations, formatCorrelations } from './analytics/correlation.js';
+import { analyzeImpact, analyzeFailureImpact, formatImpactAnalysis } from './analytics/impact-analysis.js';
 
 /**
  * Register descriptive analytics CLI commands onto the given program.
@@ -26,6 +27,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerTrendsCommand(program);
   registerOutliersCommand(program);
   registerCorrelationCommand(program);
+  registerImpactCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -165,6 +167,34 @@ function registerCorrelationCommand(program: Command): void {
         const minSessions = opts.minSessions ? parseInt(opts.minSessions, 10) : 3;
         const result = computeCorrelations(entries, minSessions);
         console.log(formatCorrelations(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerImpactCommand(program: Command): void {
+  program
+    .command('impact')
+    .description('Show dependency impact analysis (blast radius when a scenario fails)')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--scenario <name>', 'Analyze impact of a specific failing scenario')
+    .action(async (opts: { config?: string; scenario?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const allScenarios = [
+          ...config.scenarios.map((s) => ({ name: s.name, depends_on: s.depends_on })),
+          ...config.browser_scenarios.map((s) => ({ name: s.name, depends_on: s.depends_on })),
+        ];
+
+        if (opts.scenario) {
+          const result = analyzeFailureImpact(allScenarios, [opts.scenario]);
+          console.log(formatImpactAnalysis(result));
+        } else {
+          const result = analyzeImpact(allScenarios);
+          console.log(formatImpactAnalysis(result));
+        }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

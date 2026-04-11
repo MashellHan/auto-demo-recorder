@@ -305,3 +305,7 @@ export type { HealthGrade, HealthDashboard, ScenarioHealth } from './analytics/h
 /** Recording streak tracker. */
 export { analyzeStreaks, formatStreaks } from './analytics/streaks.js';
 export type { Streak, StreakResult } from './analytics/streaks.js';
+
+/** Dependency impact analysis. */
+export { analyzeImpact, analyzeFailureImpact, formatImpactAnalysis } from './analytics/impact-analysis.js';
+export type { ImpactScenario, ScenarioImpact, ImpactLayer, ImpactAnalysis } from './analytics/impact-analysis.js';
