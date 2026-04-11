@@ -54,6 +54,9 @@ export type { Asciicast, AsciicastHeader, AsciicastEvent } from './pipeline/asci
 /** Presentation generator. */
 export { generatePresentation } from './pipeline/presentation-generator.js';
 export type { PresentationOptions } from './pipeline/presentation-generator.js';
+/** Bundle manifest generator for shareable recording packages. */
+export { createBundleManifest, writeBundleManifest, formatManifestSummary } from './pipeline/bundler.js';
+export type { BundleOptions, BundleManifest, BundleFile } from './pipeline/bundler.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
