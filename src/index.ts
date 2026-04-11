@@ -148,102 +148,110 @@ const defaultLogger: Logger = {
 export async function record(options: RecordOptions): Promise<RecordResult> {
   const { config, scenario, projectDir, logger: log = defaultLogger, skipSymlinkUpdate = false, timestamp: overrideTimestamp } = options;
 
-  const timestamp = overrideTimestamp ?? formatTimestamp(new Date());
-  const outputBase = resolve(projectDir, config.output.dir, timestamp, scenario.name);
-  await mkdir(outputBase, { recursive: true });
+  // Run before hook
+  await runHook(scenario.hooks?.before, 'before', projectDir, log);
 
-  const ext = config.recording.format === 'gif' ? 'gif' : 'mp4';
-  const formats = config.recording.formats ?? [config.recording.format];
-  const primaryFormat = formats[0] === 'gif' ? 'gif' : 'mp4';
-  const extraFormats = formats.slice(1);
-  const paths = {
-    rawVideo: join(outputBase, `raw.${primaryFormat}`),
-    annotatedVideo: join(outputBase, `annotated.${primaryFormat}`),
-    thumbnail: join(outputBase, 'thumbnail.png'),
-    report: join(outputBase, 'report.json'),
-    frames: join(outputBase, 'frames'),
-    tape: join(outputBase, `${scenario.name}.tape`),
-  };
-  const extraOutputPaths = extraFormats.map((f) => join(outputBase, `raw.${f}`));
+  try {
+    const timestamp = overrideTimestamp ?? formatTimestamp(new Date());
+    const outputBase = resolve(projectDir, config.output.dir, timestamp, scenario.name);
+    await mkdir(outputBase, { recursive: true });
 
-  log.log(`Recording scenario: ${scenario.name}`);
-  const durationSeconds = await buildAndRecord(config, scenario, paths, projectDir, log, extraOutputPaths);
+    const ext = config.recording.format === 'gif' ? 'gif' : 'mp4';
+    const formats = config.recording.formats ?? [config.recording.format];
+    const primaryFormat = formats[0] === 'gif' ? 'gif' : 'mp4';
+    const extraFormats = formats.slice(1);
+    const paths = {
+      rawVideo: join(outputBase, `raw.${primaryFormat}`),
+      annotatedVideo: join(outputBase, `annotated.${primaryFormat}`),
+      thumbnail: join(outputBase, 'thumbnail.png'),
+      report: join(outputBase, 'report.json'),
+      frames: join(outputBase, 'frames'),
+      tape: join(outputBase, `${scenario.name}.tape`),
+    };
+    const extraOutputPaths = extraFormats.map((f) => join(outputBase, `raw.${f}`));
 
-  const isGif = primaryFormat === 'gif';
-  const annotationResult = config.annotation.enabled
-    ? await runAnnotationPipeline(config, scenario, paths, log, isGif)
-    : null;
+    log.log(`Recording scenario: ${scenario.name}`);
+    const durationSeconds = await buildAndRecord(config, scenario, paths, projectDir, log, extraOutputPaths);
 
-  await writeReport(paths.report, config.project.name, scenario.name, durationSeconds, annotationResult);
+    const isGif = primaryFormat === 'gif';
+    const annotationResult = config.annotation.enabled
+      ? await runAnnotationPipeline(config, scenario, paths, log, isGif)
+      : null;
 
-  // Auto-regression: compare with previous report for same scenario
-  const regressionInfo = await checkPreviousReport(projectDir, config.output.dir, scenario.name, paths.report, log);
+    await writeReport(paths.report, config.project.name, scenario.name, durationSeconds, annotationResult);
 
-  if (!skipSymlinkUpdate) {
-    await updateLatestSymlink(projectDir, config.output.dir, timestamp);
-  }
+    // Auto-regression: compare with previous report for same scenario
+    const regressionInfo = await checkPreviousReport(projectDir, config.output.dir, scenario.name, paths.report, log);
 
-  const hasAnnotatedVideo = config.annotation.enabled && primaryFormat !== 'gif';
-  const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult, regressionInfo);
-  if (extraOutputPaths.length > 0) {
-    result.extraVideoPaths = extraOutputPaths;
-  }
-
-  // Generate HTML player if enabled
-  if (config.output.player) {
-    const playerPath = join(outputBase, 'player.html');
-    await generatePlayer({
-      videoPath: result.videoPath,
-      reportPath: paths.report,
-      outputPath: playerPath,
-      projectName: config.project.name,
-      scenarioName: scenario.name,
-    });
-    result.playerPath = playerPath;
-    log.log('  ✓ HTML player generated');
-  }
-
-  // Generate markdown documentation if enabled
-  if (config.output.docs) {
-    const docsPath = join(outputBase, 'DEMO.md');
-    await generateDocs({
-      reportPath: paths.report,
-      outputPath: docsPath,
-      projectName: config.project.name,
-      scenarioName: scenario.name,
-      scenarioDescription: scenario.description,
-      includeScreenshots: config.output.keep_frames,
-      framesDir: config.output.keep_frames ? 'frames' : undefined,
-    });
-    result.docsPath = docsPath;
-    log.log('  ✓ Documentation generated');
-  }
-
-  // Generate SVG if format includes svg
-  if (formats.includes('svg')) {
-    const svgPath = join(outputBase, 'recording.svg');
-    await generateSvgFromReport({
-      reportPath: paths.report,
-      outputPath: svgPath,
-      title: `${config.project.name} — ${scenario.name}`,
-    });
-    result.svgPath = svgPath;
-    log.log('  ✓ SVG generated');
-  }
-
-  // Retain-on-failure: prune clean recordings to save disk space
-  if (config.output.record_mode === 'retain-on-failure') {
-    const hasBugs = (annotationResult?.bugs_found ?? 0) > 0;
-    const hasErrors = annotationResult?.overall_status === 'error' || annotationResult?.overall_status === 'warning';
-    if (!hasBugs && !hasErrors) {
-      await rm(outputBase, { recursive: true, force: true });
-      log.log(`  ✓ Clean recording pruned (retain-on-failure mode)`);
-      return { ...result, retained: false };
+    if (!skipSymlinkUpdate) {
+      await updateLatestSymlink(projectDir, config.output.dir, timestamp);
     }
-  }
 
-  printSummary(result, log);
-  return result;
+    const hasAnnotatedVideo = config.annotation.enabled && primaryFormat !== 'gif';
+    const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult, regressionInfo);
+    if (extraOutputPaths.length > 0) {
+      result.extraVideoPaths = extraOutputPaths;
+    }
+
+    // Generate HTML player if enabled
+    if (config.output.player) {
+      const playerPath = join(outputBase, 'player.html');
+      await generatePlayer({
+        videoPath: result.videoPath,
+        reportPath: paths.report,
+        outputPath: playerPath,
+        projectName: config.project.name,
+        scenarioName: scenario.name,
+      });
+      result.playerPath = playerPath;
+      log.log('  ✓ HTML player generated');
+    }
+
+    // Generate markdown documentation if enabled
+    if (config.output.docs) {
+      const docsPath = join(outputBase, 'DEMO.md');
+      await generateDocs({
+        reportPath: paths.report,
+        outputPath: docsPath,
+        projectName: config.project.name,
+        scenarioName: scenario.name,
+        scenarioDescription: scenario.description,
+        includeScreenshots: config.output.keep_frames,
+        framesDir: config.output.keep_frames ? 'frames' : undefined,
+      });
+      result.docsPath = docsPath;
+      log.log('  ✓ Documentation generated');
+    }
+
+    // Generate SVG if format includes svg
+    if (formats.includes('svg')) {
+      const svgPath = join(outputBase, 'recording.svg');
+      await generateSvgFromReport({
+        reportPath: paths.report,
+        outputPath: svgPath,
+        title: `${config.project.name} — ${scenario.name}`,
+      });
+      result.svgPath = svgPath;
+      log.log('  ✓ SVG generated');
+    }
+
+    // Retain-on-failure: prune clean recordings to save disk space
+    if (config.output.record_mode === 'retain-on-failure') {
+      const hasBugs = (annotationResult?.bugs_found ?? 0) > 0;
+      const hasErrors = annotationResult?.overall_status === 'error' || annotationResult?.overall_status === 'warning';
+      if (!hasBugs && !hasErrors) {
+        await rm(outputBase, { recursive: true, force: true });
+        log.log(`  ✓ Clean recording pruned (retain-on-failure mode)`);
+        return { ...result, retained: false };
+      }
+    }
+
+    printSummary(result, log);
+    return result;
+  } finally {
+    // Run after hook (always, even on error)
+    await runHook(scenario.hooks?.after, 'after', projectDir, log);
+  }
 }
 
 /**
@@ -256,90 +264,98 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
 export async function recordBrowser(options: BrowserRecordOptions): Promise<RecordResult> {
   const { config, scenario, projectDir, logger: log = defaultLogger, skipSymlinkUpdate = false, timestamp: overrideTimestamp } = options;
 
-  const timestamp = overrideTimestamp ?? formatTimestamp(new Date());
-  const outputBase = resolve(projectDir, config.output.dir, timestamp, scenario.name);
-  await mkdir(outputBase, { recursive: true });
+  // Run before hook
+  await runHook(scenario.hooks?.before, 'before', projectDir, log);
 
-  const paths = {
-    rawVideo: join(outputBase, 'raw.webm'),
-    annotatedVideo: join(outputBase, 'annotated.mp4'),
-    thumbnail: join(outputBase, 'thumbnail.png'),
-    report: join(outputBase, 'report.json'),
-    frames: join(outputBase, 'frames'),
-    tape: join(outputBase, `${scenario.name}.tape`), // unused for browser, kept for interface compat
-  };
+  try {
+    const timestamp = overrideTimestamp ?? formatTimestamp(new Date());
+    const outputBase = resolve(projectDir, config.output.dir, timestamp, scenario.name);
+    await mkdir(outputBase, { recursive: true });
 
-  log.log(`Recording browser scenario: ${scenario.name}`);
+    const paths = {
+      rawVideo: join(outputBase, 'raw.webm'),
+      annotatedVideo: join(outputBase, 'annotated.mp4'),
+      thumbnail: join(outputBase, 'thumbnail.png'),
+      report: join(outputBase, 'report.json'),
+      frames: join(outputBase, 'frames'),
+      tape: join(outputBase, `${scenario.name}.tape`), // unused for browser, kept for interface compat
+    };
 
-  if (config.project.build_command) {
-    log.log(`  Building: ${config.project.build_command}`);
-    const execFileAsync = promisify(execFileCb);
-    const [cmd, ...args] = config.project.build_command.split(/\s+/);
-    await execFileAsync(cmd, args, { cwd: projectDir });
-    log.log('  ✓ Build complete');
-  }
+    log.log(`Recording browser scenario: ${scenario.name}`);
 
-  const browserResult = await runBrowser(scenario, config.recording, paths.rawVideo, log);
-  const durationSeconds = browserResult.durationMs / 1000;
-
-  const annotationResult = config.annotation.enabled
-    ? await runAnnotationPipeline(config, { name: scenario.name, description: scenario.description, setup: [], steps: [], tags: [] }, paths, log, false)
-    : null;
-
-  await writeReport(paths.report, config.project.name, scenario.name, durationSeconds, annotationResult);
-
-  const regressionInfo = await checkPreviousReport(projectDir, config.output.dir, scenario.name, paths.report, log);
-
-  if (!skipSymlinkUpdate) {
-    await updateLatestSymlink(projectDir, config.output.dir, timestamp);
-  }
-
-  const hasAnnotatedVideo = config.annotation.enabled;
-  const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult, regressionInfo);
-
-  // Generate HTML player if enabled
-  if (config.output.player) {
-    const playerPath = join(outputBase, 'player.html');
-    await generatePlayer({
-      videoPath: result.videoPath,
-      reportPath: paths.report,
-      outputPath: playerPath,
-      projectName: config.project.name,
-      scenarioName: scenario.name,
-    });
-    result.playerPath = playerPath;
-    log.log('  ✓ HTML player generated');
-  }
-
-  // Generate markdown documentation if enabled
-  if (config.output.docs) {
-    const docsPath = join(outputBase, 'DEMO.md');
-    await generateDocs({
-      reportPath: paths.report,
-      outputPath: docsPath,
-      projectName: config.project.name,
-      scenarioName: scenario.name,
-      scenarioDescription: scenario.description,
-      includeScreenshots: config.output.keep_frames,
-      framesDir: config.output.keep_frames ? 'frames' : undefined,
-    });
-    result.docsPath = docsPath;
-    log.log('  ✓ Documentation generated');
-  }
-
-  // Retain-on-failure: prune clean recordings to save disk space
-  if (config.output.record_mode === 'retain-on-failure') {
-    const hasBugs = (annotationResult?.bugs_found ?? 0) > 0;
-    const hasErrors = annotationResult?.overall_status === 'error' || annotationResult?.overall_status === 'warning';
-    if (!hasBugs && !hasErrors) {
-      await rm(outputBase, { recursive: true, force: true });
-      log.log(`  ✓ Clean recording pruned (retain-on-failure mode)`);
-      return { ...result, retained: false };
+    if (config.project.build_command) {
+      log.log(`  Building: ${config.project.build_command}`);
+      const execFileAsync = promisify(execFileCb);
+      const [cmd, ...args] = config.project.build_command.split(/\s+/);
+      await execFileAsync(cmd, args, { cwd: projectDir });
+      log.log('  ✓ Build complete');
     }
-  }
 
-  printSummary(result, log);
-  return result;
+    const browserResult = await runBrowser(scenario, config.recording, paths.rawVideo, log);
+    const durationSeconds = browserResult.durationMs / 1000;
+
+    const annotationResult = config.annotation.enabled
+      ? await runAnnotationPipeline(config, { name: scenario.name, description: scenario.description, setup: [], steps: [], tags: [] }, paths, log, false)
+      : null;
+
+    await writeReport(paths.report, config.project.name, scenario.name, durationSeconds, annotationResult);
+
+    const regressionInfo = await checkPreviousReport(projectDir, config.output.dir, scenario.name, paths.report, log);
+
+    if (!skipSymlinkUpdate) {
+      await updateLatestSymlink(projectDir, config.output.dir, timestamp);
+    }
+
+    const hasAnnotatedVideo = config.annotation.enabled;
+    const result = buildResult(paths, hasAnnotatedVideo, durationSeconds, annotationResult, regressionInfo);
+
+    // Generate HTML player if enabled
+    if (config.output.player) {
+      const playerPath = join(outputBase, 'player.html');
+      await generatePlayer({
+        videoPath: result.videoPath,
+        reportPath: paths.report,
+        outputPath: playerPath,
+        projectName: config.project.name,
+        scenarioName: scenario.name,
+      });
+      result.playerPath = playerPath;
+      log.log('  ✓ HTML player generated');
+    }
+
+    // Generate markdown documentation if enabled
+    if (config.output.docs) {
+      const docsPath = join(outputBase, 'DEMO.md');
+      await generateDocs({
+        reportPath: paths.report,
+        outputPath: docsPath,
+        projectName: config.project.name,
+        scenarioName: scenario.name,
+        scenarioDescription: scenario.description,
+        includeScreenshots: config.output.keep_frames,
+        framesDir: config.output.keep_frames ? 'frames' : undefined,
+      });
+      result.docsPath = docsPath;
+      log.log('  ✓ Documentation generated');
+    }
+
+    // Retain-on-failure: prune clean recordings to save disk space
+    if (config.output.record_mode === 'retain-on-failure') {
+      const hasBugs = (annotationResult?.bugs_found ?? 0) > 0;
+      const hasErrors = annotationResult?.overall_status === 'error' || annotationResult?.overall_status === 'warning';
+      if (!hasBugs && !hasErrors) {
+        await rm(outputBase, { recursive: true, force: true });
+        log.log(`  ✓ Clean recording pruned (retain-on-failure mode)`);
+        return { ...result, retained: false };
+      }
+    }
+
+    printSummary(result, log);
+    return result;
+  } finally {
+    // Run after hook (always, even on error)
+    await runHook(scenario.hooks?.after, 'after', projectDir, log);
+  }
 }
 
 interface RecordPaths {
@@ -511,6 +527,26 @@ async function checkPreviousReport(
   } catch {
     // If anything fails reading previous report, skip regression check silently
     return undefined;
+  }
+}
+
+/**
+ * Execute a lifecycle hook command via shell.
+ * Silently returns if no command is provided or if the command fails
+ * (after hooks should not prevent result delivery).
+ */
+async function runHook(command: string | undefined, phase: 'before' | 'after', cwd: string, log: Logger): Promise<void> {
+  if (!command) return;
+  log.log(`  Running ${phase} hook: ${command}`);
+  try {
+    const execFileAsync = promisify(execFileCb);
+    await execFileAsync('sh', ['-c', command], { cwd });
+    log.log(`  ✓ ${phase} hook complete`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.warn(`  ⚠ ${phase} hook failed: ${msg}`);
+    if (phase === 'before') throw err;
+    // after hooks don't re-throw — we still want to return results
   }
 }
 

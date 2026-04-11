@@ -25,6 +25,14 @@ const BrowserStepSchema = z.object({
   repeat: z.number().optional(),
 });
 
+/** Lifecycle hooks that run shell commands before/after recording. */
+const HooksSchema = z.object({
+  /** Command to run before recording starts (e.g., "npm run dev &"). */
+  before: z.string().optional(),
+  /** Command to run after recording finishes (runs even on error). */
+  after: z.string().optional(),
+}).optional();
+
 const ScenarioSchema = z.object({
   name: z.string(),
   description: z.string(),
@@ -32,6 +40,8 @@ const ScenarioSchema = z.object({
   steps: z.array(StepSchema),
   /** Tags for filtering scenarios (e.g., "smoke", "full", "regression"). */
   tags: z.array(z.string()).default([]),
+  /** Lifecycle hooks for setup/teardown commands. */
+  hooks: HooksSchema,
 });
 
 /** Browser scenario with URL and browser-specific steps. */
@@ -45,6 +55,8 @@ const BrowserScenarioSchema = z.object({
   steps: z.array(BrowserStepSchema),
   /** Tags for filtering scenarios (e.g., "smoke", "full", "regression"). */
   tags: z.array(z.string()).default([]),
+  /** Lifecycle hooks for setup/teardown commands. */
+  hooks: HooksSchema,
 });
 
 const ProjectSchema = z.object({
