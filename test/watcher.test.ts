@@ -25,6 +25,7 @@ vi.mock('../src/index.js', () => ({
     summary: { status: 'ok', durationSeconds: 5, framesAnalyzed: 5, bugsFound: 0, featuresDemo: [], description: '' },
   })),
   updateLatestSymlink: vi.fn(async () => {}),
+  formatTimestamp: vi.fn(() => '2026-04-11_17-30'),
 }));
 
 function makeConfig(overrides?: Partial<WatchConfig>): Config {

@@ -1,5 +1,43 @@
-import { resolve } from 'node:path';
+import { resolve, basename } from 'node:path';
 import { formatTimestamp } from './index.js';
+
+/**
+ * Resolve a user-supplied session/scenario path, stripping the output directory
+ * prefix if the user already included it.
+ *
+ * Examples (outputDir = ".demo-recordings"):
+ *   "2026-04-11_08-00/basic"                         → "2026-04-11_08-00/basic"
+ *   ".demo-recordings/2026-04-11_08-00/basic"        → "2026-04-11_08-00/basic"
+ *   "/abs/path/.demo-recordings/2026-04-11_08-00/b"  → "2026-04-11_08-00/b"
+ *
+ * This prevents the double-prefix bug where `join(outputDir, userArg)` creates
+ * paths like `.demo-recordings/.demo-recordings/...`.
+ */
+export function resolveSessionPath(outputDir: string, userPath: string): string {
+  // Normalize: remove trailing slashes for consistent comparison
+  const normalized = userPath.replace(/\/+$/, '');
+  const outputDirName = basename(outputDir);
+
+  // Check if the user path starts with the output directory (relative)
+  if (normalized.startsWith(outputDirName + '/')) {
+    return normalized.slice(outputDirName.length + 1);
+  }
+
+  // Check if the user path starts with "./outputDir/"
+  if (normalized.startsWith('./' + outputDirName + '/')) {
+    return normalized.slice(outputDirName.length + 3);
+  }
+
+  // Check if it's an absolute path containing the output dir
+  const outputDirSegment = '/' + outputDirName + '/';
+  const idx = normalized.indexOf(outputDirSegment);
+  if (idx >= 0) {
+    return normalized.slice(idx + outputDirSegment.length);
+  }
+
+  // No prefix detected — return as-is
+  return normalized;
+}
 
 /**
  * Validate a config and produce a detailed summary with warnings.

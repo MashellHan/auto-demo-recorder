@@ -3,7 +3,7 @@ import { readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { minimatch } from 'minimatch';
 import type { Config, Scenario, WatchConfig } from '../config/schema.js';
-import { record, updateLatestSymlink } from '../index.js';
+import { record, updateLatestSymlink, formatTimestamp } from '../index.js';
 import { diffSessions, formatSessionDiff } from '../analytics/diff.js';
 import type { Logger } from './annotator.js';
 
@@ -100,11 +100,6 @@ export function matchesGlobs(filename: string, watchConfig: WatchConfig): boolea
   if (!included) return false;
   const excluded = watchConfig.exclude.some((pattern) => minimatch(filename, pattern));
   return !excluded;
-}
-
-function formatTimestamp(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}`;
 }
 
 /**

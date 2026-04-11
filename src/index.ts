@@ -86,6 +86,8 @@ export type { NotificationPayload } from './pipeline/notifier.js';
 /** Scenario dependency resolution. */
 export { buildDependencyOrder, validateDependencies } from './config/dependencies.js';
 export type { DependencyScenario } from './config/dependencies.js';
+/** Utility to resolve user-supplied session paths, stripping output dir prefix. */
+export { resolveSessionPath } from './cli-utils.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {

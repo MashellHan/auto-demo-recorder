@@ -13,7 +13,7 @@ import { VHS_THEMES, findTheme, resolveThemeId } from './config/themes.js';
 import { computeStats, formatStats } from './analytics/stats.js';
 import { diffSessions, formatSessionDiff } from './analytics/diff.js';
 import { generateChangelog, formatChangelog, type SessionData } from './analytics/changelog.js';
-import { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate } from './cli-utils.js';
+import { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate, resolveSessionPath } from './cli-utils.js';
 import { filterByTag, handleVhsRecord, handleBrowserRecord, handleAdhocRecord } from './cli-handlers.js';
 import { createArchive, listSessionArtifacts } from './pipeline/exporter.js';
 import { BUILT_IN_PROFILES, getProfile, getProfileNames, applyProfile } from './config/profiles.js';
@@ -21,7 +21,7 @@ import { buildReplayPlan, formatReplayStep, formatReplayHeader } from './pipelin
 import type { BrowserScenario } from './config/schema.js';
 import type { Logger } from './pipeline/annotator.js';
 
-export { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate } from './cli-utils.js';
+export { validateConfig, formatDryRun, getTerminalTemplate, getBrowserTemplate, resolveSessionPath } from './cli-utils.js';
 export { filterByTag } from './cli-handlers.js';
 
 const noopLogger: Logger = { log: () => {}, warn: () => {} };
@@ -394,7 +394,9 @@ export function createCli(): Command {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const result = await diffSessions(outputDir, sessionA, sessionB);
+        const resolvedA = resolveSessionPath(outputDir, sessionA);
+        const resolvedB = resolveSessionPath(outputDir, sessionB);
+        const result = await diffSessions(outputDir, resolvedA, resolvedB);
         console.log(formatSessionDiff(result));
 
         if (result.regressed > 0) {
@@ -417,7 +419,8 @@ export function createCli(): Command {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const sessionDir = join(outputDir, session);
+        const resolvedSession = resolveSessionPath(outputDir, session);
+        const sessionDir = join(outputDir, resolvedSession);
 
         if (!existsSync(sessionDir)) {
           throw new Error(`Session directory not found: ${sessionDir}`);
@@ -504,7 +507,8 @@ export function createCli(): Command {
       try {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
-        const scenarioDir = join(outputDir, replayPath);
+        const resolvedPath = resolveSessionPath(outputDir, replayPath);
+        const scenarioDir = join(outputDir, resolvedPath);
         const reportPath = join(scenarioDir, 'report.json');
 
         if (!existsSync(reportPath)) {
