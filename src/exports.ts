@@ -281,3 +281,7 @@ export type { ScenarioDepthInfo, DepthAnalysis } from './config/dependency-depth
 /** Recording freshness index. */
 export { computeFreshness, formatFreshness } from './analytics/freshness.js';
 export type { FreshnessGrade, ScenarioFreshness, FreshnessResult } from './analytics/freshness.js';
+
+/** Scenario coverage report. */
+export { computeCoverage, formatCoverage } from './analytics/coverage.js';
+export type { CoverageStatus, ScenarioCoverage, CoverageReport } from './analytics/coverage.js';

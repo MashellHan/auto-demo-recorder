@@ -17,6 +17,7 @@ import { evaluateRetention, formatRetention } from './analytics/retention.js';
 import { diffSessionEntries, formatSessionDiffSummary } from './analytics/session-diff-summary.js';
 import { computeBenchmarks, formatBenchmarks } from './analytics/benchmarks.js';
 import { computeFreshness, formatFreshness } from './analytics/freshness.js';
+import { computeCoverage, formatCoverage } from './analytics/coverage.js';
 import type { GroupBy } from './analytics/grouping.js';
 
 /**
@@ -41,6 +42,7 @@ export function registerAnalyticsExtraCommands(program: Command): void {
   registerSessionDiffSummaryCommand(program);
   registerBenchmarksCommand(program);
   registerFreshnessCommand(program);
+  registerCoverageCommand(program);
 }
 
 function registerHeatMapCommand(program: Command): void {
@@ -382,6 +384,31 @@ function registerFreshnessCommand(program: Command): void {
         const entries = await readHistory(outputDir);
         const result = computeFreshness(entries);
         console.log(formatFreshness(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerCoverageCommand(program: Command): void {
+  program
+    .command('coverage')
+    .description('Show scenario recording coverage report')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--stale-days <days>', 'Days after which a scenario is stale (default: 7)')
+    .action(async (opts: { config?: string; staleDays?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const entries = await readHistory(outputDir);
+        const staleDays = opts.staleDays ? parseInt(opts.staleDays, 10) : 7;
+        const scenarioNames = [
+          ...config.scenarios.map((s) => s.name),
+          ...config.browser_scenarios.map((s) => s.name),
+        ];
+        const report = computeCoverage(scenarioNames, entries, staleDays);
+        console.log(formatCoverage(report));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
