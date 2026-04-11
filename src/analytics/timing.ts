@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { parsePause } from '../pipeline/browser-step-executor.js';
 
 /** Timing data for a single recording step. */
 export interface StepTiming {
@@ -74,7 +75,7 @@ export function analyzeTimingFromData(report: {
     let elapsed = 0;
     for (let i = 0; i < report.steps.length; i++) {
       const step = report.steps[i];
-      const pauseMs = parsePauseDuration(step.pause ?? '500ms');
+      const pauseMs = parsePause(step.pause ?? '500ms');
       const duration = pauseMs / 1000;
 
       steps.push({
@@ -128,18 +129,6 @@ function generateSuggestions(steps: StepTiming[], totalDuration: number): string
 
   // Deduplicate
   return [...new Set(suggestions)];
-}
-
-/** Parse a pause duration string (e.g., "500ms", "2s") to milliseconds. */
-function parsePauseDuration(pause: string): number {
-  const trimmed = pause.trim().toLowerCase();
-  if (trimmed.endsWith('ms')) {
-    return parseFloat(trimmed.slice(0, -2)) || 0;
-  }
-  if (trimmed.endsWith('s')) {
-    return (parseFloat(trimmed.slice(0, -1)) || 0) * 1000;
-  }
-  return parseFloat(trimmed) || 0;
 }
 
 /**
