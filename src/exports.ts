@@ -325,3 +325,7 @@ export type { EfficiencyResult, IdleAnalysis, HourlyBucket } from './analytics/e
 /** Recording velocity tracker. */
 export { analyzeVelocity, formatVelocity } from './analytics/velocity.js';
 export type { VelocityWindow, VelocityResult } from './analytics/velocity.js';
+
+/** Recording capacity planner. */
+export { analyzeCapacity, formatCapacity } from './analytics/capacity.js';
+export type { ScenarioThroughput, TargetEstimate, CapacityResult } from './analytics/capacity.js';
