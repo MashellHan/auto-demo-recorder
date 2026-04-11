@@ -18,6 +18,10 @@ import { listTemplates, findTemplate, getTemplateCategories } from './config/tem
 import { computeMetrics, formatMetrics } from './analytics/metrics.js';
 import { visualDiff, formatVisualDiff } from './analytics/visual-diff.js';
 import { generateSessionSummary, summarizeSession, formatSessionSummary } from './pipeline/summary.js';
+import { generateComparisonMatrix, formatComparisonMatrix } from './analytics/comparison-matrix.js';
+import { computeTagStats, formatTagStats } from './analytics/tag-stats.js';
+import { resolveExtendsChain, formatExtendsChain } from './config/extends-resolver.js';
+import { findScenario } from './config/loader.js';
 
 /**
  * Register production/analytics CLI commands onto the given program.
@@ -37,6 +41,10 @@ export function registerCommands(program: Command): void {
   registerMetricsCommand(program);
   registerVisualDiffCommand(program);
   registerSummaryCommand(program);
+  registerMatrixCommand(program);
+  registerTagStatsCommand(program);
+  registerExtendsCommand(program);
+  registerShowCommand(program);
 }
 
 function registerAnalyzeCommand(program: Command): void {
@@ -427,6 +435,127 @@ function registerSummaryCommand(program: Command): void {
         }
 
         console.log(formatSessionSummary(summary));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerMatrixCommand(program: Command): void {
+  program
+    .command('matrix')
+    .description('Show a comparison matrix of scenarios across sessions')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const matrix = await generateComparisonMatrix(outputDir);
+        console.log(formatComparisonMatrix(matrix));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerTagStatsCommand(program: Command): void {
+  program
+    .command('tag-stats')
+    .description('Show tag-level recording analytics')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const allScenarios = [
+          ...config.scenarios.map((s) => ({ name: s.name, tags: s.tags })),
+          ...config.browser_scenarios.map((s) => ({ name: s.name, tags: s.tags })),
+        ];
+        const analytics = await computeTagStats(outputDir, allScenarios);
+        console.log(formatTagStats(analytics));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerExtendsCommand(program: Command): void {
+  program
+    .command('extends')
+    .description('Show config extends chain resolution')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (opts: { config?: string }) => {
+      try {
+        const configPath = resolve(process.cwd(), opts.config ?? 'demo-recorder.yaml');
+        const resolution = await resolveExtendsChain(configPath);
+        console.log(formatExtendsChain(resolution));
+        if (!resolution.valid) process.exit(1);
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerShowCommand(program: Command): void {
+  program
+    .command('show <scenario>')
+    .description('Show detailed information about a scenario')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .action(async (scenarioName: string, opts: { config?: string }) => {
+      try {
+        const config = await loadConfig(opts.config);
+
+        // Search in terminal scenarios first, then browser
+        const terminalScenario = config.scenarios.find((s) => s.name === scenarioName);
+        const browserScenario = config.browser_scenarios.find((s) => s.name === scenarioName);
+        const scenario = terminalScenario ?? browserScenario;
+
+        if (!scenario) {
+          throw new Error(`Scenario "${scenarioName}" not found. Use "demo-recorder list" to see available scenarios.`);
+        }
+
+        const lines: string[] = [];
+        const isBrowser = !!browserScenario;
+
+        lines.push(`Scenario: ${scenario.name}`);
+        lines.push('═'.repeat(50));
+        lines.push(`  Description: ${scenario.description}`);
+        lines.push(`  Backend:     ${isBrowser ? 'browser' : 'vhs'}`);
+        if (isBrowser && browserScenario) {
+          lines.push(`  URL:         ${browserScenario.url}`);
+        }
+        lines.push(`  Tags:        ${(scenario.tags ?? []).length > 0 ? scenario.tags!.join(', ') : '(none)'}`);
+        lines.push(`  Depends On:  ${(scenario.depends_on ?? []).length > 0 ? scenario.depends_on!.join(', ') : '(none)'}`);
+
+        if (scenario.setup && scenario.setup.length > 0) {
+          lines.push('');
+          lines.push('Setup Commands:');
+          for (const cmd of scenario.setup) {
+            lines.push(`  $ ${cmd}`);
+          }
+        }
+
+        if (scenario.hooks) {
+          lines.push('');
+          lines.push('Hooks:');
+          if (scenario.hooks.before) lines.push(`  Before: ${scenario.hooks.before}`);
+          if (scenario.hooks.after) lines.push(`  After:  ${scenario.hooks.after}`);
+        }
+
+        lines.push('');
+        lines.push(`Steps (${scenario.steps.length}):`);
+        for (let i = 0; i < scenario.steps.length; i++) {
+          const step = scenario.steps[i];
+          const comment = (step as any).comment ? ` — ${(step as any).comment}` : '';
+          const repeat = step.repeat && step.repeat > 1 ? ` (×${step.repeat})` : '';
+          lines.push(`  ${(i + 1).toString().padStart(2)}. [${step.action}] ${step.value}${repeat}${comment}`);
+        }
+
+        console.log(lines.join('\n'));
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);

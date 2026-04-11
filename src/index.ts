@@ -126,6 +126,18 @@ export type { ScenarioMetric, QualityMetrics } from './analytics/metrics.js';
 /** Recording session summary dashboard. */
 export { generateSessionSummary, summarizeSession, formatSessionSummary } from './pipeline/summary.js';
 export type { ScenarioSummary, SessionSummary } from './pipeline/summary.js';
+/** Comparison matrix across sessions. */
+export { generateComparisonMatrix, formatComparisonMatrix } from './analytics/comparison-matrix.js';
+export type { MatrixCell, MatrixRow, ComparisonMatrix } from './analytics/comparison-matrix.js';
+/** Tag-level analytics. */
+export { computeTagStats, formatTagStats } from './analytics/tag-stats.js';
+export type { TagStat, TagAnalytics } from './analytics/tag-stats.js';
+/** Config extends chain resolution. */
+export { resolveExtendsChain, validateExtends, formatExtendsChain } from './config/extends-resolver.js';
+export type { ExtendsResolution } from './config/extends-resolver.js';
+/** Configurable cleanup policies. */
+export { evaluateCleanupPolicy, formatCleanupEvaluation, CleanupPolicySchema } from './config/cleanup-policy.js';
+export type { CleanupPolicy, CleanupEvaluation, SessionInfo } from './config/cleanup-policy.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
