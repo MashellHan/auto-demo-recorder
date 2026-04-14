@@ -14,7 +14,7 @@ export async function runVhs(tapePath: string, tapeContent: string): Promise<Vhs
   const start = Date.now();
 
   await new Promise<void>((resolve, reject) => {
-    const proc = execFile('vhs', [tapePath], { timeout: 120_000 }, (error) => {
+    const proc = execFile('vhs', [tapePath], { timeout: 60_000 }, (error) => {
       if (error) {
         reject(new Error(`VHS failed: ${error.message}`));
       } else {
