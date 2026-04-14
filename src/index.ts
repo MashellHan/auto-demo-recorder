@@ -16,10 +16,12 @@ import { generateSvgFromReport } from './pipeline/svg-generator.js';
 import { compareReports, type Report } from './pipeline/regression.js';
 
 /**
- * All public re-exports are consolidated in exports.ts to keep this file
- * focused on the core record/recordBrowser pipeline implementation.
+ * All public re-exports are consolidated in exports.ts (pipeline/config)
+ * and exports-analytics.ts (analytics) to keep each barrel file under
+ * the 400-line limit.
  */
 export * from './exports.js';
+export * from './exports-analytics.js';
 
 /** Result returned by {@link record} after a recording session. */
 export interface RecordResult {
