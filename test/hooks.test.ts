@@ -61,6 +61,26 @@ vi.mock('../src/pipeline/browser-runner.js', () => ({
   runBrowser: vi.fn().mockResolvedValue({ durationMs: 3000 }),
 }));
 
+// Mock retry to execute immediately without delays (avoids real setTimeout in tests)
+vi.mock('../src/pipeline/retry.js', () => ({
+  withRetry: vi.fn(async (fn: () => Promise<unknown>, opts?: { maxRetries?: number; onRetry?: (attempt: number, error: Error) => void }) => {
+    const maxRetries = opts?.maxRetries ?? 2;
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (attempt < maxRetries) {
+          opts?.onRetry?.(attempt + 1, lastError);
+          // No delay — instant retry for tests
+        }
+      }
+    }
+    throw lastError!;
+  }),
+}));
+
 const { record, recordBrowser } = await import('../src/index.js');
 
 describe('scenario hooks', () => {
