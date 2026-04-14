@@ -14,6 +14,7 @@ import { generatePlayer } from './pipeline/player-generator.js';
 import { generateDocs } from './pipeline/doc-generator.js';
 import { generateSvgFromReport } from './pipeline/svg-generator.js';
 import { compareReports, type Report } from './pipeline/regression.js';
+import { withRetry } from './pipeline/retry.js';
 
 /**
  * All public re-exports are consolidated in exports.ts (pipeline/config)
@@ -341,7 +342,13 @@ async function buildAndRecord(config: Config, scenario: Scenario, paths: RecordP
     log.log('  ✓ Build complete');
   }
 
-  const vhsResult = await runVhs(paths.tape, tapeContent);
+  const vhsResult = await withRetry(() => runVhs(paths.tape, tapeContent), {
+    maxRetries: 2,
+    baseDelayMs: 1000,
+    onRetry: (attempt, err) => {
+      log.warn(`  ⟳ VHS attempt ${attempt} failed: ${err.message}. Retrying...`);
+    },
+  });
   const durationSeconds = vhsResult.durationMs / 1000;
   log.log(`  ✓ VHS recording complete (${durationSeconds.toFixed(1)}s)`);
   return durationSeconds;

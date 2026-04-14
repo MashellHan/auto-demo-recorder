@@ -127,7 +127,11 @@ describe('scenario hooks', () => {
     const { runVhs } = await import('../src/pipeline/vhs-runner.js');
     const { execFile } = await import('node:child_process');
 
-    vi.mocked(runVhs).mockRejectedValueOnce(new Error('VHS crashed'));
+    // Reject all attempts (initial + 2 retries) so record() ultimately throws
+    vi.mocked(runVhs)
+      .mockRejectedValueOnce(new Error('VHS crashed'))
+      .mockRejectedValueOnce(new Error('VHS crashed'))
+      .mockRejectedValueOnce(new Error('VHS crashed'));
 
     const logs: string[] = [];
     const warns: string[] = [];
