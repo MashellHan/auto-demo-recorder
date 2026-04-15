@@ -124,6 +124,21 @@ describe('evaluateRetention', () => {
     expect(result.policy.keepFailed).toBe(true);
   });
 
+  it('does not let undefined policy values override defaults', () => {
+    const entries = Array.from({ length: 10 }, (_, i) =>
+      makeEntry({ timestamp: daysAgo(i) }),
+    );
+    // Passing undefined values should still use defaults (maxCount=1000)
+    const result = evaluateRetention(entries, {
+      maxCount: undefined,
+      maxAgeDays: undefined,
+    });
+    expect(result.policy.maxCount).toBe(1000);
+    expect(result.policy.maxAgeDays).toBe(30);
+    // With default maxCount=1000 and only 10 entries, nothing should be removed
+    expect(result.candidates.length).toBe(0);
+  });
+
   it('multiple scenarios with independent limits', () => {
     const entries = [
       ...Array.from({ length: 8 }, (_, i) =>

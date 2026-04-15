@@ -74,7 +74,11 @@ export function evaluateRetention(
   entries: readonly HistoryEntry[],
   policy: RetentionPolicy = {},
 ): RetentionResult {
-  const p = { ...DEFAULTS, ...policy };
+  // Strip undefined values so they don't override DEFAULTS via spread
+  const cleaned = Object.fromEntries(
+    Object.entries(policy).filter(([, v]) => v !== undefined),
+  );
+  const p = { ...DEFAULTS, ...cleaned } as Required<RetentionPolicy>;
   const now = Date.now();
   const maxAgeMs = p.maxAgeDays * 24 * 60 * 60 * 1000;
 

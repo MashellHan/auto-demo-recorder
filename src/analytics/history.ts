@@ -1,6 +1,7 @@
-import { readFile, appendFile, mkdir } from 'node:fs/promises';
+import { readFile, appendFile, writeFile, copyFile, rename, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { evaluateRetention, type RetentionPolicy } from './retention.js';
 
 /** A single recording history entry. */
 export interface HistoryEntry {
@@ -175,4 +176,104 @@ export function formatHistoryTable(entries: readonly HistoryEntry[]): string {
 
   lines.push('');
   return lines.join('\n');
+}
+
+/** Result of a history compaction operation. */
+export interface CompactResult {
+  /** Number of entries removed. */
+  readonly removedCount: number;
+  /** Number of entries kept. */
+  readonly keptCount: number;
+  /** Total entries before compaction. */
+  readonly totalBefore: number;
+  /** Whether this was a dry run. */
+  readonly dryRun: boolean;
+  /** Human-readable summary. */
+  readonly summary: string;
+}
+
+/**
+ * Compact recording history by applying a retention policy.
+ *
+ * Reads all history entries, evaluates them against the retention policy,
+ * creates a backup of the original file, and rewrites the JSONL file
+ * containing only the kept entries.
+ *
+ * @param outputDir - Directory containing the recordings-history.jsonl file
+ * @param policy - Retention policy to apply (defaults from retention.ts)
+ * @param dryRun - If true, report what would be removed without modifying files
+ */
+export async function compactHistory(
+  outputDir: string,
+  policy: RetentionPolicy = {},
+  dryRun = false,
+): Promise<CompactResult> {
+  const filePath = join(outputDir, HISTORY_FILE);
+
+  // Read all entries
+  const allEntries = await readHistory(outputDir);
+
+  if (allEntries.length === 0) {
+    return {
+      removedCount: 0,
+      keptCount: 0,
+      totalBefore: 0,
+      dryRun,
+      summary: 'No history entries to compact.',
+    };
+  }
+
+  // Evaluate retention policy
+  const retention = evaluateRetention(allEntries, policy);
+
+  // Use object identity (reference equality) to track candidates for removal.
+  // This avoids composite-key collisions where two entries share the same
+  // (timestamp, scenario, sessionId) triple but only one should be removed.
+  const candidateSet = new Set<HistoryEntry>(
+    retention.candidates.map((c) => c.entry),
+  );
+
+  // Separate kept entries from removed
+  const keptEntries = allEntries.filter((e) => !candidateSet.has(e));
+
+  const removedCount = allEntries.length - keptEntries.length;
+
+  if (removedCount === 0) {
+    return {
+      removedCount: 0,
+      keptCount: allEntries.length,
+      totalBefore: allEntries.length,
+      dryRun,
+      summary: `All ${allEntries.length} entries comply with retention policy. Nothing to compact.`,
+    };
+  }
+
+  if (!dryRun) {
+    // Atomic write: write to temp file first, then backup original, then rename.
+    // This prevents data loss if the process crashes mid-write.
+    const tmpPath = filePath + '.tmp';
+    const backupPath = filePath + '.bak';
+
+    // Rewrite file with kept entries in chronological order (oldest first)
+    const sorted = [...keptEntries].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
+    const content = sorted.map((e) => JSON.stringify(e)).join('\n') + '\n';
+
+    await writeFile(tmpPath, content, 'utf-8');
+    await copyFile(filePath, backupPath);
+    await rename(tmpPath, filePath);
+  }
+
+  const summary = dryRun
+    ? `[DRY RUN] Would compact ${removedCount} of ${allEntries.length} entries (keeping ${keptEntries.length}).`
+    : `Compacted ${removedCount} of ${allEntries.length} entries. ${keptEntries.length} entries remaining. Backup saved to ${HISTORY_FILE}.bak`;
+
+  return {
+    removedCount,
+    keptCount: keptEntries.length,
+    totalBefore: allEntries.length,
+    dryRun,
+    summary,
+  };
 }

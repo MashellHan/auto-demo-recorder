@@ -11,8 +11,8 @@ export { generateComparisonReport, formatComparisonReport } from './analytics/co
 export type { ComparisonReport, ScenarioComparison } from './analytics/comparison-report.js';
 
 /** Recording history log. */
-export { appendHistoryEntry, readHistory, historyStats, formatHistoryTable } from './analytics/history.js';
-export type { HistoryEntry, HistoryFilter } from './analytics/history.js';
+export { appendHistoryEntry, readHistory, historyStats, formatHistoryTable, compactHistory } from './analytics/history.js';
+export type { HistoryEntry, HistoryFilter, CompactResult } from './analytics/history.js';
 
 /** Annotation cost estimator. */
 export { estimateCost, getEstimateModels, formatCostEstimate } from './analytics/cost-estimator.js';

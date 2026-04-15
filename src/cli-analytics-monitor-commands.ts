@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { resolve } from 'node:path';
 import { loadConfig } from './config/loader.js';
-import { readHistory } from './analytics/history.js';
+import { readHistory, compactHistory } from './analytics/history.js';
 import { filterEntriesByConfig } from './cli-utils.js';
 import { detectDuplicates, formatDuplicates } from './analytics/duplicates.js';
 import { groupRecordings, formatGrouping } from './analytics/grouping.js';
@@ -17,7 +17,7 @@ import type { GroupBy } from './analytics/grouping.js';
  *
  * Split from cli-analytics-extra-commands.ts to keep files under 500 lines.
  * Measurement/metrics commands live in cli-analytics-metrics-commands.ts.
- * Commands: duplicates, group, alerts, sla, retention, session-diff-summary, coverage.
+ * Commands: duplicates, group, alerts, sla, retention, compact, session-diff-summary, coverage.
  */
 export function registerAnalyticsMonitorCommands(program: Command): void {
   registerDuplicatesCommand(program);
@@ -25,6 +25,7 @@ export function registerAnalyticsMonitorCommands(program: Command): void {
   registerAlertsCommand(program);
   registerSlaCommand(program);
   registerRetentionCommand(program);
+  registerCompactCommand(program);
   registerSessionDiffSummaryCommand(program);
   registerCoverageCommand(program);
 }
@@ -152,6 +153,40 @@ function registerRetentionCommand(program: Command): void {
         };
         const result = evaluateRetention(entries, policy);
         console.log(formatRetention(result));
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
+      }
+    });
+}
+
+function registerCompactCommand(program: Command): void {
+  program
+    .command('compact')
+    .description('Compact recording history by applying retention policy and removing old entries')
+    .option('-c, --config <path>', 'Path to demo-recorder.yaml')
+    .option('--max-age <days>', 'Maximum recording age in days (default: 30)')
+    .option('--max-count <n>', 'Maximum total recordings to keep (default: 1000)')
+    .option('--max-per-scenario <n>', 'Maximum recordings per scenario (default: 100)')
+    .option('--no-keep-failed', 'Allow removing failed recordings')
+    .option('--dry-run', 'Show what would be removed without modifying files')
+    .action(async (opts: { config?: string; maxAge?: string; maxCount?: string; maxPerScenario?: string; keepFailed?: boolean; dryRun?: boolean }) => {
+      try {
+        const config = await loadConfig(opts.config);
+        const outputDir = resolve(process.cwd(), config.output.dir);
+        const policy = {
+          maxAgeDays: opts.maxAge ? parseInt(opts.maxAge, 10) : undefined,
+          maxCount: opts.maxCount ? parseInt(opts.maxCount, 10) : undefined,
+          maxPerScenario: opts.maxPerScenario ? parseInt(opts.maxPerScenario, 10) : undefined,
+          keepFailed: opts.keepFailed,
+        };
+        const result = await compactHistory(outputDir, policy, opts.dryRun ?? false);
+        console.log(result.summary);
+        if (result.removedCount > 0) {
+          console.log(`\n  Before: ${result.totalBefore} entries`);
+          console.log(`  After:  ${result.keptCount} entries`);
+          console.log(`  Removed: ${result.removedCount} entries`);
+        }
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : error}`);
         process.exit(1);
