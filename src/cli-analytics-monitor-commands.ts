@@ -146,7 +146,7 @@ function registerRetentionCommand(program: Command): void {
         const outputDir = resolve(process.cwd(), config.output.dir);
         const entries = filterEntriesByConfig(await readHistory(outputDir), config);
         const policy = {
-          maxAgeDays: opts.maxAge ? parseInt(opts.maxAge, 10) : undefined,
+          maxAgeDays: opts.maxAge ? parseFloat(opts.maxAge) : undefined,
           maxCount: opts.maxCount ? parseInt(opts.maxCount, 10) : undefined,
           maxPerScenario: opts.maxPerScenario ? parseInt(opts.maxPerScenario, 10) : undefined,
           keepFailed: opts.keepFailed,
@@ -175,7 +175,7 @@ function registerCompactCommand(program: Command): void {
         const config = await loadConfig(opts.config);
         const outputDir = resolve(process.cwd(), config.output.dir);
         const policy = {
-          maxAgeDays: opts.maxAge ? parseInt(opts.maxAge, 10) : undefined,
+          maxAgeDays: opts.maxAge ? parseFloat(opts.maxAge) : undefined,
           maxCount: opts.maxCount ? parseInt(opts.maxCount, 10) : undefined,
           maxPerScenario: opts.maxPerScenario ? parseInt(opts.maxPerScenario, 10) : undefined,
           keepFailed: opts.keepFailed,

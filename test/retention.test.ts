@@ -159,6 +159,23 @@ describe('evaluateRetention', () => {
     expect(() => evaluateRetention([], { maxPerScenario: -1 })).toThrow('maxPerScenario must be a positive number');
   });
 
+  it('accepts fractional maxAgeDays for sub-day precision', () => {
+    // 0.5 days = 12 hours; entries from 18 hours ago should be flagged
+    const hoursAgo = (h: number): string => {
+      const d = new Date();
+      d.setTime(d.getTime() - h * 60 * 60 * 1000);
+      return d.toISOString();
+    };
+    const entries = [
+      makeEntry({ timestamp: hoursAgo(6) }),   // 6h ago — within 12h
+      makeEntry({ timestamp: hoursAgo(18) }),  // 18h ago — beyond 12h
+    ];
+    const result = evaluateRetention(entries, { maxAgeDays: 0.5 });
+    expect(result.candidates.length).toBe(1);
+    expect(result.candidates[0].reason).toBe('age');
+    expect(result.keepCount).toBe(1);
+  });
+
   it('multiple scenarios with independent limits', () => {
     const entries = [
       ...Array.from({ length: 8 }, (_, i) =>
