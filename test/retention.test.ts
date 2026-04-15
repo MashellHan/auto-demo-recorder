@@ -139,6 +139,26 @@ describe('evaluateRetention', () => {
     expect(result.candidates.length).toBe(0);
   });
 
+  it('throws on negative maxAgeDays', () => {
+    expect(() => evaluateRetention([], { maxAgeDays: -1 })).toThrow('maxAgeDays must be a positive number');
+  });
+
+  it('throws on zero maxAgeDays', () => {
+    expect(() => evaluateRetention([], { maxAgeDays: 0 })).toThrow('maxAgeDays must be a positive number');
+  });
+
+  it('throws on negative maxCount', () => {
+    expect(() => evaluateRetention([], { maxCount: -5 })).toThrow('maxCount must be a positive number');
+  });
+
+  it('throws on zero maxCount', () => {
+    expect(() => evaluateRetention([], { maxCount: 0 })).toThrow('maxCount must be a positive number');
+  });
+
+  it('throws on negative maxPerScenario', () => {
+    expect(() => evaluateRetention([], { maxPerScenario: -1 })).toThrow('maxPerScenario must be a positive number');
+  });
+
   it('multiple scenarios with independent limits', () => {
     const entries = [
       ...Array.from({ length: 8 }, (_, i) =>

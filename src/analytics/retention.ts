@@ -79,6 +79,18 @@ export function evaluateRetention(
     Object.entries(policy).filter(([, v]) => v !== undefined),
   );
   const p = { ...DEFAULTS, ...cleaned } as Required<RetentionPolicy>;
+
+  // Validate numeric policy values to prevent accidental data loss
+  if (p.maxAgeDays <= 0) {
+    throw new Error('maxAgeDays must be a positive number (got ' + p.maxAgeDays + ')');
+  }
+  if (p.maxCount <= 0) {
+    throw new Error('maxCount must be a positive number (got ' + p.maxCount + ')');
+  }
+  if (p.maxPerScenario <= 0) {
+    throw new Error('maxPerScenario must be a positive number (got ' + p.maxPerScenario + ')');
+  }
+
   const now = Date.now();
   const maxAgeMs = p.maxAgeDays * 24 * 60 * 60 * 1000;
 
