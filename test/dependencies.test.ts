@@ -112,6 +112,29 @@ describe('validateDependencies', () => {
   it('returns empty for no scenarios', () => {
     expect(validateDependencies([])).toHaveLength(0);
   });
+
+  it('detects duplicate scenario names', () => {
+    const scenarios: DependencyScenario[] = [
+      { name: 'a' },
+      { name: 'a' },
+    ];
+
+    const errors = validateDependencies(scenarios);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0]).toContain('Duplicate scenario name');
+    expect(errors[0]).toContain('a');
+  });
+
+  it('does not produce spurious circular warning for duplicates without depends_on', () => {
+    const scenarios: DependencyScenario[] = [
+      { name: 'a' },
+      { name: 'a' },
+    ];
+
+    const errors = validateDependencies(scenarios);
+    // Should report duplicate, NOT circular dependency
+    expect(errors.every((e) => !e.toLowerCase().includes('circular'))).toBe(true);
+  });
 });
 
 describe('buildDependencyGraph', () => {

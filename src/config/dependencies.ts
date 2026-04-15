@@ -77,7 +77,18 @@ export function validateDependencies(scenarios: DependencyScenario[]): string[] 
   if (scenarios.length === 0) return [];
 
   const errors: string[] = [];
-  const names = new Set(scenarios.map((s) => s.name));
+  const names = new Set<string>();
+
+  // Check for duplicate scenario names
+  for (const s of scenarios) {
+    if (names.has(s.name)) {
+      errors.push(`Duplicate scenario name: "${s.name}"`);
+    }
+    names.add(s.name);
+  }
+
+  // Return early if duplicates found — cycle detection gives false positives with duplicates
+  if (errors.length > 0) return errors;
 
   // Check for missing dependencies
   for (const s of scenarios) {
